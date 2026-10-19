@@ -281,9 +281,17 @@ function updateCars(dt, plDir) {
     let want = c.v;
     const ahead = roadPoint(c.road, c.s + c.dirn * (c.len / 2 + 2.2));
     const lane = slot(c.road, c.s + c.dirn * (c.len / 2 + 1.6), side, 0.9).dir;
-    if (angDist(lane, plDir) < 1.6) want = 0;
+    const forced = (c.force = Math.max(0, (c.force || 0) - dt)) > 0, byPlayer = angDist(lane, plDir) < 1.6;
+    // 擋在車子前面：停下來按喇叭，不會穿過玩家
+    if (byPlayer) { want = 0; c.honk = (c.honk || 0) + dt; if (c.honk > 2 && c.honk - dt <= 2 && angDist(lane, plDir) < 1.6 && typeof sfx === 'function') sfx('horn'); } else c.honk = 0;
     for (const o of CARS) if (o !== c && o.road === c.road && o.dirn === c.dirn) { let ds = (o.s - c.s) * c.dirn; ds = ((ds % L) + L) % L; if (ds < c.len / 2 + o.len / 2 + 1.5) want = 0; }
-    for (const X of [PT_A, PT_B]) { const dNow = angDist(roadPoint(c.road, c.s), X), dAhead = angDist(ahead, X); if (dAhead < 5 && dAhead < dNow) for (const o of CARS) if (o.road !== c.road && angDist(roadPoint(o.road, o.s), X) < 4.5) want = 0; }
+    // 路口：已經在路口裡的車先走；兩邊同時要進路口時，城中路優先，避免互等卡死
+    if (!forced) for (const X of [PT_A, PT_B]) {
+      const dNow = angDist(roadPoint(c.road, c.s), X), dAhead = angDist(ahead, X); if (dNow < 4.5 || !(dAhead < 5 && dAhead < dNow)) continue;
+      for (const o of CARS) { if (o.road === c.road) continue; const od = angDist(roadPoint(o.road, o.s), X); if (od < 4.5 || (od < dNow && c.road === 'M' && od < 6.5 && o.sp > 0.5)) want = 0; }
+    }
+    // 保險：停太久就硬開過去
+    c.wait = want === 0 && c.sp < 0.3 && !byPlayer ? (c.wait || 0) + dt : 0; if (c.wait > 4) { c.force = 1.5; c.wait = 0; }
     c.sp = lerp(c.sp, want, 1 - Math.exp(-dt * (want < c.sp ? 6 : 1.5)));
     c.s += c.sp * c.dirn * dt; if (c.s > L / 2) c.s -= L; if (c.s < -L / 2) c.s += L;
     const sl = slot(c.road, c.s, side, 0.9), fwd = tangentize(roadPoint(c.road, c.s + c.dirn * 0.1).sub(roadPoint(c.road, c.s)), sl.dir);

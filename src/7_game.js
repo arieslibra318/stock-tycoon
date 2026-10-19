@@ -48,6 +48,10 @@ const LOOKS = {
   ped3: { skin: '#f0c9a8', hair: 0x2b1d18, hairStyle: 'perm', shirt: '#e8789a', shirt2: '#ffffff99', pattern: 'dots', pants: 0x5a4a6a, skirt: true, lash: true, shoe: 0xffffff },
   ped4: { skin: '#e2b490', hair: 0xdddddd, hairStyle: 'bald', hat: 'cap', hatCol: 0x5f9e6a, shirt: '#ffffff', pants: 0x5a5a4a, longPants: true, wrinkle: true, stache: '#dddddd', shoe: 0x333333 },
   ped5: { skin: '#d9a47e', hair: 0x111111, hairStyle: 'spiky', shirt: '#f2c14e', shirt2: '#c8402f', pattern: 'aloha', pants: 0x3a4a6a, longPants: true, shoe: 0xffffff },
+  analyst: { skin: '#f0c9a8', hair: 0x222222, hairStyle: 'slick', shirt: '#e8e4da', longSleeve: true, vest: 0x4a4a5a, necktie: 0x1f4f9a, pants: 0x4a4a5a, longPants: true, glasses: 0x2b2622, shoe: 0x111111 },
+  guru: { skin: '#e2b490', hair: 0x111111, hairStyle: 'perm', shirt: '#d7263d', shirt2: '#f2c14e', pattern: 'aloha', pants: 0xf4efe4, longPants: true, shades: true, stache: '#111111', scale: 1.05, shoe: 0xffffff },
+  prof: { skin: '#e9c3a0', hair: 0xdddddd, hairStyle: 'bald', shirt: '#8a6a4a', longSleeve: true, vest: 0x6b4a3a, pants: 0x4a4a4a, longPants: true, glasses: 0x6b4a3a, beard: '#e8e8e8', wrinkle: true, shoe: 0x5a3b2a },
+  driver: { skin: '#d9a47e', hair: 0x222222, hairStyle: 'short', hat: 'cap', hatCol: 0x2b2622, shirt: '#ffffff', longSleeve: true, pants: 0x2b2622, longPants: true, glasses: 0x111111, shoe: 0x111111 },
   chess: { skin: '#e2b490', hair: 0xdddddd, hairStyle: 'bald', shirt: '#ffffff', pants: 0x5a6a5a, longPants: true, beard: '#eeeeee', wrinkle: true, happyEyes: true, brow: '#dddddd', shoe: 0x333333 },
 };
 // role：消息來源類型；rel：可信度（玩家看不到，只能從戰績推敲）
@@ -76,6 +80,10 @@ const NPCS = [
   { id: 'busker', name: '拉二胡的阿伯', look: 'busker', road: 'M', s: 55, side: -1, off: 3.2, role: 'busker', sit: true },
   { id: 'yulan', name: '賣玉蘭花的阿嬤', look: 'yulan', road: 'E', s: 77, side: 1, off: 2.6, role: 'yulan' },
   { id: 'shoe', name: '擦鞋阿南', look: 'shoe', road: 'E', s: -69, side: -1, off: 2.9, role: 'shoeshine', rel: 0.55, sit: true },
+  { id: 'analyst', name: '陳博士', look: 'analyst', road: 'E', s: 15.9, side: 1, off: 3.0, role: 'analyst', rel: 0.7, appear: ph => ph !== 'night' && irregular('analyst', 0.4), appearP: 0.4, appearNote: '研究部分析師陳博士在證券行門口講盤' },
+  { id: 'guru', name: '股市明燈', look: 'guru', road: 'M', s: -16.6, side: -1, off: 4.4, role: 'guru', rel: 0.3, appear: ph => ph !== 'night' && irregular('guru', 0.35), appearP: 0.35, appearNote: '投顧老師「股市明燈」在城中公園報明牌' },
+  { id: 'prof', name: '林教授', look: 'prof', road: 'E', s: 30.6, side: 1, off: 2.6, role: 'prof', rel: 0.8, appear: ph => ph !== 'night' && irregular('prof', 0.3), appearP: 0.3, appearNote: '大學經濟系林教授在茶藝館喝茶' },
+  { id: 'driver', name: '老蔡', look: 'driver', road: 'E', s: -14.2, side: 1, off: 2.2, role: 'driver', rel: 0.8, appear: ph => ph === 'night' && irregular('driver', 0.35) },
   { id: 'chess', name: '下棋阿伯', look: 'chess', road: 'M', s: -13, side: -1, off: 5.6, role: 'oldhand', rel: 0.55, sit: true },
 ];
 // 行人：在比較空的街段來回走，跟他們聊天會聽到小道消息或彩蛋提示

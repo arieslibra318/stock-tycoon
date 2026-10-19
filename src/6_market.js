@@ -1,26 +1,49 @@
 /* =========================================================
    market：虛構股票、百年事件卡（隨機排列）、行情產生、消息
    ========================================================= */
+// 28 檔上市公司（同族群有好幾檔）＋ 6 檔待上市的新股；weak＝經營不善、可能被下市
 const STOCKS = [
   { id: 'fin', name: '寶島金融', sector: '金融', st: '價值', p0: 118, beta: 1.2, vol: 0.017, cap: 9 },
+  { id: 'bnk', name: '城中商銀', sector: '金融', st: '價值', p0: 64, beta: 1.1, vol: 0.016, cap: 7 },
+  { id: 'ins', name: '福安產險', sector: '金融', st: '價值', p0: 41, beta: 1.0, vol: 0.018, cap: 3 },
   { id: 'tel', name: '島嶼電信', sector: '電信', st: '價值', p0: 88, beta: 0.5, vol: 0.009, cap: 6 },
+  { id: 'gas', name: '北城瓦斯', sector: '公用', st: '價值', p0: 36, beta: 0.4, vol: 0.008, cap: 2 },
   { id: 'food', name: '寶島食品', sector: '食品', st: '價值', p0: 33, beta: 0.6, vol: 0.012, cap: 3 },
+  { id: 'sug', name: '南方製糖', sector: '食品', st: '價值', p0: 28, beta: 0.7, vol: 0.014, cap: 2 },
+  { id: 'milk', name: '好味乳品', sector: '食品', st: '價值', p0: 22, beta: 0.6, vol: 0.016, cap: 1, weak: true },
   { id: 'tex', name: '大稻埕紡織', sector: '紡織', st: '價值', p0: 27.5, beta: 0.9, vol: 0.02, cap: 3 },
+  { id: 'gar', name: '新莊成衣', sector: '紡織', st: '循環', p0: 15.6, beta: 1.0, vol: 0.025, cap: 1, weak: true },
   { id: 'pla', name: '淡水塑化', sector: '塑化', st: '循環', p0: 46, beta: 1.0, vol: 0.016, cap: 7 },
+  { id: 'chm', name: '港都化工', sector: '塑化', st: '循環', p0: 31, beta: 1.1, vol: 0.02, cap: 3 },
   { id: 'stl', name: '南港鋼鐵', sector: '鋼鐵', st: '循環', p0: 25, beta: 1.1, vol: 0.022, cap: 4 },
+  { id: 'cem', name: '鶯歌水泥', sector: '水泥', st: '循環', p0: 34, beta: 1.0, vol: 0.018, cap: 3 },
   { id: 'shp', name: '基港航運', sector: '航運', st: '循環', p0: 22.3, beta: 1.2, vol: 0.027, cap: 3 },
+  { id: 'sea', name: '高港海運', sector: '航運', st: '循環', p0: 18.4, beta: 1.3, vol: 0.03, cap: 2, weak: true },
   { id: 'con', name: '城中營造', sector: '營建', st: '循環', p0: 54, beta: 1.25, vol: 0.024, cap: 4 },
+  { id: 'est', name: '東區建設', sector: '營建', st: '循環', p0: 38, beta: 1.3, vol: 0.028, cap: 2, weak: true },
+  { id: 'dept', name: '西門百貨', sector: '百貨', st: '循環', p0: 45, beta: 0.9, vol: 0.018, cap: 2 },
   { id: 'ele', name: '新竹微電', sector: '電子', st: '成長', p0: 35.5, beta: 1.2, vol: 0.028, cap: 4 },
+  { id: 'pcb', name: '板橋電子', sector: '電子', st: '成長', p0: 27, beta: 1.25, vol: 0.03, cap: 2 },
+  { id: 'mot', name: '中和電機', sector: '電子', st: '成長', p0: 19.8, beta: 1.1, vol: 0.03, cap: 1, weak: true },
   { id: 'fab', name: '福爾摩沙晶圓', sector: '半導體', st: '成長', p0: 58, beta: 1.3, vol: 0.026, cap: 8 },
+  { id: 'pkg', name: '竹科封測', sector: '半導體', st: '成長', p0: 44, beta: 1.35, vol: 0.03, cap: 3 },
   { id: 'srv', name: '雲頂電腦', sector: '伺服器', st: '成長', p0: 42, beta: 1.4, vol: 0.032, cap: 3 },
+  { id: 'net', name: '內湖網通', sector: '伺服器', st: '成長', p0: 31, beta: 1.4, vol: 0.034, cap: 2 },
   { id: 'bio', name: '南港生技', sector: '生技', st: '成長', p0: 66, beta: 1.0, vol: 0.035, cap: 2 },
+  { id: 'med', name: '北投藥廠', sector: '生技', st: '價值', p0: 39, beta: 0.8, vol: 0.02, cap: 2, weak: true },
+  { id: 'ipo1', name: '光華電腦', sector: '伺服器', st: '成長', p0: 48, beta: 1.5, vol: 0.038, cap: 2, ipo: true },
+  { id: 'ipo2', name: '竹北光電', sector: '電子', st: '成長', p0: 36, beta: 1.4, vol: 0.036, cap: 2, ipo: true },
+  { id: 'ipo3', name: '汐止半導體', sector: '半導體', st: '成長', p0: 62, beta: 1.5, vol: 0.036, cap: 3, ipo: true },
+  { id: 'ipo4', name: '林口生醫', sector: '生技', st: '成長', p0: 55, beta: 1.2, vol: 0.04, cap: 1, ipo: true },
+  { id: 'ipo5', name: '桃園航空', sector: '航運', st: '循環', p0: 30, beta: 1.2, vol: 0.03, cap: 2, ipo: true },
+  { id: 'ipo6', name: '新店創投', sector: '金融', st: '成長', p0: 25, beta: 1.3, vol: 0.035, cap: 1, ipo: true },
 ];
 const ST_NAME = { 成長: '成長股', 價值: '價值股', 循環: '景氣循環股' };
 const SBY = Object.fromEntries(STOCKS.map(s => [s.id, s]));
 let DAYS = 40; const LIMIT = 0.07, LOT = 1000, FEE = 0.001425, TAX = 0.003, TICKS = 54;   // 09:00–13:30，每 5 分鐘一跳
 // 短篇每季只有一半天數，門檻跟著降低
 const RANKS_L = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 3e6 }, { name: '中實戶', min: 6e6 }, { name: '大戶', min: 1.5e7 }, { name: '證券大亨', min: 5e7 }];
-const RANKS_S = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 2.5e6 }, { name: '中實戶', min: 4e6 }, { name: '大戶', min: 8e6 }, { name: '證券大亨', min: 2.5e7 }];
+const RANKS_S = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 2.2e6 }, { name: '中實戶', min: 3e6 }, { name: '大戶', min: 5e6 }, { name: '證券大亨', min: 1.5e7 }];
 let RANKS = RANKS_L;
 const START_CASH = 2000000;
 // 每季代表一年，開季指數用當年台股年初的水準（1986–1990 年加權指數年初約 835、1039、2340、5119、9624 點）
@@ -120,9 +143,20 @@ function genSeason(seed) {
   deck.splice(1 + (r() * 3 | 0), 0, 'ponzi');
   const events = []; let day = 5 + (r() * 3 | 0);
   for (const id of deck) { if (day > DAYS - 3) break; events.push({ id, day, def: EBY[id] }); day += EBY[id].dur + 2 + (r() * 4 | 0); }
+  // 上市名單：已下市的不再出現，之前季上市的新股會留下來
+  const gone = new Set((SS && SS.gone) || []), ipoed = new Set((SS && SS.ipoed) || []), from = [], to = [];
+  STOCKS.forEach((s, i) => { const on = !gone.has(s.id) && (!s.ipo || ipoed.has(s.id)); from[i] = on ? 1 : Infinity; to[i] = on ? DAYS : -1; });
+  // 新股上市：每季 1–2 檔，掛牌前幾天可以在證券行申購抽籤
+  const ipoPool = STOCKS.map((s, i) => i).filter(i => STOCKS[i].ipo && from[i] === Infinity);
+  for (let i = ipoPool.length - 1; i > 0; i--) { const j = r() * (i + 1) | 0;[ipoPool[i], ipoPool[j]] = [ipoPool[j], ipoPool[i]]; }
+  const ipos = ipoPool.slice(0, r() < 0.5 ? 2 : 1).map((i, k) => { const day = Math.max(4, Math.round(DAYS * (0.2 + 0.25 * k + 0.2 * r()))); from[i] = day; to[i] = DAYS; return { i, day, price: STOCKS[i].p0 }; });
+  // 經營不善下市：每季大多會有 1 檔，先打入全額交割、連續跌停，最後一天收盤後終止上市
+  let delist = null; const weak = STOCKS.map((s, i) => i).filter(i => STOCKS[i].weak && from[i] === 1);
+  if (weak.length && r() < 0.85) { const i = weak[r() * weak.length | 0], day = Math.max(9, Math.round(DAYS * (0.5 + 0.35 * r()))); to[i] = day; delist = { i, warn: day - Math.max(3, Math.round(DAYS * 0.12)), day }; }
+  const fullSeason = STOCKS.map((s, i) => i).filter(i => from[i] === 1 && to[i] === DAYS);
   // 主力拉抬：每季三次，拉三天、倒兩天
   const pumps = [];
-  for (let k = 0; k < 3; k++) { for (let t = 0; t < 30; t++) { const d = 4 + (r() * (DAYS - 10) | 0); if (events.some(e => Math.abs(e.day - d) < 4) || pumps.some(p => Math.abs(p.day - d) < 6)) continue; pumps.push({ day: d, stock: STOCKS[r() * STOCKS.length | 0].id }); break; } }
+  for (let k = 0; k < 3; k++) { for (let t = 0; t < 30; t++) { const d = 4 + (r() * (DAYS - 10) | 0); if (events.some(e => Math.abs(e.day - d) < 4) || pumps.some(p => Math.abs(p.day - d) < 6)) continue; pumps.push({ day: d, stock: STOCKS[fullSeason[r() * fullSeason.length | 0]].id }); break; } }
   // 先算「不含天氣」的原始報酬，再套上天氣（天氣之後可能被即時天氣覆蓋）
   const raw = [STOCKS.map(() => 0)], thin = [false], weather = ['sun'], temp = [28], us = [0], nas = [0], jp = [0], kr = [0], usHead = [''];
   let regime = 1; const MU = [0.01, 0.002, -0.005];   // 多頭、盤整、空頭的每日平均漲跌（1987–89 年台股平均約每兩個月 +12%）
@@ -138,6 +172,8 @@ function genSeason(seed) {
     raw.push(STOCKS.map((s, i) => {
       let x = s.beta * (MU[regime] + idx + 0.45 * Math.max(-0.08, u)) + (sec[s.sector] || 0) + (sty[s.st] || 0) + gauss(r) * s.vol * VOL_K * (Math.abs(idx) > 0.04 ? 0.35 : 1) * vol;
       for (const p of pumps) if (p.stock === s.id) { const k = d - p.day; if (k >= 0 && k <= 2) x += 0.06; if (k === 3 || k === 4) x -= 0.05; }
+      if (d >= from[i] && d < from[i] + 2) x += 0.075;                      // 新股蜜月行情：掛牌頭兩天常常漲停
+      if (delist && delist.i === i && d >= delist.warn) x = -0.12;          // 全額交割、連續跌停
       return x;
     }));
     thin.push(th);
@@ -145,7 +181,7 @@ function genSeason(seed) {
     weather.push(storm ? 'storm' : (w < 0.03 && prevW !== 'typhoon' && events.every(e => d < e.day || d >= e.day + e.def.dur)) ? 'typhoon' : w < 0.45 ? 'sun' : w < 0.75 ? 'cloud' : 'rain');
     temp.push(Math.round(24 + r() * 9));
   }
-  SEASON = { seed, events, pumps, raw, thin, weather, temp, us, nas, jp, kr, usHead, real: {} };
+  SEASON = { seed, events, pumps, raw, thin, weather, temp, us, nas, jp, kr, usHead, real: {}, from, to, ipos, delist };
   rebuildSeason();
   return SEASON;
 }
@@ -157,7 +193,7 @@ const WEATHER = {
 const isClosed = d => !!(WEATHER[SEASON.weather[d]] || {}).closed;
 function rebuildSeason() {
   const S2 = SEASON, close = [STOCKS.map(s => s.p0)], ret = [STOCKS.map(() => 0)], limit = [{ up: LIMIT, dn: LIMIT, ns: false }], policy = [];
-  const base0 = STOCKS.reduce((a, s) => a + s.cap * s.p0, 0), idx = [IDX_BASE];
+  const idx = [IDX_BASE], on = (i, d) => S2.from[i] <= Math.max(1, d) && d <= S2.to[i];
   let base = LIMIT, emUntil = 0, reformed = false;
   for (let d = 1; d <= DAYS; d++) {
     const rp = mulberry32(S2.seed * 31 + d * 7);
@@ -167,10 +203,11 @@ function rebuildSeason() {
     const W = WEATHER[S2.weather[d]], prev = close[d - 1];
     if (W.closed) { close.push(prev.slice()); ret.push(STOCKS.map(() => 0)); }
     else {
-      close.push(prev.map((p, i) => { const [up, dn] = limitsL(p, L); return clamp(roundTick(p * (1 + clamp(S2.raw[d][i] + STOCKS[i].beta * W.mood, -L.dn, L.up))), dn, up); }));
+      close.push(prev.map((p, i) => { if (d < S2.from[i] || d > S2.to[i]) return p; const [up, dn] = limitsL(p, L); return clamp(roundTick(p * (1 + clamp(S2.raw[d][i] + STOCKS[i].beta * W.mood, -L.dn, L.up))), dn, up); }));
       ret.push(close[d].map((p, i) => p / prev[i] - 1));
     }
-    idx.push(IDX_BASE * close[d].reduce((a, p, i) => a + STOCKS[i].cap * p, 0) / base0);
+    let a = 0, b = 0; STOCKS.forEach((s, i) => { if (on(i, d) && on(i, d - 1)) { a += s.cap * close[d][i]; b += s.cap * prev[i]; } });
+    idx.push(idx[d - 1] * (b ? a / b : 1));
   }
   S2.close = close; S2.ret = ret; S2.index = idx; S2.limit = limit; S2.policy = policy;
 }
@@ -207,7 +244,16 @@ function genIntraday(d) {
     return path;
   });
 }
-const idxOf = prices => IDX_BASE * prices.reduce((a, p, i) => a + STOCKS[i].cap * p, 0) / STOCKS.reduce((a, s) => a + s.cap * s.p0, 0);
+// 某一天有沒有在交易（第 d 天開盤時）
+const listed = (i, d) => !!SEASON && SEASON.from[i] <= d && d <= SEASON.to[i];
+const curDay = () => typeof S !== 'undefined' && S && S.day ? Math.min(S.day, DAYS) : 1;
+const listedNow = i => listed(i, curDay());
+// 盤中指數：以昨天收盤為基準，只算兩天都有上市的公司
+function idxOf(prices, d = curDay()) {
+  if (!SEASON || !SEASON.index) return IDX_BASE; let a = 0, b = 0; const pc = SEASON.close[d - 1];
+  STOCKS.forEach((s, i) => { if (listed(i, d) && listed(i, Math.max(1, d - 1))) { a += s.cap * prices[i]; b += s.cap * pc[i]; } });
+  return SEASON.index[d - 1] * (b ? a / b : 1);
+}
 
 /* ---------- 消息 ---------- */
 const TIP_UP = ['{n}有人在偷偷吃貨，明天應該會漲。', '我有朋友在{n}上班，說接到大訂單，明天會漲啦！', '{n}的線型很漂亮，明天要攻上去了。', '聽說有人要拉{n}，明天買就對了。'];
@@ -234,7 +280,8 @@ function makeRumor(npc, d) {
     if (fake.length) { const e = pickR(r, fake); return { kind: 'event', ev: null, evName: e.name, text: pickR(r, e.hints)[1], truth: false, resolve: Math.min(DAYS, d + 3) }; }
   }
   if (d + 1 > DAYS) return null;
-  const pool = npc.sectors ? STOCKS.filter(s => npc.sectors.includes(s.sector)) : STOCKS;
+  const pool = (npc.sectors ? STOCKS.filter(s => npc.sectors.includes(s.sector)) : STOCKS).filter(s => listed(STOCKS.indexOf(s), d + 1));
+  if (!pool.length) return null;
   const s = pickTip(r, pool, d), i = STOCKS.indexOf(s), act = SEASON.ret[d + 1][i] >= 0 ? 1 : -1;
   const dir = r() < npc.rel ? act : -act;
   return { kind: 'tip', stock: s.id, dir, text: pickR(r, dir > 0 ? TIP_UP : TIP_DN).replace('{n}', s.name), resolve: d + 1 };
@@ -244,6 +291,7 @@ function resolveRumors(d) {
   for (const m of S.rumors) {
     if (m.st || m.resolve !== d) continue;
     if (m.kind === 'tip') { const i = STOCKS.findIndex(s => s.id === m.stock); const real = SEASON.ret[d][i]; m.st = real === 0 ? 'no' : (real > 0 ? 1 : -1) === m.dir ? 'ok' : 'no'; }
+    else if (m.kind === 'sector') { let t = 0, n = 0; STOCKS.forEach((s, i) => { if (s.sector !== m.sector || !listed(i, m.day + 1) || !listed(i, d)) return; let c = 1; for (let k = m.day + 1; k <= d; k++) c *= 1 + SEASON.ret[k][i]; t += c - 1; n++; }); m.st = n && Math.sign(t) === m.dir ? 'ok' : 'no'; }
     else m.st = m.truth ? 'ok' : 'no';
     m.st === 'ok' ? ok++ : no++;
   }

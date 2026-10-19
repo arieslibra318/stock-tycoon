@@ -60,6 +60,7 @@ function marketPulse() {
   const key = `${S.season}-${S.day}`; if (PULSE.day !== key) { PULSE.day = key; PULSE.lim = {}; PULSE.warn = {}; }
   const p = prices(), pc = prevClose();
   STOCKS.forEach((s, i) => {
+    if (!listedNow(i)) return;
     const [up, dn] = limits(pc[i]), long = ((S.hold[s.id] || {}).q || 0) + ((S.mar[s.id] || {}).q || 0), short = (S.sht[s.id] || {}).q || 0;
     if (!PULSE.lim[s.id] && (long || short)) {
       if (p[i] >= up) { PULSE.lim[s.id] = 1; celebrate(long ? `你的${s.name}漲停了！` : `你放空的${s.name}漲停了……`, long > 0); }
@@ -91,13 +92,14 @@ function updateStreet(dt) {
   pedSay = { t: 3.5, n: near[Math.random() * near.length | 0], txt: pool[Math.random() * pool.length | 0] };
 }
 
-/* ---------- 交情：常聊天的人消息更準 ---------- */
-const BOND_NAME = ['陌生', '熟識', '麻吉'];
-const bondLv = id => { const b = (S.bond || {})[id] || 0; return b >= 7 ? 2 : b >= 3 ? 1 : 0; };
-const relOf = n => Math.min(0.95, n.rel + [0, 0.05, 0.1][bondLv(n.id)]);
-function bondUp(n) {
-  if (!n.rel) return; S.bond = S.bond || {}; const before = bondLv(n.id); S.bond[n.id] = (S.bond[n.id] || 0) + 1; const after = bondLv(n.id);
-  if (after > before) { toast(`你和${n.name}的交情變成「${BOND_NAME[after]}」了：${after === 2 ? '消息更準，偶爾還會多講一則' : '講的消息會更準一點'}`); sfx('done'); }
+/* ---------- 交情：常聊天、請客會變好，太久沒去會變淡（hearts、assignTypes 在 8d） ---------- */
+const bondLv = id => hearts(id) >= 4 ? 2 : hearts(id) >= 2 ? 1 : 0;
+// 準的人交情越好越準（七成到九成）；丟銅板的人一直是五成；反指標大約兩成會對
+function relOf(n) { assignTypes(); const t = (S.npcType || {})[n.id], b = (S.bond || {})[n.id] || 0; return t === 'sharp' ? Math.min(0.9, 0.7 + 0.02 * b) : t === 'coin' ? 0.5 : t === 'contra' ? 0.2 : n.rel; }
+function bondUp(n, k = 1) {
+  if (!n.rel) return; S.bond = S.bond || {}; S.bondSeen = S.bondSeen || {}; const before = hearts(n.id);
+  S.bond[n.id] = Math.min(10, (S.bond[n.id] || 0) + k); S.bondSeen[n.id] = S.season * 100 + S.day;
+  const after = hearts(n.id); if (after > before) toast(`你和${n.name}的交情升到 ${'♥'.repeat(after)}`);
 }
 
 /* ---------- 新手教學（第一天） ---------- */

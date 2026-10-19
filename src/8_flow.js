@@ -10,7 +10,7 @@ function marginParts(p = prices()) {
   STOCKS.forEach((s, i) => { const m = S.mar[s.id]; if (m) { mv += m.q * LOT * p[i]; loan += m.loan; } const h = S.sht[s.id]; if (h) { sv += h.q * LOT * p[i]; coll += h.margin + h.proceeds; } });
   return { mv, loan, sv, coll, eq: mv - loan + coll - sv };
 }
-const netWorth = () => S.cash + holdValue() + marginParts().eq + S.deposit;
+const netWorth = () => S.cash + holdValue() + marginParts().eq + S.deposit + subFrozen();
 const rankOf = n => { let r = 0; RANKS.forEach((k, i) => { if (n >= k.min) r = i; }); return r; };
 const pct = x => Math.abs(x) < 5e-5 ? '0.00%' : (x > 0 ? '▲' : '▼') + Math.abs(x * 100).toFixed(2) + '%';
 const cls = x => x > 0.00001 ? 'up' : x < -0.00001 ? 'down' : '';
@@ -47,7 +47,7 @@ const TALK_NIGHT = {
     S.izDay = S.day;
     if (c === 1) { await say(n, '哈哈，做股票啊，要膽大心細！'); return; }
     if (S.cash < 1000) { await say(n, '沒錢還請我喝？算了算了。'); return; }
-    S.cash -= 1000; sfx('coin'); await rumorTalk(n, '夠意思！跟你講，這個我只跟自己人講……');
+    S.cash -= 1000; sfx('coin'); bondUp(n, 1); await rumorTalk(n, '夠意思！跟你講，這個我只跟自己人講……');
   },
   mama: async n => {
     await say(n, '歡迎光臨～今天的燒鳥很新鮮喔。要喝點什麼？');
@@ -55,7 +55,7 @@ const TALK_NIGHT = {
     S.izDay = S.day;
     if (c === 1) { await say(n, '下次再來坐喔～'); return; }
     if (S.cash < 300) { await say(n, '錢不夠喔？下次再來。'); return; }
-    S.cash -= 300; sfx('coin'); await rumorTalk(n, '來，請慢用。對了，剛剛有幾個客人在聊……');
+    S.cash -= 300; sfx('coin'); bondUp(n, 1); await rumorTalk(n, '來，請慢用。對了，剛剛有幾個客人在聊……');
   },
 };
 const PED_LINES = [
@@ -86,7 +86,7 @@ async function eggAct(id) {
       if (S.bullSeason === S.season) { await say(null, '金牛閃了一下光……但今天沒有反應。（每一季只靈驗一次）'); return; }
       if (S.day >= DAYS) { await say(null, '金牛靜靜地看著你。這一季快結束了，下一季再來吧。'); return; }
       let d2 = S.day + 1; while (d2 < DAYS && Math.max(...SEASON.ret[d2]) <= 0) d2++;
-      const nx = SEASON.ret[d2], i = nx.indexOf(Math.max(...nx)), st = STOCKS[i];
+      const nx = SEASON.ret[d2]; let i = -1; nx.forEach((x, k) => { if (listed(k, d2) && (i < 0 || x > nx[i])) i = k; }); const st = STOCKS[i];
       S.bullSeason = S.season;
       S.rumors.push({ kind: 'tip', stock: st.id, dir: 1, text: `金牛顯靈：${st.name}第 ${d2} 天會漲`, resolve: d2, day: S.day, npc: 'bull', npcName: '城中金牛' }); $('noteBadge').classList.remove('hide');
       await say(null, `金牛的眼睛亮了一下，你腦中浮現一個名字：「${st.name}」。（記進消息本了，每季只有一次）`);
@@ -148,7 +148,7 @@ const TALK = {
     if (c === 1) { await say(n, '平安就好，平安就好。'); return; }
     if (S.talked.monk === S.day) { await say(n, '一天問一次就好，神明也要休息。'); return; }
     S.talked.monk = S.day; sfx('tick');
-    const r = Math.random(), s = STOCKS[r * STOCKS.length | 0], dir = Math.random() < 0.5 ? 1 : -1;
+    const live = STOCKS.filter((x, k) => listed(k, Math.min(DAYS, S.day + 1))), s = live[Math.random() * live.length | 0], dir = Math.random() < 0.5 ? 1 : -1;
     await say(n, '（鏗——）聖筊！神明說：「' + s.name + (dir > 0 ? '，往上』' : '，往下』').replace('』', '」'));
     S.rumors.push({ kind: 'tip', stock: s.id, dir, text: `擲筊明牌：${s.name}${dir > 0 ? '會漲' : '會跌'}`, resolve: Math.min(DAYS, S.day + 1), day: S.day, npc: 'monk', npcName: '神明（擲筊）' }); $('noteBadge').classList.remove('hide');
     await say(n, '明牌給你了，信不信由你喔。');
@@ -235,7 +235,7 @@ function chartSVG() {
   return `<div class="chHead"><b>${name}</b> <span class="${cls(ch)}">${chRange === 'today' ? '今日' : '本季'} ${pct(ch)}</span></div><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${name}走勢圖">${g}</svg>`;
 }
 function chartBox() {
-  const opts = [['idx', '大盤'], ['me', '我的資產']].concat(STOCKS.map(s => [s.id, s.name])).map(([v, t]) => `<option value="${v}" ${chSel === v ? 'selected' : ''}>${t}</option>`).join('');
+  const opts = [['idx', '大盤'], ['me', '我的資產']].concat(STOCKS.filter((s, i) => SEASON.from[i] <= S.day).map(s => [s.id, s.name])).map(([v, t]) => `<option value="${v}" ${chSel === v ? 'selected' : ''}>${t}</option>`).join('');
   return `<div class="chBox"><div class="chBar"><select id="chSel" aria-label="走勢圖要看哪一個">${opts}</select><span class="mtabs" style="margin:0"><button class="tab ${chRange === 'season' ? 'on' : ''}" data-cr="season">本季累積</button><button class="tab ${chRange === 'today' ? 'on' : ''}" data-cr="today">今日分時</button></span></div>${chartSVG()}</div>`;
 }
 function renderTrade() {
@@ -247,23 +247,24 @@ function renderTrade() {
   h += `<div class="sum" style="background:#e6edf5">${intlLine()}</div>`;
   h += chartBox();
   h += `<div class="mtabs"><button class="tab ${trMode === 'cash' ? 'on' : ''}" data-m="cash">現股</button><button class="tab ${trMode === 'mar' ? 'on' : ''}" data-m="mar">融資（借錢買）</button><button class="tab ${trMode === 'sht' ? 'on' : ''}" data-m="sht">融券（借股票賣）</button></div>`;
-  h += qtyBar();
+  h += qtyBar() + secBar() + ipoBox() + callBox();
   const head = { cash: '<th>持有</th><th>均價</th><th>損益</th>', mar: '<th>融資</th><th>均價</th><th>損益</th><th>維持率</th>', sht: '<th>融券</th><th>均價</th><th>損益</th><th>維持率</th>' }[trMode];
   h += `<div class="tw"><table class="q"><tr><th>股票</th><th>成交</th><th>漲跌</th>${head}<th></th></tr>`;
   STOCKS.forEach((s, i) => {
+    if (!rowShown(s, i)) return;
     const ch = p[i] / pc[i] - 1, [up, dn] = limits(pc[i]);
     const lim = p[i] >= up ? '<span class="lim u">漲停</span>' : p[i] <= dn ? '<span class="lim d">跌停</span>' : '';
     let cells = '', q = 0, labels;
     if (trMode === 'cash') { const hd = S.hold[s.id]; q = hd ? hd.q : 0; const pl = hd ? (p[i] - hd.cost) * q * LOT : 0; cells = `<td>${q} 張</td><td>${hd ? hd.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${hd ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td>`; labels = ['買', '賣', '全賣']; }
     if (trMode === 'mar') { const m = S.mar[s.id]; q = m ? m.q : 0; const pl = m ? (p[i] - m.cost) * q * LOT : 0, r = m ? m.q * LOT * p[i] / m.loan : 0; cells = `<td>${q} 張</td><td>${m ? m.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${m ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td><td class="${m && r < 1.45 ? 'down' : ''}">${m ? Math.round(r * 100) + '%' : '—'}</td>`; labels = ['資買', '資賣', '全賣']; }
     if (trMode === 'sht') { const t = S.sht[s.id]; q = t ? t.q : 0; const pl = t ? (t.cost - p[i]) * q * LOT : 0, r = t ? (t.margin + t.proceeds) / (t.q * LOT * p[i]) : 0; cells = `<td>${q} 張</td><td>${t ? t.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${t ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td><td class="${t && r < 1.45 ? 'down' : ''}">${t ? Math.round(r * 100) + '%' : '—'}</td>`; labels = ['券賣', '回補', '全補']; }
-    h += `<tr class="${chSel === s.id ? 'chOn' : ''}"><td class="chPick" data-cs="${s.id}" title="看${s.name}的走勢">${s.name}<span class="sec">${s.sector}・${ST_NAME[s.st]}</span></td><td class="${cls(ch)}">${p[i].toFixed(p[i] < 100 ? 2 : 1)}${lim}</td><td class="${cls(ch)}">${pct(ch)}</td>${cells}
+    h += `<tr class="${chSel === s.id ? 'chOn' : ''}"><td class="chPick" data-cs="${s.id}" title="看${s.name}的走勢">${s.name}${stockTags(i)}<span class="sec">${s.sector}・${ST_NAME[s.st]}</span></td><td class="${cls(ch)}">${p[i].toFixed(p[i] < 100 ? 2 : 1)}${lim}</td><td class="${cls(ch)}">${pct(ch)}</td>${cells}
       <td><button class="qb buy" data-o="${s.id}" data-side="1" ${can ? '' : 'disabled'}>${labels[0]}${qtyLab()}</button><button class="qb sell" data-o="${s.id}" data-side="-1" ${can && q ? '' : 'disabled'}>${labels[1]}${qtyLab()}</button><button class="qb sell" data-o="${s.id}" data-side="-9" ${can && q ? '' : 'disabled'}>${labels[2]}</button></td></tr>`;
   });
   const note = {
     cash: '1 張＝1000 股。手續費 0.1425%，賣出另收證券交易稅 0.3%（依現行制度簡化）。漲停時買不到、跌停時賣不掉。',
-    mar: '融資＝自備 4 成、向證券商借 6 成來買股票，每天要付利息（年息約 6.5%）。維持率＝股票市值 ÷ 借款，收盤時低於 130% 會被「斷頭」強制賣出。漲得多賺得多，跌的時候也賠得快。',
-    sht: '融券＝先借股票來賣，等股價跌了再買回來（回補）賺差價。要先繳 9 成保證金，另收借券費 0.08%。維持率＝（保證金＋賣出價款）÷ 股票市值，收盤時低於 130% 會被強制回補。跌停時不能放空、漲停時回補不到。',
+    mar: '融資＝自備 4 成、向證券商借 6 成來買股票，每天要付利息（年息約 6.5%）。維持率＝股票市值 ÷ 借款，收盤時低於 130% 營業員會發追繳令，兩天內要補繳到 166% 或自己賣掉，否則強制「斷頭」；跌破 100% 會立刻斷頭。全額交割股不能融資融券。漲得多賺得多，跌的時候也賠得快。',
+    sht: '融券＝先借股票來賣，等股價跌了再買回來（回補）賺差價。要先繳 9 成保證金，另收借券費 0.08%。維持率＝（保證金＋賣出價款）÷ 股票市值，收盤時低於 130% 會收到追繳令，兩天內沒補足就強制回補。跌停時不能放空、漲停時回補不到。',
   }[trMode];
   const LL = limitOf(S.day);
   h += `</table></div><p class="note"><b>今日漲跌幅限制：漲 ${Math.round(LL.up * 1000) / 10}%／跌 ${Math.round(LL.dn * 1000) / 10}%${LL.ns ? '，暫停平盤以下融券放空' : ''}</b>。${note}公司與行情皆為虛構。</p>`;
@@ -273,6 +274,9 @@ function renderTrade() {
   $('trBody').querySelectorAll('[data-cr]').forEach(b => b.onclick = () => { chRange = b.dataset.cr; renderTrade(); });
   $('trBody').querySelectorAll('[data-cs]').forEach(b => b.onclick = () => { chSel = b.dataset.cs; renderTrade(); });
   $('chSel').onchange = e => { chSel = e.target.value; renderTrade(); };
+  $('trBody').querySelectorAll('[data-sec]').forEach(b => b.onclick = () => { trSec = b.dataset.sec; renderTrade(); });
+  $('trBody').querySelectorAll('[data-sub]').forEach(b => b.onclick = () => subscribe(b.dataset.sub));
+  $('trBody').querySelectorAll('[data-pay]').forEach(b => b.onclick = () => payCall(b.dataset.pay));
   $('trBody').querySelectorAll('[data-o]').forEach(b => b.onclick = () => { const sd = +b.dataset.side; order(b.dataset.o, sd === -9 ? -1e6 : qtyFor(b.dataset.o, sd, trMode), trMode); });
   $('trBody').querySelectorAll('[data-qty]').forEach(b => b.onclick = () => { const v = b.dataset.qty; trQty = /^\d+$/.test(v) ? +v : v; renderTrade(); });
 }
@@ -283,6 +287,8 @@ function order(id, q, mode = 'cash') {
   const tidy = () => { for (const k of ['hold', 'mar', 'sht']) for (const x in S[k]) if (!S[k][x].q) delete S[k][x]; };
   const fail = m => { tidy(); toast(m); sfx('bad'); };
   const fit = (q, per) => { if (q * per > S.cash) q = Math.floor(S.cash / per); return q; };
+  if (!listedNow(i)) return fail(`${name}目前沒有在交易`);
+  if (mode !== 'cash' && q > 0 && isWatch(i)) return fail(`${name}是全額交割股，不能融資融券`);
   if (mode === 'cash') {
     const hd = S.hold[id] || (S.hold[id] = { q: 0, cost: 0 });
     if (q > 0) {
@@ -326,15 +332,17 @@ function order(id, q, mode = 'cash') {
   S.tradeDay = S.day; if (mode !== 'cash') S.usedMargin = true;
   tidy(); sfx('coin'); renderTrade(); refreshHUD(); saveGame();
 }
-// 收盤：融資付利息、檢查維持率，低於 130% 斷頭
+// 收盤：下市清算、融資付利息、檢查維持率（低於 130% 先追繳，期限到了才強制平倉）
 function settleMargin() {
-  const p = SEASON.close[S.day], msgs = [];
+  const d = S.day, p = SEASON.close[d], msgs = []; S.calls = S.calls || {};
+  if (SEASON.delist && SEASON.delist.day === d) msgs.push(delistSettle(SEASON.delist.i, p[SEASON.delist.i]));
   STOCKS.forEach((s, i) => {
     const m = S.mar[s.id];
-    if (m) { S.cash -= m.loan * LOAN_DAY; const v = m.q * LOT * p[i]; if (v / m.loan < MAINT) { S.cash += v * (1 - FEE - TAX) - m.loan; delete S.mar[s.id]; msgs.push(`${s.name}融資維持率跌破 130%，被斷頭賣出`); } }
+    if (m) { S.cash -= m.loan * LOAN_DAY; const v = m.q * LOT * p[i]; checkCall(s, 'mar', v / m.loan, msgs, () => { S.cash += v * (1 - FEE - TAX) - m.loan; delete S.mar[s.id]; }); }
     const t = S.sht[s.id];
-    if (t) { const v = t.q * LOT * p[i]; if ((t.margin + t.proceeds) / v < MAINT) { S.cash += t.margin + t.proceeds - v * (1 + FEE); delete S.sht[s.id]; msgs.push(`${s.name}融券維持率跌破 130%，被強制回補`); } }
+    if (t) { const v = t.q * LOT * p[i]; checkCall(s, 'sht', (t.margin + t.proceeds) / v, msgs, () => { S.cash += t.margin + t.proceeds - v * (1 + FEE); delete S.sht[s.id]; }); }
   });
+  for (const k in S.calls) { const c = S.calls[k]; if (!(c.kind === 'mar' ? S.mar : S.sht)[c.id]) delete S.calls[k]; }
   return msgs;
 }
 function togglePause() {
@@ -353,12 +361,12 @@ function renderNotes() {
   let h = `<div class="tabs" style="margin-bottom:10px"><button class="tab ${noteTab === 'list' ? 'on' : ''}" data-t="list">聽到的消息</button><button class="tab ${noteTab === 'src' ? 'on' : ''}" data-t="src">消息來源戰績</button><button class="tab ${noteTab === 'hist' ? 'on' : ''}" data-t="hist">歷史小百科</button><button class="tab ${noteTab === 'egg' ? 'on' : ''}" data-t="egg">彩蛋</button></div>`;
   if (noteTab === 'list') {
     if (!S.rumors.length) h += '<p>還沒有消息。去街上找人聊聊吧：證券行前的老張伯、報社記者、銀行襄理、茶藝館……每個人每天會講一則。</p>';
-    for (const m of S.rumors.slice().reverse()) h += `<div class="rumor"><span class="d">第 ${m.day} 天<br>${m.npcName}</span><span>${m.text}${m.kind === 'tip' ? `<br><small style="color:var(--ink-soft)">驗證日：第 ${m.resolve} 天收盤</small>` : m.st === 'no' && !m.truth ? '<br><small style="color:var(--ink-soft)">這件事後來沒有發生</small>' : ''}</span>${st(m)}</div>`;
+    for (const m of S.rumors.slice().reverse()) h += `<div class="rumor"><span class="d">第 ${m.day} 天<br>${m.npcName}</span><span>${m.text}${m.kind === 'tip' || m.kind === 'sector' ? `<br><small style="color:var(--ink-soft)">驗證日：第 ${m.resolve} 天收盤</small>` : m.st === 'no' && !m.truth ? '<br><small style="color:var(--ink-soft)">這件事後來沒有發生</small>' : ''}</span>${st(m)}</div>`;
   } else if (noteTab === 'src') {
     const t = {}; for (const m of S.rumors) { const k = m.npcName; t[k] = t[k] || [0, 0]; if (m.st) { t[k][1]++; if (m.st === 'ok') t[k][0]++; } }
     h += '<table class="q"><tr><th>消息來源</th><th>應驗</th><th>已驗證</th><th>準確率</th><th>交情</th></tr>';
-    for (const k in t) h += `<tr><td>${k}</td><td>${t[k][0]}</td><td>${t[k][1]}</td><td>${t[k][1] ? Math.round(t[k][0] / t[k][1] * 100) + '%' : '—'}</td><td>${(x => x && x.rel ? BOND_NAME[bondLv(x.id)] : '—')(NPCS.find(x => x.name === k))}</td></tr>`;
-    h += '</table><p class="note">每個人的消息準確度不一樣，而且不會告訴你。常去找同一個人聊天會累積交情：聊滿 3 天變「熟識」，消息更準；聊滿 7 天變「麻吉」，偶爾還會多講一則。多聽幾次，看誰比較準，再決定要不要相信。</p>';
+    for (const k in t) h += `<tr><td>${k}</td><td>${t[k][0]}</td><td>${t[k][1]}</td><td>${t[k][1] ? Math.round(t[k][0] / t[k][1] * 100) + '%' : '—'}</td><td>${(x => x && x.rel ? ('♥'.repeat(hearts(x.id)) || '—') : '—')(NPCS.find(x => x.name === k))}</td></tr>`;
+    h += '</table><p class="note">每個人的消息準確度不一樣，而且不會告訴你。大致有三種人：很準的人（交情越好越準，最高八、九成）、像丟銅板的人（一直是五成左右）、反指標（大概只有兩成會對，反著做反而有用）。交情靠聊天和請客累積，太久沒去找會慢慢變淡；交情到 ♥♥♥♥ 偶爾會多講一則。多聽幾次，看誰比較準，再決定要不要相信。</p>';
   } else if (noteTab === 'egg') {
     const tot = EGG_LIST.length + EGG_CERT_POS.length, n = Object.keys(S.eggs).length + S.certs.length;
     h += `<div class="sum">已發現 <b>${n}/${tot}</b> 個彩蛋</div>`;
@@ -566,11 +574,12 @@ function showSummary() {
     const d = S.day, ic = SEASON.index[d], ip = SEASON.index[d - 1], ich = ic / ip - 1;
     const [ok, no] = resolveRumors(d);
     const nw = netWorth(), dpl = nw - S.dayStartNet;
-    const moves = STOCKS.map((s, i) => [s, SEASON.ret[d][i]]).sort((a, b) => b[1] - a[1]);
+    const moves = STOCKS.map((s, i) => [s, SEASON.ret[d][i], i]).filter(x => listed(x[2], d)).sort((a, b) => b[1] - a[1]);
     $('sumTitle').textContent = `第 ${d} 天收盤`;
     $('sumBody').innerHTML = `<canvas id="sumCv" width="700" height="160"></canvas>
       <div class="sum" style="margin-top:10px"><span>加權指數 <b class="${cls(ich)}">${ic.toFixed(2)}（${pct(ich)}）</b></span><span>成交量 <b>${volumeOf(d)} 億</b></span></div>
       <p style="margin:6px 0">你今天 <span class="bigpl ${cls(dpl)}">${dpl >= 0 ? '+' : ''}${money(dpl)}</span>　總資產 <b>${money(nw)}</b></p>
+      <p style="margin:6px 0;font-size:14px">今天走了 <b>${Math.floor(S.stepsDay || 0).toLocaleString('zh-TW')}</b> 步。</p>
       <p style="margin:6px 0;font-size:14px">今日強勢：${moves.slice(0, 3).map(([s, x]) => `<b class="${cls(x)}">${s.name} ${pct(x)}</b>`).join('、')}</p>
       <p style="margin:6px 0;font-size:14px">今日弱勢：${moves.slice(-3).reverse().map(([s, x]) => `<b class="${cls(x)}">${s.name} ${pct(x)}</b>`).join('、')}</p>
       ${(GAME.marginMsgs || []).map(m => `<p style="margin:6px 0;font-size:14px" class="down">⚠ ${m}</p>`).join('')}
@@ -606,6 +615,7 @@ async function onPhase(ph) {
   if (ph === 'post' && MK.path) {
     MK.prices = SEASON.close[S.day].slice(); GAME.dayPath = MK.path; MK.path = null; drawBoard();
     GAME.marginMsgs = settleMargin(); GAME.marginMsgs.forEach(m => toast(m)); if (GAME.marginMsgs.length) sfx('bad');
+    if (GAME.callRing) { GAME.callRing = false; ring(); flash('rgba(215,38,61,.8)', true); }
     if (S.deposit > 0 && (S.day - S.depDay) % 5 === 4 && !S.ponziGone) { const it = Math.round(S.deposit * 0.01); S.cash += it; toast(`金滿堂配息 ${money(it)} 元`); }
     await showSummary(); GAME.marginMsgs = []; checkRank(); saveGame();
   }
@@ -616,10 +626,10 @@ async function endDay() {
   if (MK.path) { MK.prices = SEASON.close[S.day].slice(); GAME.dayPath = MK.path; MK.path = null; await showSummary(); }
   S.netHist = S.netHist || []; if (S.netHist[S.day - 1] == null) S.netHist[S.day - 1] = Math.round(S.dayStartNet); S.netHist[S.day] = Math.round(netWorth());
   GAME.busy = true; const f = $('fade'); f.textContent = `第 ${S.day} 天結束`; f.style.opacity = 1; await wait(900);
-  checkRank();
+  checkRank(); bondDecay();
   if (!S.ended && netWorth() < BROKE_NET) await playEnding('broke');
   else if (!S.ended && S.rank === RANKS.length - 1) await playEnding('tycoon');
-  S.day++; GAME.dayPath = null;
+  S.day++; GAME.dayPath = null; S.stepsDay = 0; ipoDraw();
   if (S.day > DAYS) { if (!S.ended && S.season >= FINAL_SEASON) await playEnding(endingKind(netWorth())); await seasonEnd(); }
   if (S.day === 1) S.netHist = [];
   TIME.min = 6 * 60; lastPhase = 'pre'; MK.prices = null; S.dayStartNet = netWorth();
@@ -638,7 +648,7 @@ async function seasonEnd() {
     $('sum').classList.remove('hide'); $('sumOk').onclick = () => { $('sum').classList.add('hide'); res(); };
   });
   const log = (S.log || []).filter(l => l.s !== S.season).concat([seasonEntry()]);
-  const keep = { cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won, eggs: S.eggs, certs: S.certs, bullSeason: S.bullSeason, ended: S.ended, log, rank: S.rank, base: S.base, len: S.len, bond: S.bond, tut: S.tut };
+  const keep = { cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won, eggs: S.eggs, certs: S.certs, bullSeason: S.bullSeason, ended: S.ended, log, rank: S.rank, base: S.base, len: S.len, bond: S.bond, tut: S.tut, bondSeen: S.bondSeen, npcType: S.npcType, steps: S.steps, gone: (S.gone || []).concat(SEASON.delist ? [STOCKS[SEASON.delist.i].id] : []), ipoed: (S.ipoed || []).concat((SEASON.ipos || []).map(x => STOCKS[x.i].id)) };
   S = Object.assign(S0(), keep); if (S.base != null) S.seed = seasonSeed(S.base, S.season); S.dayStartNet = S.cash; genSeason(S.seed);
 }
 function checkRank() {
@@ -662,14 +672,17 @@ function drawBoard() {
   g.fillStyle = '#ffb000'; g.font = `900 36px ${SIGN_FONT}`; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText('加權指數', 24, 34);
   g.font = '58px VT323, monospace'; g.fillStyle = ich > 0 ? '#ff4d5e' : ich < 0 ? '#38d47f' : '#e8e0c8'; g.fillText(ix.toFixed(2) + '  ' + pct(ich), 210, 36);
   g.fillStyle = '#665a44'; g.fillRect(16, 64, W - 32, 3); g.fillRect(W / 2 - 2, 76, 3, H - 88);
-  STOCKS.forEach((s, i) => {
-    const col = i < 6 ? 0 : 1, row = i % 6, x0 = 20 + col * 506, y = 98 + row * 50, ch = p[i] / pc[i] - 1, c = ch > 0 ? '#ff4d5e' : ch < 0 ? '#38d47f' : '#e8e0c8';
+  // 上市公司比看板多，每 5 秒換一頁
+  const live = STOCKS.map((s, i) => i).filter(listedNow), pages = Math.ceil(live.length / 12), pg = Math.floor(GAME.t / 5) % pages;
+  if (pages > 1) { g.fillStyle = '#ffb000'; g.font = '30px VT323, monospace'; g.textAlign = 'right'; g.fillText(`${pg + 1}/${pages}`, W - 24, 36); }
+  live.slice(pg * 12, pg * 12 + 12).forEach((i, k) => {
+    const s = STOCKS[i], col = k < 6 ? 0 : 1, row = k % 6, x0 = 20 + col * 506, y = 98 + row * 50, ch = p[i] / pc[i] - 1, c = ch > 0 ? '#ff4d5e' : ch < 0 ? '#38d47f' : '#e8e0c8';
     g.fillStyle = '#ffd27a'; g.font = `700 28px ${SIGN_FONT}`; g.textAlign = 'left'; g.fillText(s.name, x0, y);
     g.font = '40px VT323, monospace'; g.textAlign = 'right'; g.fillStyle = c; g.fillText(p[i].toFixed(p[i] < 100 ? 2 : 1), x0 + 292, y); g.fillText(pct(ch), x0 + 436, y);
     const [up, dn] = limits(pc[i]); if (p[i] >= up || p[i] <= dn) { g.fillStyle = c; g.fillRect(x0 + 442, y - 15, 50, 30); g.fillStyle = '#100c09'; g.font = `900 18px ${SIGN_FONT}`; g.textAlign = 'center'; g.fillText(p[i] >= up ? '漲停' : '跌停', x0 + 467, y + 1); }
   });
   BOARD.tex.needsUpdate = true;
-  $('mqIn').innerHTML = STOCKS.map((s, i) => { const ch = p[i] / pc[i] - 1; return `<span style="color:${ch > 0 ? '#ff6b78' : ch < 0 ? '#4fe08f' : '#ffb000'}">${s.name} ${p[i].toFixed(p[i] < 100 ? 2 : 1)} ${pct(ch)}</span>`; }).join('') + `<span>加權 ${ix.toFixed(2)} ${pct(ich)}</span><span style="color:#9fc3ff">${intlLine(true)}</span>`;
+  $('mqIn').innerHTML = STOCKS.map((s, i) => { if (!listedNow(i)) return ''; const ch = p[i] / pc[i] - 1; return `<span style="color:${ch > 0 ? '#ff6b78' : ch < 0 ? '#4fe08f' : '#ffb000'}">${s.name} ${p[i].toFixed(p[i] < 100 ? 2 : 1)} ${pct(ch)}</span>`; }).join('') + `<span>加權 ${ix.toFixed(2)} ${pct(ich)}</span><span style="color:#9fc3ff">${intlLine(true)}</span>`;
 }
 function intlLine(plain) {
   const d = S.day, jk = TIME.min >= 480 || PHASE() !== 'pre';
@@ -687,7 +700,7 @@ function morningPaper() {
       <p><b>美股昨夜收盤</b>：道瓊 <span class="${cls(SEASON.us[d])}">${pct(SEASON.us[d])}</span>、那斯達克 <span class="${cls(SEASON.nas[d])}">${pct(SEASON.nas[d])}</span></p>
       <p><b>台股昨日</b>：${d > 1 ? `加權指數收 ${SEASON.index[d - 1].toFixed(0)} 點（<span class="${cls(SEASON.index[d - 1] / SEASON.index[d - 2] - 1)}">${pct(SEASON.index[d - 1] / SEASON.index[d - 2] - 1)}</span>）` : '新的一年第一個交易日'}</p>
       <p><b>今日天氣</b>：${W.name} ${SEASON.temp[d]}°C${W.closed ? '，颱風假休市' : ''}</p>
-      ${eraNews(d)}${ev ? `<p><b>焦點新聞</b>：${ev.def.head}</p>` : ''}
+      ${eraNews(d)}${ev ? `<p><b>焦點新聞</b>：${ev.def.head}</p>` : ''}${listNews(d)}
       <p class="ref">8:00 日本、韓國股市開盤，可以先看國際盤的方向；9:00 台股開盤，13:30 收盤。</p>
       <div class="row"><button class="btn pri" id="extOk">看完了</button></div>`;
     $('ext').classList.remove('hide'); sfx('tick');
@@ -731,7 +744,7 @@ function updateLabels() {
       const hp = n.dir.clone().multiplyScalar(R + (n.sit ? 1.7 : 2.05) * (n.ch.L.scale || 1)); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) < 0) continue;
       const p = proj(hp); if (!p) continue;
       const fresh = S.talked[n.id] !== S.day && !['home', 'phone', 'temple', 'ped', 'fortune', 'busker', 'yulan'].includes(n.role);
-      lbl((fresh ? '● ' : '') + n.name + ['', ' ♥', ' ♥♥'][n.rel ? bondLv(n.id) : 0], fresh ? 'q' : '', p[0], p[1]);
+      lbl((fresh ? '● ' : '') + n.name + (n.rel && hearts(n.id) ? ' ' + '♥'.repeat(hearts(n.id)) : ''), fresh ? 'q' : '', p[0], p[1]);
     }
     if (GUIDE && PLACE_BY[GUIDE]) { const pl = PLACE_BY[GUIDE], d = Math.round(angDist(PL.dir, pl.front) * 10), hp = pl.front.clone().multiplyScalar(R + 4.2); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) > 0) { const p = proj(hp); if (p) lbl(`▼ ${pl.name}・${d} 公尺`, 'goal', p[0], p[1]); } }
     for (const e of EGGS) { const ed = EGG_SPOTS[e.id]; if (!ed || angDist(PL.dir, ed) > 14) continue; const hp = ed.clone().multiplyScalar(R + 4.2); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) > 0) { const p = proj(hp); if (p) lbl(e.name, S.eggs[e.id] ? '' : 'q', p[0], p[1]); } }
@@ -754,6 +767,7 @@ function updateNPCs(dt) {
     if (n.night && ph !== 'night') n.ch.root.visible = false;
     if (n.day && ph === 'night') n.ch.root.visible = false;
     if (n.dry && WEATHER[SEASON.weather[Math.min(S.day, DAYS)]].thin) n.ch.root.visible = false;
+    if (n.appear && !n.appear(ph)) n.ch.root.visible = false;
     if (n.walk && ph === 'night' && n.idx % 2) n.ch.root.visible = false;
     if (n.walk && mood < -0.02 && n.idx % 3 === 0) n.ch.root.visible = false;
     if (!n.ch.root.visible) continue;

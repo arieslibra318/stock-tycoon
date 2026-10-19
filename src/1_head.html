@@ -103,6 +103,14 @@ table.q th:first-child,table.q td:first-child{text-align:left}
 table.q td{padding:7px 6px;border-bottom:1.5px dashed #d8c9a8;text-align:right;white-space:nowrap}
 table.q td .sec{display:block;font-size:11px;color:var(--ink-soft)}
 .tw{overflow-x:auto}
+#mini{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));bottom:calc(46px + env(safe-area-inset-bottom,0px));width:150px;height:150px;border-radius:50%;cursor:pointer;filter:drop-shadow(0 3px 0 rgba(43,38,34,.9))}
+#mini.touch{bottom:auto;top:calc(120px + env(safe-area-inset-top,0px));width:104px;height:104px}
+.tagN,.tagW{display:inline-block;margin-left:4px;padding:0 5px;border-radius:4px;font-size:11px;color:#fff;vertical-align:1px}
+.tagN{background:#d7263d}.tagW{background:#555}
+.secBar .tab{padding:2px 8px}
+.ipoBox,.callBox{display:flex;flex-direction:column;gap:6px}
+.callBox{background:#fbe1e1}
+.ipoBox .btn,.callBox .btn{font-size:13px;padding:3px 10px;margin-left:6px}
 #newBox{max-width:560px;width:100%;text-align:left;padding:14px 16px;border:3px solid var(--ink);border-radius:14px;background:#fffaf0;color:var(--ink);box-shadow:0 6px 0 rgba(0,0,0,.25)}
 #newBox h3{margin:0 0 6px}
 .nbRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
@@ -221,6 +229,7 @@ tr.chOn td{background:#fff3cf}
         <span class="chip" id="chCash"><i>現金</i><span>0</span></span>
         <span class="chip" id="chNet"><i>總資產</i><span>0</span></span>
         <span class="chip" id="chDay"><i>交易日</i><span>1/40</span></span>
+        <span class="chip" id="chStep"><i>今日步數</i><span>0</span></span>
       </div>
       <div class="paper goals" id="goals"></div>
     </div>
