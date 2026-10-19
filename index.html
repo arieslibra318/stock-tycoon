@@ -1125,6 +1125,7 @@ const RANKS = [
   { name: '跑單小弟', min: 0 }, { name: '散戶', min: 3e6 }, { name: '中實戶', min: 6e6 }, { name: '大戶', min: 1.5e7 }, { name: '證券大亨', min: 5e7 },
 ];
 const START_CASH = 2000000;
+const VOL_K = 1.5;   // 80 年代末個股波動大，漲停跌停是家常便飯（只放大個股，不改大盤）
 // 融資券（依台股常見規定簡化）：融資成數 6 成、融券保證金 9 成、維持率 130%
 const MARGIN_LOAN = 0.6, SHORT_MARGIN = 0.9, MAINT = 1.3, LOAN_DAY = 0.065 / 250, SHORT_FEE = 0.0008, PHONE_PRICE = 60000;
 
@@ -1215,9 +1216,9 @@ function genSeason(seed) {
   deck.splice(1 + (r() * 3 | 0), 0, 'ponzi');
   const events = []; let day = 5 + (r() * 3 | 0);
   for (const id of deck) { if (day > DAYS - 3) break; events.push({ id, day, def: EBY[id] }); day += EBY[id].dur + 2 + (r() * 4 | 0); }
-  // 主力拉抬：拉兩天、倒三天
+  // 主力拉抬：每季三次，拉三天、倒兩天
   const pumps = [];
-  for (let k = 0; k < 2; k++) { for (let t = 0; t < 30; t++) { const d = 4 + (r() * (DAYS - 10) | 0); if (events.some(e => Math.abs(e.day - d) < 4) || pumps.some(p => Math.abs(p.day - d) < 6)) continue; pumps.push({ day: d, stock: STOCKS[r() * STOCKS.length | 0].id }); break; } }
+  for (let k = 0; k < 3; k++) { for (let t = 0; t < 30; t++) { const d = 4 + (r() * (DAYS - 10) | 0); if (events.some(e => Math.abs(e.day - d) < 4) || pumps.some(p => Math.abs(p.day - d) < 6)) continue; pumps.push({ day: d, stock: STOCKS[r() * STOCKS.length | 0].id }); break; } }
   // 先算「不含天氣」的原始報酬，再套上天氣（天氣之後可能被即時天氣覆蓋）
   const raw = [STOCKS.map(() => 0)], thin = [false], weather = ['sun'], temp = [28], us = [0], nas = [0], jp = [0], kr = [0], usHead = [''];
   let regime = 1; const MU = [0.01, 0.002, -0.005];   // 多頭、盤整、空頭的每日平均漲跌（1987–89 年台股平均約每兩個月 +12%）
@@ -1229,8 +1230,8 @@ function genSeason(seed) {
     usHead.push(head || (u > 0.004 ? pickR(r, US_UP) : u < -0.004 ? pickR(r, US_DN) : pickR(r, US_FLAT)));
     const jk = (MU[regime] + idx) * 0.8 + 0.45 * Math.max(-0.08, u); jp.push(jk * 0.7 + gauss(r) * 0.004); kr.push(jk * 0.75 + gauss(r) * 0.005);
     raw.push(STOCKS.map((s, i) => {
-      let x = s.beta * (MU[regime] + idx + 0.45 * Math.max(-0.08, u)) + (sec[s.sector] || 0) + (sty[s.st] || 0) + gauss(r) * s.vol * (Math.abs(idx) > 0.04 ? 0.35 : 1) * vol;
-      for (const p of pumps) if (p.stock === s.id) { const k = d - p.day; if (k === 0 || k === 1) x += 0.055; if (k >= 2 && k <= 4) x -= 0.06; }
+      let x = s.beta * (MU[regime] + idx + 0.45 * Math.max(-0.08, u)) + (sec[s.sector] || 0) + (sty[s.st] || 0) + gauss(r) * s.vol * VOL_K * (Math.abs(idx) > 0.04 ? 0.35 : 1) * vol;
+      for (const p of pumps) if (p.stock === s.id) { const k = d - p.day; if (k >= 0 && k <= 2) x += 0.06; if (k === 3 || k === 4) x -= 0.05; }
       return x;
     }));
     thin.push(th);
@@ -1306,6 +1307,13 @@ const idxOf = prices => 4500 * prices.reduce((a, p, i) => a + STOCKS[i].cap * p,
 const TIP_UP = ['{n}有人在偷偷吃貨，明天應該會漲。', '我有朋友在{n}上班，說接到大訂單，明天會漲啦！', '{n}的線型很漂亮，明天要攻上去了。', '聽說有人要拉{n}，明天買就對了。'];
 const TIP_DN = ['{n}的大股東在倒貨，明天小心。', '{n}好像出了狀況，明天恐怕會跌。', '我看{n}漲不動了，明天要回檔。', '聽說{n}的訂單被砍，明天會跌喔。'];
 function pickR(r, a) { return a[r() * a.length | 0]; }
+// 明牌多半講的是「有動靜的股票」：隔天漲跌越大，越容易被人拿出來講
+function pickTip(r, pool, d) {
+  const nx = SEASON.ret[d + 1], w = pool.map(s => 0.0015 + Math.abs(nx[STOCKS.indexOf(s)]));
+  let t = r() * w.reduce((a, b) => a + b, 0);
+  for (let k = 0; k < pool.length; k++) { t -= w[k]; if (t <= 0) return pool[k]; }
+  return pool[pool.length - 1];
+}
 function makeRumor(npc, d) {
   const r = mulberry32(SEASON.seed * 1000 + d * 37 + npc.idx * 101);
   for (const e of SEASON.events) {
@@ -1321,7 +1329,7 @@ function makeRumor(npc, d) {
   }
   if (d + 1 > DAYS) return null;
   const pool = npc.sectors ? STOCKS.filter(s => npc.sectors.includes(s.sector)) : STOCKS;
-  const s = pickR(r, pool), i = STOCKS.indexOf(s), act = SEASON.ret[d + 1][i] >= 0 ? 1 : -1;
+  const s = pickTip(r, pool, d), i = STOCKS.indexOf(s), act = SEASON.ret[d + 1][i] >= 0 ? 1 : -1;
   const dir = r() < npc.rel ? act : -act;
   return { kind: 'tip', stock: s.id, dir, text: pickR(r, dir > 0 ? TIP_UP : TIP_DN).replace('{n}', s.name), resolve: d + 1 };
 }
@@ -1740,12 +1748,12 @@ const TALK = {
     await rumorTalk(n, '另外跟你講個小道消息……');
   },
   boss: async n => {
-    const d = S.day, p = SEASON.pumps.find(p => p.day - d >= 1 && p.day - d <= 2);
+    const d = S.day, p = SEASON.pumps.find(p => p.day - d >= 1 && p.day - d <= 2 && S.talked['boss' + p.day] === undefined);
     if (p && S.talked.boss !== d) {
-      S.talked.boss = d; const s = SBY[p.stock];
+      S.talked.boss = d; S.talked['boss' + p.day] = d; const s = SBY[p.stock];
       await say(n, '少年仔，看你順眼。跟你講，我們這幾天要「照顧」一下' + s.name + '。');
-      await say(n, '先拉兩天，第三天開始我們就要出場了。要不要跟，你自己決定。');
-      S.rumors.push({ kind: 'tip', stock: s.id, dir: 1, text: `阿財哥說要拉抬${s.name}兩天，之後就出貨。`, resolve: p.day, day: d, npc: 'boss', npcName: n.name }); $('noteBadge').classList.remove('hide');
+      await say(n, '先拉三天，第四天開始我們就要出場了。要不要跟，你自己決定。');
+      S.rumors.push({ kind: 'tip', stock: s.id, dir: 1, text: `阿財哥說要拉抬${s.name}三天，之後就出貨。`, resolve: p.day, day: d, npc: 'boss', npcName: n.name }); $('noteBadge').classList.remove('hide');
       toast('記進消息本了'); return;
     }
     await say(n, ['最近沒什麼好做的，喝茶喝茶。', '股市啊，就是有人買、有人賣，有人哭、有人笑。', '想跟我做？先把本錢養大再說。'][Math.random() * 3 | 0]);

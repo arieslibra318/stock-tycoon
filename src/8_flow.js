@@ -128,12 +128,12 @@ const TALK = {
     await rumorTalk(n, '另外跟你講個小道消息……');
   },
   boss: async n => {
-    const d = S.day, p = SEASON.pumps.find(p => p.day - d >= 1 && p.day - d <= 2);
+    const d = S.day, p = SEASON.pumps.find(p => p.day - d >= 1 && p.day - d <= 2 && S.talked['boss' + p.day] === undefined);
     if (p && S.talked.boss !== d) {
-      S.talked.boss = d; const s = SBY[p.stock];
+      S.talked.boss = d; S.talked['boss' + p.day] = d; const s = SBY[p.stock];
       await say(n, '少年仔，看你順眼。跟你講，我們這幾天要「照顧」一下' + s.name + '。');
-      await say(n, '先拉兩天，第三天開始我們就要出場了。要不要跟，你自己決定。');
-      S.rumors.push({ kind: 'tip', stock: s.id, dir: 1, text: `阿財哥說要拉抬${s.name}兩天，之後就出貨。`, resolve: p.day, day: d, npc: 'boss', npcName: n.name }); $('noteBadge').classList.remove('hide');
+      await say(n, '先拉三天，第四天開始我們就要出場了。要不要跟，你自己決定。');
+      S.rumors.push({ kind: 'tip', stock: s.id, dir: 1, text: `阿財哥說要拉抬${s.name}三天，之後就出貨。`, resolve: p.day, day: d, npc: 'boss', npcName: n.name }); $('noteBadge').classList.remove('hide');
       toast('記進消息本了'); return;
     }
     await say(n, ['最近沒什麼好做的，喝茶喝茶。', '股市啊，就是有人買、有人賣，有人哭、有人笑。', '想跟我做？先把本錢養大再說。'][Math.random() * 3 | 0]);
