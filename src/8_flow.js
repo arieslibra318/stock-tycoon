@@ -389,6 +389,7 @@ function openHelp() {
     <h4>7. 事件卡與歷史小百科</h4>
     <p>每一季會從真實歷史改編的事件裡抽 5 張，隨機排列，包括 1987 黑色星期一、1979–1981 聯準會暴力升息、1995–1996 台海飛彈危機、1997 亞洲金融風暴、2023–2024 AI 浪潮等。爆發時會出現「號外」，消息本的「歷史小百科」記錄它改編自哪一段歷史。地下投資公司每一季一定會倒，別把錢放太久。</p>
     <h4>8. 身分晉升</h4>
+    <p><b>結局</b>：故事共 ${FINAL_SEASON} 季，第 ${FINAL_SEASON} 季結束（1990 年泡沫破裂）時，總資產 ${wan(WIN_NET)} 以上是成功結局、低於本金 ${wan(START_CASH)} 是失敗結局，中間是普通結局。中途當上證券大亨會提早迎來成功結局，總資產跌破 ${BROKE_NET / 1e4} 萬 則提早失敗。結局之後可以繼續自由遊玩。</p>
     <p>${RANKS.map(r => `${r.name}（${wan(r.min)}）`).join(' → ')}。大哥大一支 ${wan(PHONE_PRICE)}，買了以後在哪裡都能下單。</p>
     <h4>9. 操作</h4>
     <p>WASD／方向鍵移動、Shift 快跑、E 說話、K 看盤下單、N 消息本、P 暫停、T 快轉到下一個時段、M 城市地圖、H 指南、Q 暫存、O 存檔與讀檔、拖曳轉視角。遊戲不會自動存檔，記得隨手按 Q 留暫存點。手機用左下搖桿、右下「互動」「看盤」。</p>
@@ -419,8 +420,8 @@ async function useRealWeather(manual) {
 }
 async function dayWeather() {
   if (S.realWx) await useRealWeather(false);
-  const w = SEASON.weather[S.day], tip = { rain: '下雨天證券行人少，成交量會變小', storm: '豪雨特報，市場氣氛偏悲觀', typhoon: '颱風來了，今天會放颱風假休市', sun: '晴天，大家心情不錯', cloud: '陰天' }[w];
-  toast(`今天天氣：${WEATHER[w].name} ${SEASON.temp[S.day]}°C・${tip}`);
+  const w = SEASON.weather[Math.min(S.day, DAYS)], tip = { rain: '下雨天證券行人少，成交量會變小', storm: '豪雨特報，市場氣氛偏悲觀', typhoon: '颱風來了，今天會放颱風假休市', sun: '晴天，大家心情不錯', cloud: '陰天' }[w];
+  toast(`今天天氣：${WEATHER[w].name} ${SEASON.temp[Math.min(S.day, DAYS)]}°C・${tip}`);
 }
 
 /* ---------- 任務提示 ---------- */
@@ -608,8 +609,10 @@ async function endDay() {
   S.netHist = S.netHist || []; if (S.netHist[S.day - 1] == null) S.netHist[S.day - 1] = Math.round(S.dayStartNet); S.netHist[S.day] = Math.round(netWorth());
   GAME.busy = true; const f = $('fade'); f.textContent = `第 ${S.day} 天結束`; f.style.opacity = 1; await wait(900);
   checkRank();
+  if (!S.ended && netWorth() < BROKE_NET) await playEnding('broke');
+  else if (!S.ended && S.rank === RANKS.length - 1) await playEnding('tycoon');
   S.day++; GAME.dayPath = null;
-  if (S.day > DAYS) { await seasonEnd(); }
+  if (S.day > DAYS) { if (!S.ended && S.season >= FINAL_SEASON) await playEnding(endingKind(netWorth())); await seasonEnd(); }
   if (S.day === 1) S.netHist = [];
   TIME.min = 6 * 60; lastPhase = 'pre'; MK.prices = null; S.dayStartNet = netWorth();
   f.textContent = `第 ${S.day} 個交易日`; await wait(700); f.style.opacity = 0; f.textContent = '';
@@ -622,17 +625,18 @@ async function seasonEnd() {
     $('sumBody').innerHTML = `<p style="font-size:16px;line-height:1.7">四十個交易日過去了。你從 ${wan(START_CASH)} 開始，現在總資產 <b class="${cls(nw - START_CASH)}">${money(nw)}</b>，身分是「<b>${RANKS[rankOf(nw)].name}</b>」。</p>
       <p style="line-height:1.7">同一季大盤 ${pct(SEASON.index[DAYS] / SEASON.index[0] - 1)}，你的資產 ${pct(nw / ((S.netHist || [])[0] || START_CASH) - 1)}。</p>
       <p style="line-height:1.7">這一季遇到的大事：${S.seen.map(id => EBY[id].name).join('、') || '（沒有）'}。到「消息本 → 歷史小百科」可以看它們改編自哪一段歷史。</p>
-      <p style="line-height:1.7">新的一季會重新洗牌：事件的順序、時間、哪些人消息準，都會不一樣。</p>
+      <p style="line-height:1.7">新的一季會重新洗牌：事件的順序、時間、哪些人消息準，都會不一樣。${S.ended ? '' : S.season + 1 === FINAL_SEASON ? '<b>下一季是最後一季</b>，季末會依總資產迎來結局。' : `還有 ${FINAL_SEASON - S.season} 季迎來結局。`}</p>
       <div style="display:flex;justify-content:flex-end"><button class="btn pri" id="sumOk">開始新的一季</button></div>`;
     $('sum').classList.remove('hide'); $('sumOk').onclick = () => { $('sum').classList.add('hide'); res(); };
   });
-  const keep = { cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won };
+  const log = (S.log || []).filter(l => l.s !== S.season).concat([seasonEntry()]);
+  const keep = { cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won, eggs: S.eggs, certs: S.certs, bullSeason: S.bullSeason, ended: S.ended, log, rank: S.rank };
   S = Object.assign(S0(), keep); S.dayStartNet = S.cash; genSeason(S.seed);
 }
 function checkRank() {
   const r = rankOf(netWorth());
   if (r > S.rank) { S.rank = r; sfx('done'); toast(`升級了！你現在是「<b>${RANKS[r].name}</b>」`); if (r === RANKS.length - 1 && !S.won) { S.won = true; setTimeout(() => toast('恭喜成為證券大亨！可以繼續玩，看看能走多遠'), 1500); } }
-  if (netWorth() < 100000) { toast('錢快賠光了……房東太太說：「年輕人，留得青山在。」（可以在說明裡重新開始）'); }
+  if (netWorth() < BROKE_NET * 2 && netWorth() >= BROKE_NET) { toast(`錢快賠光了……總資產跌破 ${BROKE_NET / 1e4} 萬 就會提早結束`); }
   refreshHUD();
 }
 function skipPhase() {
@@ -686,13 +690,13 @@ function setChip(id, html) { const el = $(id).lastElementChild; if (el.innerHTML
 function refreshHUD() {
   const nw = netWorth(), dpl = nw - S.dayStartNet;
   setChip('chCash', wan(S.cash)); setChip('chNet', `${wan(nw)} <span class="${cls(dpl)}" style="font-size:11px">${dpl >= 0 ? '+' : ''}${(dpl / Math.max(1, S.dayStartNet) * 100).toFixed(1)}%</span>`); setChip('chDay', `${S.day}/${DAYS}`);
-  $('rank').textContent = `${RANKS[S.rank].name}・第 ${S.season} 季`;
+  $('rank').textContent = `${RANKS[S.rank].name}・第 ${S.season}${S.ended ? '' : '/' + FINAL_SEASON} 季`;
 }
 function updateTicker() {
   const p = prices(), ix = idxOf(p), ich = ix / SEASON.index[S.day - 1] - 1, ph = PHASE();
   $('tkIdx').textContent = ix.toFixed(2); $('tkChg').textContent = pct(ich); $('tkChg').style.color = ich > 0 ? '#ff6b78' : ich < 0 ? '#4fe08f' : '';
   $('tkPh').textContent = ({ pre: '盤前', open: isClosed(S.day) ? '休市' : '盤中', post: '收盤', night: '夜晚' })[ph] + ' ' + fmtTime() + (GAME.paused ? ' ⏸' : '');
-  const wx = `${WEATHER[SEASON.weather[S.day]].name} ${SEASON.temp[S.day]}°C${S.wOver[S.day] ? '・即時' : ''}`; if ($('tkW').textContent !== wx) $('tkW').textContent = wx; $('tkPh').classList.toggle('open', ph === 'open');
+  const wx = `${WEATHER[SEASON.weather[Math.min(S.day, DAYS)]].name} ${SEASON.temp[Math.min(S.day, DAYS)]}°C${S.wOver[S.day] ? '・即時' : ''}`; if ($('tkW').textContent !== wx) $('tkW').textContent = wx; $('tkPh').classList.toggle('open', ph === 'open');
 }
 let mqX = 0;
 function updateMarquee(dt) { const el = $('mqIn'); mqX -= dt * 70; const w = el.scrollWidth; if (-mqX > w) mqX = innerWidth; el.style.transform = `translateX(${mqX}px)`; }
@@ -739,7 +743,7 @@ function updateNPCs(dt) {
     if (n.role === 'ponzi') n.ch.root.visible = !S.ponziGone;
     if (n.night && ph !== 'night') n.ch.root.visible = false;
     if (n.day && ph === 'night') n.ch.root.visible = false;
-    if (n.dry && WEATHER[SEASON.weather[S.day]].thin) n.ch.root.visible = false;
+    if (n.dry && WEATHER[SEASON.weather[Math.min(S.day, DAYS)]].thin) n.ch.root.visible = false;
     if (n.walk && ph === 'night' && n.idx % 2) n.ch.root.visible = false;
     if (!n.ch.root.visible) continue;
     let tgt = n.fwd0;
@@ -773,7 +777,7 @@ function updateLighting() {
   sun.intensity = mapLike ? 0.75 : lerp(0.18, 0.75, day); sun.color.setHex(dusk > 0.4 ? 0xffb37a : day > 0.3 ? 0xfff1d8 : 0x8fa4d8);
   hemi.position.copy(U); hemi.intensity = mapLike ? 0.55 : lerp(0.25, 0.5, day);
   _c1.copy(CLR.nTop).lerp(CLR.dayTop, day).lerp(CLR.duskTop, dusk * 0.6); _c2.copy(CLR.nHor).lerp(CLR.dayHor, day).lerp(CLR.duskHor, dusk * 0.7);
-  const wf = mapLike || !SEASON ? 0 : ({ sun: 0, cloud: 0.35, rain: 0.6, storm: 0.8, typhoon: 0.9 })[SEASON.weather[S.day]] || 0;
+  const wf = mapLike || !SEASON ? 0 : ({ sun: 0, cloud: 0.35, rain: 0.6, storm: 0.8, typhoon: 0.9 })[SEASON.weather[Math.min(S.day, DAYS)]] || 0;
   if (wf) { _c1.lerp(_cw.setRGB(0.42, 0.45, 0.5).multiplyScalar(0.4 + day * 0.6), wf * 0.75); _c2.lerp(_cw.setRGB(0.6, 0.62, 0.65).multiplyScalar(0.4 + day * 0.6), wf * 0.6); sun.intensity *= 1 - wf * 0.6; }
   SKY_U.uTop.value.copy(_c1); SKY_U.uHor.value.copy(_c2); SKY_U.uUp.value.copy(mapLike ? camera.up : U); SKY_U.uSun.value.copy(sd); SKY_U.uStar.value = mapLike ? 0 : 1 - day; SKY_U.uSunC.value.setHex(day > 0.2 ? 0xfff2c8 : 0x6677aa);
   scene.fog.color.copy(_c2); scene.fog.near = mapLike ? 1e4 : 30 * (1 - wf * 0.4); scene.fog.far = mapLike ? 2e4 : 95 * (1 - wf * 0.4);

@@ -169,7 +169,7 @@ function toggleMap() {
 function mapDrag(dx, dy) { const right = new V3().crossVectors(CAM.mapUp, CAM.mapPos).normalize(); CAM.mapPos.applyAxisAngle(CAM.mapUp, -dx * 0.006); CAM.mapPos.applyAxisAngle(right, dy * 0.006); CAM.mapUp.applyAxisAngle(right, dy * 0.006); tangentize(CAM.mapUp, CAM.mapPos.normalize()); }
 
 /* ---------- 輸入 ---------- */
-function anyModal() { return ['trade', 'notes', 'help', 'sum', 'ext', 'saves'].some(id => !$(id).classList.contains('hide')); }
+function anyModal() { return ['trade', 'notes', 'help', 'sum', 'ext', 'saves', 'ending'].some(id => !$(id).classList.contains('hide')); }
 function closeModals() { ['trade', 'notes', 'help', 'saves'].forEach(id => $(id).classList.add('hide')); GAME.busy = false; }
 function bindInput() {
   addEventListener('keydown', e => {

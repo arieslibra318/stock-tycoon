@@ -65,7 +65,7 @@ function buildRain() {
 }
 function updateRain(dt) {
   if (!RAIN) return;
-  const w = SEASON.weather[S.day], on = GAME.mode === 'ground' && (w === 'rain' || w === 'storm' || w === 'typhoon');
+  const w = SEASON.weather[Math.min(S.day, DAYS)], on = GAME.mode === 'ground' && (w === 'rain' || w === 'storm' || w === 'typhoon');
   RAIN.visible = on; if (!on) return;
   const sp = w === 'rain' ? 14 : 24, a = RAIN.geometry.attributes.position.array, n = w === 'rain' ? 900 : 1600;
   RAIN.geometry.setDrawRange(0, n);
