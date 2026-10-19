@@ -1,9 +1,11 @@
 /* =========================================================
-   結局：第 5 季結束（1990 年泡沫破裂）時依總資產分成成功／普通／失敗；
+   結局：最後一季（6 季局是 1990 年泡沫破裂、12 季局是 1996 年）結束時依總資產分成成功／普通／失敗；
    中途成為證券大亨直接成功，總資產跌破 30 萬直接失敗
    ========================================================= */
-const FINAL_SEASON = 5, BROKE_NET = 3e5, WIN_BY_LEN = { 40: 1e7, 20: 4e6 };
-const winNet = () => WIN_BY_LEN[S.len || 40] || 1e7;
+let FINAL_SEASON = 5; const BROKE_NET = 3e5, WIN_BY_LEN = { 40: 1e7, 20: 4e6 }, WIN_BY_TOTAL = { 6: 5e6, 12: 1e7 };
+// 新的局：每季 20 天、可選 6 季或 12 季；舊存檔沿用原本的 5 季設定
+const syncTotal = () => { FINAL_SEASON = S.total || 5; };
+const winNet = () => S.total ? WIN_BY_TOTAL[S.total] || 1e7 : WIN_BY_LEN[S.len || 40] || 1e7;
 const endingKind = nw => nw >= winNet() ? 'win' : nw < START_CASH ? 'fail' : 'normal';
 function seasonEntry() {
   const nw = netWorth(), base = (S.netHist || [])[0] || S.dayStartNet || START_CASH, d = Math.min(S.day, DAYS);
@@ -13,9 +15,8 @@ const ENDINGS = {
   win: {
     tag: '成功結局', title: '台北股市傳奇', paper: ['城中日報・號外', '少年股神阿德　身價突破千萬'],
     lines: () => [
-      '1990 年 2 月，加權指數衝上一萬兩千點，整座城市都在慶祝。',
-      '你在最熱鬧的時候想起老張伯的話：「大家都在搶的時候，就是該走的時候。」',
-      '幾個月後泡沫破裂，指數跌回兩千多點；你的錢，早就安安穩穩地落袋了。',
+      ...(yearOf(FINAL_SEASON) === 1990 ? ['1990 年 2 月，加權指數衝上一萬兩千點，整座城市都在慶祝。', '你在最熱鬧的時候想起老張伯的話：「大家都在搶的時候，就是該走的時候。」', '幾個月後泡沫破裂，指數跌回兩千多點；你的錢，早就安安穩穩地落袋了。']
+        : [`${yearOf(FINAL_SEASON)} 年，台股走過了萬點泡沫、崩盤和台海危機，你一路撐了下來。`, '每一次大漲，你都記得老張伯的話：「大家都在搶的時候，就是該走的時候。」', '每一次恐慌，你都敢進場撿便宜；一次次的起落，讓你的資產越滾越大。']),
       '你在城中路買下一整棟透天厝，一樓開了間小小的研究室，專門教人看財報。',
       '小美笑著說：「阿德，現在大家都叫你老師了。」',
     ],
@@ -35,7 +36,7 @@ const ENDINGS = {
   normal: {
     tag: '普通結局', title: '平凡的幸福', paper: ['城中日報', '萬點行情落幕　股民回歸日常'],
     lines: () => [
-      '1990 年，泡沫破裂，加權指數從一萬兩千點一路跌到兩千多點。',
+      yearOf(FINAL_SEASON) === 1990 ? '1990 年，泡沫破裂，加權指數從一萬兩千點一路跌到兩千多點。' : `${yearOf(FINAL_SEASON)} 年，指數在幾千點之間上上下下，萬點的熱潮已經是很久以前的事了。`,
       '你沒有變成大亨，但也沒有被市場吞掉。',
       '你用賺來的錢買了一台野狼機車，週末載著家人去淡水看夕陽。',
       '偶爾經過城中證券，看板還是紅紅綠綠地跳著，你只是笑一笑，繼續往前騎。',
@@ -46,7 +47,7 @@ const ENDINGS = {
   fail: {
     tag: '失敗結局', title: '泡沫之後', paper: ['城中日報', '股市崩盤　萬點跌回兩千'],
     lines: () => [
-      '1990 年，泡沫破裂。看板上一整片綠色，像一場停不下來的雨。',
+      yearOf(FINAL_SEASON) === 1990 ? '1990 年，泡沫破裂。看板上一整片綠色，像一場停不下來的雨。' : `${yearOf(FINAL_SEASON)} 年，看板上一整片綠色，像一場停不下來的雨。`,
       '當初的明牌一個個落空，帳戶裡的數字越來越小。',
       S.phone ? '你把大哥大賣回通訊行，退掉雅房，提著行李走向車站。' : '你退掉雅房，提著行李走向車站。',
       '房東太太追出來，塞給你一包肉粽：「年輕人，留得青山在。」',
@@ -147,7 +148,7 @@ function playEnding(kind) {
     <div class="endStats"><h3 style="margin:0 0 8px">${E.tag}・${E.title}</h3>
       <div class="sum" style="margin-bottom:8px"><span>最終總資產 <b class="${cls(nw - START_CASH)}">${money(nw)}</b></span><span>本金的 <b>${(nw / START_CASH).toFixed(1)}</b> 倍</span><span>身分 <b>${RANKS[rankOf(nw)].name}</b></span><span>彩蛋 <b>${eggN}/${eggT}</b></span></div>
       <table class="q"><tr><th style="text-align:left">季</th><th>你的資產</th><th>同期大盤</th></tr>${log.map(l => `<tr><td style="text-align:left">第 ${l.s} 季</td><td class="${cls(l.me)}">${pct(l.me)}</td><td class="${cls(l.idx)}">${pct(l.idx)}</td></tr>`).join('')}</table>
-      <p class="note">${kind === 'win' || kind === 'tycoon' ? '恭喜！' : kind === 'normal' ? '守住本金就贏過很多人了。' : '下一次，試試少用融資、多聽準的人說話。'}結局只看第 ${FINAL_SEASON} 季結束時的總資產：${wan(winNet())} 以上是成功、低於本金是失敗，中間是普通；中途當上證券大亨或資產跌破 ${BROKE_NET / 1e4} 萬 會提早迎來結局。</p>
+      <p class="note">${kind === 'win' || kind === 'tycoon' ? '恭喜！' : kind === 'normal' ? '守住本金就贏過很多人了。' : '下一次，試試少用融資、多聽準的人說話。'}結局只看第 ${FINAL_SEASON} 季（${yearOf(FINAL_SEASON)} 年）結束時的總資產：${wan(winNet())} 以上是成功、低於本金是失敗，中間是普通；中途當上證券大亨或資產跌破 ${BROKE_NET / 1e4} 萬 會提早迎來結局。</p>
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="endAgain">重新開始新的人生</button><button class="btn pri" id="endGo">繼續自由遊玩</button></div></div>
     <button class="endSkip" id="endSkip">跳過 ▸</button>`;
   root.className = 'end-' + scene; root.classList.remove('hide');

@@ -1179,11 +1179,11 @@ const SBY = Object.fromEntries(STOCKS.map(s => [s.id, s]));
 let DAYS = 40; const LIMIT = 0.07, LOT = 1000, FEE = 0.001425, TAX = 0.003, TICKS = 54;   // 09:00–13:30，每 5 分鐘一跳
 // 短篇每季只有一半天數，門檻跟著降低
 const RANKS_L = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 3e6 }, { name: '中實戶', min: 6e6 }, { name: '大戶', min: 1.5e7 }, { name: '證券大亨', min: 5e7 }];
-const RANKS_S = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 2.2e6 }, { name: '中實戶', min: 3e6 }, { name: '大戶', min: 5e6 }, { name: '證券大亨', min: 1.5e7 }];
+const RANKS_S = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 2.5e6 }, { name: '中實戶', min: 5e6 }, { name: '大戶', min: 1e7 }, { name: '證券大亨', min: 3e7 }];
 let RANKS = RANKS_L;
 const START_CASH = 2000000;
-// 每季代表一年，開季指數用當年台股年初的水準（1986–1990 年加權指數年初約 835、1039、2340、5119、9624 點）
-const YEAR_OPEN = { 1986: 835, 1987: 1039, 1988: 2340, 1989: 5119, 1990: 9624, 1991: 4530 };
+// 每季代表一年，開季指數用前一年底台股加權指數的收盤水準
+const YEAR_OPEN = { 1985: 838, 1986: 835, 1987: 1039, 1988: 2340, 1989: 5119, 1990: 9624, 1991: 4530, 1992: 4600, 1993: 3377, 1994: 6070, 1995: 7124, 1996: 5173 };
 let IDX_BASE = 4500;
 const VOL_K = 1.5;   // 80 年代末個股波動大，漲停跌停是家常便飯（只放大個股，不改大盤）
 // 融資券（依台股常見規定簡化）：融資成數 6 成、融券保證金 9 成、維持率 130%
@@ -1211,6 +1211,18 @@ const EVENTS = [
     head: '中東爆發戰爭　油價飆漲　塑化航運重挫', body: '油價一夜之間翻倍，原料和運費都變貴，塑化和航運股首當其衝。',
     ref: '改編自 1990 年 8 月伊拉克入侵科威特：油價飆漲，台股從同年 2 月的 12682 點一路跌到 10 月約 2485 點。',
     hints: [['shipping', '中東那邊的航線好像要停了，船東都在講戰爭。'], ['reporter', '外電：伊拉克在邊境集結大批軍隊。']] },
+  { id: 'pandemic', name: '疫情爆發', pre: 3, dur: 6, eff: k => k < 3 ? { idx: -0.05, sec: { '生技': 0.06, '百貨': -0.04, '航運': -0.02 } } : { idx: 0.022, sec: { '生技': 0.03 } },
+    head: '新型傳染病擴散　股市重挫　防疫生技股逆勢大漲', body: '學校停課、百貨公司門可羅雀，大家搶購口罩和藥品，生技股成了避風港。',
+    ref: '改編自 2003 年 SARS 與 2020 年新冠肺炎疫情：初期股市重挫，防疫、生技類股逆勢上漲，之後在寬鬆資金帶動下快速反彈。',
+    hints: [['reporter', '醫院那邊傳出一種新的傳染病，報社在準備專題。'], ['taxi', '最近機場排班的同業說，很多人戴口罩，好像有什麼病在傳。'], ['auntie', '藥房的口罩都被買光了，好像有什麼怪病。']] },
+  { id: 'portjam', name: '全球塞港、運價飆漲', pre: 2, dur: 5, eff: k => k < 3 ? { idx: 0.006, sec: { '航運': 0.07 } } : { idx: 0, sec: { '航運': -0.04 } },
+    head: '全球港口大塞車　貨櫃一櫃難求　航運股飆漲', body: '船都卡在港外排隊，運價一天比一天高，航運公司賺到不知道怎麼花。',
+    ref: '改編自 2021 年疫情期間全球塞港、運價飆漲：台灣貨櫃航運股大漲數倍，之後運價回落、股價也跟著修正。',
+    hints: [['shipping', '港口外面排了幾十艘船在等靠岸，貨櫃根本不夠用！'], ['taxi', '載到一個跑船的，說現在運費漲到嚇死人。']] },
+  { id: 'war', name: '歐陸爆發戰爭', pre: 2, dur: 5, eff: k => k < 2 ? { idx: -0.045, sec: { '鋼鐵': 0.025, '塑化': 0.015, '航運': -0.02 } } : { idx: 0.012 },
+    head: '歐洲爆發戰爭　原物料價格飆漲　全球股市急跌', body: '戰火讓能源和糧食價格飆漲，股市先跌一波，鋼鐵等原物料股反而逆勢上漲。',
+    ref: '改編自 2022 年 2 月俄烏戰爭爆發：全球股市急跌，能源、原物料與糧食價格飆漲。',
+    hints: [['banker', '國外同業說歐洲邊境局勢很緊張，資金都在往美元跑。'], ['reporter', '外電：邊境集結了大批坦克，隨時可能開戰。']] },
   { id: 'chips', name: '科學園區接大單', pre: 2, dur: 4, eff: k => ({ idx: 0.01, sec: { '電子': 0.055 } }),
     head: '電子新廠訂單滿載　電子股強勢領漲', body: '國外大廠的訂單湧進園區，工廠三班制趕工，電子股成了市場新寵。',
     ref: '改編自 1980 年新竹科學園區設立後，電子業逐漸成為台灣出口與股市的主角。',
@@ -1268,14 +1280,15 @@ function roundTick(p) { const t = tick(p); return Math.round(p / t) * t; }
 function genSeason(seed) {
   const r = mulberry32(seed), SS = typeof S !== 'undefined' && S ? S : null;
   DAYS = (SS && SS.len) || 40; RANKS = DAYS === 20 ? RANKS_S : RANKS_L; const season = (SS && SS.season) || 1;
-  IDX_BASE = YEAR_OPEN[1985 + season] || 4500;
-  const bubble = season === (typeof FINAL_SEASON !== 'undefined' ? FINAL_SEASON : 5), kb = 40 / DAYS;
+  const year = (SS && SS.total ? 1984 : 1985) + season; IDX_BASE = YEAR_OPEN[year] || 4500;
+  // 1990 年泡沫破裂；遊戲後半段（季數過半之後）偏空，大約六到七成的日子下跌
+  const bubble = year === 1990, late = !!(SS && SS.total && season > SS.total / 2), kb = 40 / DAYS;
   const pool = EVENTS.filter(e => !e.always && !e.policy).map(e => e.id);
   for (let i = pool.length - 1; i > 0; i--) { const j = r() * (i + 1) | 0;[pool[i], pool[j]] = [pool[j], pool[i]]; }
   // 每季兩個利多、兩個利空，順序隨機
-  const POS = ['finbubble', 'chips', 'land', 'easing', 'ai'];
-  const pos = pool.filter(id => POS.includes(id)).slice(0, 2), neg = pool.filter(id => !POS.includes(id)).slice(0, 2);
-  const deck = [pos[0], neg[0], pos[1], neg[1]]; for (let i = 3; i > 0; i--) { const j = r() * (i + 1) | 0;[deck[i], deck[j]] = [deck[j], deck[i]]; }
+  const POS = ['finbubble', 'chips', 'land', 'easing', 'ai', 'portjam'];
+  const nPos = late ? 1 : 2, pos = pool.filter(id => POS.includes(id)).slice(0, nPos), neg = pool.filter(id => !POS.includes(id)).slice(0, 4 - nPos);
+  const deck = pos.concat(neg); for (let i = 3; i > 0; i--) { const j = r() * (i + 1) | 0;[deck[i], deck[j]] = [deck[j], deck[i]]; }
   deck.splice(1 + (r() * 3 | 0), 0, 'ponzi');
   const events = []; let day = 5 + (r() * 3 | 0);
   for (const id of deck) { if (day > DAYS - 3) break; events.push({ id, day, def: EBY[id] }); day += EBY[id].dur + 2 + (r() * 4 | 0); }
@@ -1295,9 +1308,9 @@ function genSeason(seed) {
   for (let k = 0; k < 3; k++) { for (let t = 0; t < 30; t++) { const d = 4 + (r() * (DAYS - 10) | 0); if (events.some(e => Math.abs(e.day - d) < 4) || pumps.some(p => Math.abs(p.day - d) < 6)) continue; pumps.push({ day: d, stock: STOCKS[fullSeason[r() * fullSeason.length | 0]].id }); break; } }
   // 先算「不含天氣」的原始報酬，再套上天氣（天氣之後可能被即時天氣覆蓋）
   const raw = [STOCKS.map(() => 0)], thin = [false], weather = ['sun'], temp = [28], us = [0], nas = [0], jp = [0], kr = [0], usHead = [''];
-  let regime = 1; const MU = [0.01, 0.002, -0.005];   // 多頭、盤整、空頭的每日平均漲跌（1987–89 年台股平均約每兩個月 +12%）
+  let regime = late ? 2 : 1; const MU = late ? [0.008, -0.001, -0.0095] : [0.01, 0.002, -0.005];   // 多頭、盤整、空頭的每日平均漲跌（1987–89 年台股平均約每兩個月 +12%）
   for (let d = 1; d <= DAYS; d++) {
-    if (r() > 0.88) regime = r() < 0.45 ? 0 : r() < 0.6 ? 1 : 2;
+    if (r() > 0.88) regime = late ? (r() < 0.12 ? 0 : r() < 0.2 ? 1 : 2) : (r() < 0.45 ? 0 : r() < 0.6 ? 1 : 2);
     let idx = 0, sec = {}, sty = {}, vol = 1, th = false, storm = false, evUs = 0, head = null;
     // 1990 年：前段衝向萬點，央行緊縮後泡沫破裂
     if (bubble) { const f = d / DAYS; idx += (f <= 0.42 ? 0.011 : f <= 0.52 ? 0 : -0.028) * kb; if (f > 0.42 && f <= 0.62) vol *= 1.3; }
@@ -2121,7 +2134,7 @@ function openHelp() {
     <h4>7. 事件卡與歷史小百科</h4>
     <p>每一季會從真實歷史改編的事件裡抽 5 張，隨機排列，包括 1987 黑色星期一、1979–1981 聯準會暴力升息、1995–1996 台海飛彈危機、1997 亞洲金融風暴、2023–2024 AI 浪潮等。爆發時會出現「號外」，消息本的「歷史小百科」記錄它改編自哪一段歷史。地下投資公司每一季一定會倒，別把錢放太久。</p>
     <h4>8. 身分晉升</h4>
-    <p><b>結局</b>：故事共 ${FINAL_SEASON} 季，第 ${FINAL_SEASON} 季結束（1990 年泡沫破裂）時，總資產 ${wan(winNet())} 以上是成功結局、低於本金 ${wan(START_CASH)} 是失敗結局，中間是普通結局。中途當上證券大亨會提早迎來成功結局，總資產跌破 ${BROKE_NET / 1e4} 萬 則提早失敗。結局之後可以繼續自由遊玩。${(S.len || 40) === 20 ? '本局是短篇（每季 20 天）。' : '本局是完整版（每季 40 天）。'}</p>
+    <p><b>結局</b>：故事共 ${FINAL_SEASON} 季，第 ${FINAL_SEASON} 季（${yearOf(FINAL_SEASON)} 年）結束時，總資產 ${wan(winNet())} 以上是成功結局、低於本金 ${wan(START_CASH)} 是失敗結局，中間是普通結局。中途當上證券大亨會提早迎來成功結局，總資產跌破 ${BROKE_NET / 1e4} 萬 則提早失敗。結局之後可以繼續自由遊玩。本局共 ${FINAL_SEASON} 季、每季 ${DAYS} 天。</p>
     <p>${RANKS.map(r => `${r.name}（${wan(r.min)}）`).join(' → ')}。大哥大一支 ${wan(PHONE_PRICE)}，買了以後在哪裡都能下單。</p>
     <h4>9. 操作</h4>
     <p>WASD／方向鍵移動、Shift 快跑、E 說話、K 看盤下單、N 消息本、P 暫停、T 快轉到下一個時段、M 城市地圖、H 指南、Q 暫存、O 存檔與讀檔、拖曳轉視角。遊戲不會自動存檔，記得隨手按 Q 留暫存點。手機用左下搖桿、右下「互動」「看盤」。</p>
@@ -2366,8 +2379,8 @@ async function seasonEnd() {
     $('sum').classList.remove('hide'); $('sumOk').onclick = () => { $('sum').classList.add('hide'); res(); };
   });
   const log = (S.log || []).filter(l => l.s !== S.season).concat([seasonEntry()]);
-  const keep = { cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won, eggs: S.eggs, certs: S.certs, bullSeason: S.bullSeason, ended: S.ended, log, rank: S.rank, base: S.base, len: S.len, bond: S.bond, tut: S.tut, bondSeen: S.bondSeen, npcType: S.npcType, steps: S.steps, gone: (S.gone || []).concat(SEASON.delist ? [STOCKS[SEASON.delist.i].id] : []), ipoed: (S.ipoed || []).concat((SEASON.ipos || []).map(x => STOCKS[x.i].id)) };
-  S = Object.assign(S0(), keep); if (S.base != null) S.seed = seasonSeed(S.base, S.season); S.dayStartNet = S.cash; genSeason(S.seed);
+  const keep = { cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won, eggs: S.eggs, certs: S.certs, bullSeason: S.bullSeason, ended: S.ended, log, rank: S.rank, base: S.base, len: S.len, total: S.total, bond: S.bond, tut: S.tut, bondSeen: S.bondSeen, npcType: S.npcType, steps: S.steps, gone: (S.gone || []).concat(SEASON.delist ? [STOCKS[SEASON.delist.i].id] : []), ipoed: (S.ipoed || []).concat((SEASON.ipos || []).map(x => STOCKS[x.i].id)) };
+  S = Object.assign(S0(), keep); syncTotal(); if (S.base != null) S.seed = seasonSeed(S.base, S.season); S.dayStartNet = S.cash; genSeason(S.seed);
 }
 function checkRank() {
   const r = rankOf(netWorth());
@@ -2529,11 +2542,13 @@ function updateLighting() {
   SIGN_MAT.color.setScalar(lerp(1.25, 0.92, day));
 }
 /* =========================================================
-   結局：第 5 季結束（1990 年泡沫破裂）時依總資產分成成功／普通／失敗；
+   結局：最後一季（6 季局是 1990 年泡沫破裂、12 季局是 1996 年）結束時依總資產分成成功／普通／失敗；
    中途成為證券大亨直接成功，總資產跌破 30 萬直接失敗
    ========================================================= */
-const FINAL_SEASON = 5, BROKE_NET = 3e5, WIN_BY_LEN = { 40: 1e7, 20: 4e6 };
-const winNet = () => WIN_BY_LEN[S.len || 40] || 1e7;
+let FINAL_SEASON = 5; const BROKE_NET = 3e5, WIN_BY_LEN = { 40: 1e7, 20: 4e6 }, WIN_BY_TOTAL = { 6: 5e6, 12: 1e7 };
+// 新的局：每季 20 天、可選 6 季或 12 季；舊存檔沿用原本的 5 季設定
+const syncTotal = () => { FINAL_SEASON = S.total || 5; };
+const winNet = () => S.total ? WIN_BY_TOTAL[S.total] || 1e7 : WIN_BY_LEN[S.len || 40] || 1e7;
 const endingKind = nw => nw >= winNet() ? 'win' : nw < START_CASH ? 'fail' : 'normal';
 function seasonEntry() {
   const nw = netWorth(), base = (S.netHist || [])[0] || S.dayStartNet || START_CASH, d = Math.min(S.day, DAYS);
@@ -2543,9 +2558,8 @@ const ENDINGS = {
   win: {
     tag: '成功結局', title: '台北股市傳奇', paper: ['城中日報・號外', '少年股神阿德　身價突破千萬'],
     lines: () => [
-      '1990 年 2 月，加權指數衝上一萬兩千點，整座城市都在慶祝。',
-      '你在最熱鬧的時候想起老張伯的話：「大家都在搶的時候，就是該走的時候。」',
-      '幾個月後泡沫破裂，指數跌回兩千多點；你的錢，早就安安穩穩地落袋了。',
+      ...(yearOf(FINAL_SEASON) === 1990 ? ['1990 年 2 月，加權指數衝上一萬兩千點，整座城市都在慶祝。', '你在最熱鬧的時候想起老張伯的話：「大家都在搶的時候，就是該走的時候。」', '幾個月後泡沫破裂，指數跌回兩千多點；你的錢，早就安安穩穩地落袋了。']
+        : [`${yearOf(FINAL_SEASON)} 年，台股走過了萬點泡沫、崩盤和台海危機，你一路撐了下來。`, '每一次大漲，你都記得老張伯的話：「大家都在搶的時候，就是該走的時候。」', '每一次恐慌，你都敢進場撿便宜；一次次的起落，讓你的資產越滾越大。']),
       '你在城中路買下一整棟透天厝，一樓開了間小小的研究室，專門教人看財報。',
       '小美笑著說：「阿德，現在大家都叫你老師了。」',
     ],
@@ -2565,7 +2579,7 @@ const ENDINGS = {
   normal: {
     tag: '普通結局', title: '平凡的幸福', paper: ['城中日報', '萬點行情落幕　股民回歸日常'],
     lines: () => [
-      '1990 年，泡沫破裂，加權指數從一萬兩千點一路跌到兩千多點。',
+      yearOf(FINAL_SEASON) === 1990 ? '1990 年，泡沫破裂，加權指數從一萬兩千點一路跌到兩千多點。' : `${yearOf(FINAL_SEASON)} 年，指數在幾千點之間上上下下，萬點的熱潮已經是很久以前的事了。`,
       '你沒有變成大亨，但也沒有被市場吞掉。',
       '你用賺來的錢買了一台野狼機車，週末載著家人去淡水看夕陽。',
       '偶爾經過城中證券，看板還是紅紅綠綠地跳著，你只是笑一笑，繼續往前騎。',
@@ -2576,7 +2590,7 @@ const ENDINGS = {
   fail: {
     tag: '失敗結局', title: '泡沫之後', paper: ['城中日報', '股市崩盤　萬點跌回兩千'],
     lines: () => [
-      '1990 年，泡沫破裂。看板上一整片綠色，像一場停不下來的雨。',
+      yearOf(FINAL_SEASON) === 1990 ? '1990 年，泡沫破裂。看板上一整片綠色，像一場停不下來的雨。' : `${yearOf(FINAL_SEASON)} 年，看板上一整片綠色，像一場停不下來的雨。`,
       '當初的明牌一個個落空，帳戶裡的數字越來越小。',
       S.phone ? '你把大哥大賣回通訊行，退掉雅房，提著行李走向車站。' : '你退掉雅房，提著行李走向車站。',
       '房東太太追出來，塞給你一包肉粽：「年輕人，留得青山在。」',
@@ -2677,7 +2691,7 @@ function playEnding(kind) {
     <div class="endStats"><h3 style="margin:0 0 8px">${E.tag}・${E.title}</h3>
       <div class="sum" style="margin-bottom:8px"><span>最終總資產 <b class="${cls(nw - START_CASH)}">${money(nw)}</b></span><span>本金的 <b>${(nw / START_CASH).toFixed(1)}</b> 倍</span><span>身分 <b>${RANKS[rankOf(nw)].name}</b></span><span>彩蛋 <b>${eggN}/${eggT}</b></span></div>
       <table class="q"><tr><th style="text-align:left">季</th><th>你的資產</th><th>同期大盤</th></tr>${log.map(l => `<tr><td style="text-align:left">第 ${l.s} 季</td><td class="${cls(l.me)}">${pct(l.me)}</td><td class="${cls(l.idx)}">${pct(l.idx)}</td></tr>`).join('')}</table>
-      <p class="note">${kind === 'win' || kind === 'tycoon' ? '恭喜！' : kind === 'normal' ? '守住本金就贏過很多人了。' : '下一次，試試少用融資、多聽準的人說話。'}結局只看第 ${FINAL_SEASON} 季結束時的總資產：${wan(winNet())} 以上是成功、低於本金是失敗，中間是普通；中途當上證券大亨或資產跌破 ${BROKE_NET / 1e4} 萬 會提早迎來結局。</p>
+      <p class="note">${kind === 'win' || kind === 'tycoon' ? '恭喜！' : kind === 'normal' ? '守住本金就贏過很多人了。' : '下一次，試試少用融資、多聽準的人說話。'}結局只看第 ${FINAL_SEASON} 季（${yearOf(FINAL_SEASON)} 年）結束時的總資產：${wan(winNet())} 以上是成功、低於本金是失敗，中間是普通；中途當上證券大亨或資產跌破 ${BROKE_NET / 1e4} 萬 會提早迎來結局。</p>
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="endAgain">重新開始新的人生</button><button class="btn pri" id="endGo">繼續自由遊玩</button></div></div>
     <button class="endSkip" id="endSkip">跳過 ▸</button>`;
   root.className = 'end-' + scene; root.classList.remove('hide');
@@ -2703,23 +2717,23 @@ function playEnding(kind) {
 /* =========================================================
    extras：遊戲長度、下單張數、行情回饋、街頭反應、交情、新手教學、年代新聞
    ========================================================= */
-const yearOf = s => 1985 + s;
+const yearOf = s => (S && S.total ? 1984 : 1985) + s;
 
 /* ---------- 開新局：選遊戲長度 ---------- */
 // 每季的種子由這一局的 base 推出來，換季時行情重新洗牌
 const seasonSeed = (base, s) => ((Math.imul(base ^ 0x5bd1e995, 2654435761) >>> 0) + s * 104729) % 2000000000;
-const NEWOPT = { len: 40 };
+const NEWOPT = { total: 6 };
 function openNewGame() { $('titleBtns').classList.add('hide'); $('newBox').classList.remove('hide'); renderNewGame(); }
 function renderNewGame() {
-  const L = NEWOPT.len;
+  const T = NEWOPT.total;
   $('newBox').innerHTML = `<h3>開始新的一年</h3>
-    <div class="nbRow"><span>遊戲長度</span><button class="tab ${L === 20 ? 'on' : ''}" data-len="20">短篇・每季 20 天</button><button class="tab ${L === 40 ? 'on' : ''}" data-len="40">完整版・每季 40 天</button></div>
-    <p class="nbNote">兩種都是 5 季，從 1986 年走到 1990 年泡沫破裂；短篇大約只要完整版一半的時間。</p>
+    <div class="nbRow"><span>遊戲長度</span><button class="tab ${T === 6 ? 'on' : ''}" data-total="6">6 季（1985–1990）</button><button class="tab ${T === 12 ? 'on' : ''}" data-total="12">12 季（1985–1996）</button></div>
+    <p class="nbNote">每季 20 個交易日、代表一年。6 季在 1990 年泡沫破裂時結束；12 季會再經歷崩盤後的起伏，一直走到 1996 年。遊戲後半段行情偏空，大約六到七成的日子在跌。</p>
     <div class="nbRow" style="justify-content:flex-end;margin-bottom:0"><button class="btn" id="nbBack">返回</button><button class="btn pri" id="nbGo">開始</button></div>`;
   const q = s => $('newBox').querySelector(s);
-  $('newBox').querySelectorAll('[data-len]').forEach(b => b.onclick = () => { NEWOPT.len = +b.dataset.len; renderNewGame(); });
+  $('newBox').querySelectorAll('[data-total]').forEach(b => b.onclick = () => { NEWOPT.total = +b.dataset.total; renderNewGame(); });
   q('#nbBack').onclick = () => { $('newBox').classList.add('hide'); $('titleBtns').classList.remove('hide'); };
-  q('#nbGo').onclick = () => startGame(false, null, { len: NEWOPT.len, base: Math.random() * 2000000000 | 0 });
+  q('#nbGo').onclick = () => startGame(false, null, { len: 20, total: NEWOPT.total, base: Math.random() * 2000000000 | 0 });
 }
 
 /* ---------- 下單張數 ---------- */
@@ -2827,7 +2841,7 @@ GOALS.unshift(TUT_GOAL);
 
 /* ---------- 年代新聞：最後一季的泡沫 ---------- */
 function eraNews(d) {
-  if (S.season !== FINAL_SEASON || S.ended) return '';
+  if (yearOf(S.season) !== 1990 || S.ended) return '';
   const a = Math.round(DAYS * 0.3), b = Math.round(DAYS * 0.45), c = Math.round(DAYS * 0.55);
   const t = d === 1 ? '新的一年，人人都在問：指數會不會衝上一萬兩千點？' : d === a ? '全民瘋股票：計程車司機、菜販都在報明牌' : d === b ? '央行總裁警告股市過熱，將收緊銀根' : d === c ? '萬點崩跌！融資斷頭潮湧現' : '';
   return t ? `<p><b>${d === c ? '頭條快訊' : '時事'}</b>：${t}</p>` : '';
@@ -3171,12 +3185,12 @@ async function intro() {
 }
 async function startGame(cont, state, opts) {
   initAudio();
-  const prevLen = (S && S.len) || 40; $('newBox').classList.add('hide');
+  const prevLen = (S && S.len) || 20, prevTotal = (S && S.total) || 6; $('newBox').classList.add('hide');
   DLG.hide(); ['trade', 'notes', 'help', 'saves', 'sum', 'ext'].forEach(id => $(id).classList.add('hide')); GAME.busy = false; GAME.ending = false; GAME.paused = false; $('pauseTag').classList.add('hide'); $('bPause').classList.remove('on');
   $('fade').style.opacity = 1; await wait(600);
   if (state) { S = Object.assign(S0(), JSON.parse(JSON.stringify(state))); TIME.min = S.min || 360; cont = true; }
-  else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; const o = opts || { len: prevLen, base: Math.random() * 2000000000 | 0 }; S.len = o.len; S.base = o.base; S.seed = seasonSeed(o.base, 1); S.tut = 0; }
-  const hadPref = loadSoundPref(); assignTypes(); genSeason(S.seed); applyWeatherOverrides();
+  else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; const o = opts || { len: prevTotal ? 20 : prevLen, total: prevTotal, base: Math.random() * 2000000000 | 0 }; S.len = o.len; S.total = o.total; S.base = o.base; S.seed = seasonSeed(o.base, 1); S.tut = 0; }
+  const hadPref = loadSoundPref(); syncTotal(); assignTypes(); genSeason(S.seed); applyWeatherOverrides();
   lastPhase = PHASE(); MK.prices = null; MK.path = null;
   if (lastPhase === 'open') { MK.path = genIntraday(S.day); MK.k = -1; }
   if (lastPhase === 'post' || lastPhase === 'night') MK.prices = SEASON.close[S.day].slice();

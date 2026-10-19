@@ -95,12 +95,12 @@ async function intro() {
 }
 async function startGame(cont, state, opts) {
   initAudio();
-  const prevLen = (S && S.len) || 40; $('newBox').classList.add('hide');
+  const prevLen = (S && S.len) || 20, prevTotal = (S && S.total) || 6; $('newBox').classList.add('hide');
   DLG.hide(); ['trade', 'notes', 'help', 'saves', 'sum', 'ext'].forEach(id => $(id).classList.add('hide')); GAME.busy = false; GAME.ending = false; GAME.paused = false; $('pauseTag').classList.add('hide'); $('bPause').classList.remove('on');
   $('fade').style.opacity = 1; await wait(600);
   if (state) { S = Object.assign(S0(), JSON.parse(JSON.stringify(state))); TIME.min = S.min || 360; cont = true; }
-  else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; const o = opts || { len: prevLen, base: Math.random() * 2000000000 | 0 }; S.len = o.len; S.base = o.base; S.seed = seasonSeed(o.base, 1); S.tut = 0; }
-  const hadPref = loadSoundPref(); assignTypes(); genSeason(S.seed); applyWeatherOverrides();
+  else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; const o = opts || { len: prevTotal ? 20 : prevLen, total: prevTotal, base: Math.random() * 2000000000 | 0 }; S.len = o.len; S.total = o.total; S.base = o.base; S.seed = seasonSeed(o.base, 1); S.tut = 0; }
+  const hadPref = loadSoundPref(); syncTotal(); assignTypes(); genSeason(S.seed); applyWeatherOverrides();
   lastPhase = PHASE(); MK.prices = null; MK.path = null;
   if (lastPhase === 'open') { MK.path = genIntraday(S.day); MK.k = -1; }
   if (lastPhase === 'post' || lastPhase === 'night') MK.prices = SEASON.close[S.day].slice();

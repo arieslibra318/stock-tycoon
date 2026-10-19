@@ -1,23 +1,23 @@
 /* =========================================================
    extras：遊戲長度、下單張數、行情回饋、街頭反應、交情、新手教學、年代新聞
    ========================================================= */
-const yearOf = s => 1985 + s;
+const yearOf = s => (S && S.total ? 1984 : 1985) + s;
 
 /* ---------- 開新局：選遊戲長度 ---------- */
 // 每季的種子由這一局的 base 推出來，換季時行情重新洗牌
 const seasonSeed = (base, s) => ((Math.imul(base ^ 0x5bd1e995, 2654435761) >>> 0) + s * 104729) % 2000000000;
-const NEWOPT = { len: 40 };
+const NEWOPT = { total: 6 };
 function openNewGame() { $('titleBtns').classList.add('hide'); $('newBox').classList.remove('hide'); renderNewGame(); }
 function renderNewGame() {
-  const L = NEWOPT.len;
+  const T = NEWOPT.total;
   $('newBox').innerHTML = `<h3>開始新的一年</h3>
-    <div class="nbRow"><span>遊戲長度</span><button class="tab ${L === 20 ? 'on' : ''}" data-len="20">短篇・每季 20 天</button><button class="tab ${L === 40 ? 'on' : ''}" data-len="40">完整版・每季 40 天</button></div>
-    <p class="nbNote">兩種都是 5 季，從 1986 年走到 1990 年泡沫破裂；短篇大約只要完整版一半的時間。</p>
+    <div class="nbRow"><span>遊戲長度</span><button class="tab ${T === 6 ? 'on' : ''}" data-total="6">6 季（1985–1990）</button><button class="tab ${T === 12 ? 'on' : ''}" data-total="12">12 季（1985–1996）</button></div>
+    <p class="nbNote">每季 20 個交易日、代表一年。6 季在 1990 年泡沫破裂時結束；12 季會再經歷崩盤後的起伏，一直走到 1996 年。遊戲後半段行情偏空，大約六到七成的日子在跌。</p>
     <div class="nbRow" style="justify-content:flex-end;margin-bottom:0"><button class="btn" id="nbBack">返回</button><button class="btn pri" id="nbGo">開始</button></div>`;
   const q = s => $('newBox').querySelector(s);
-  $('newBox').querySelectorAll('[data-len]').forEach(b => b.onclick = () => { NEWOPT.len = +b.dataset.len; renderNewGame(); });
+  $('newBox').querySelectorAll('[data-total]').forEach(b => b.onclick = () => { NEWOPT.total = +b.dataset.total; renderNewGame(); });
   q('#nbBack').onclick = () => { $('newBox').classList.add('hide'); $('titleBtns').classList.remove('hide'); };
-  q('#nbGo').onclick = () => startGame(false, null, { len: NEWOPT.len, base: Math.random() * 2000000000 | 0 });
+  q('#nbGo').onclick = () => startGame(false, null, { len: 20, total: NEWOPT.total, base: Math.random() * 2000000000 | 0 });
 }
 
 /* ---------- 下單張數 ---------- */
@@ -125,7 +125,7 @@ GOALS.unshift(TUT_GOAL);
 
 /* ---------- 年代新聞：最後一季的泡沫 ---------- */
 function eraNews(d) {
-  if (S.season !== FINAL_SEASON || S.ended) return '';
+  if (yearOf(S.season) !== 1990 || S.ended) return '';
   const a = Math.round(DAYS * 0.3), b = Math.round(DAYS * 0.45), c = Math.round(DAYS * 0.55);
   const t = d === 1 ? '新的一年，人人都在問：指數會不會衝上一萬兩千點？' : d === a ? '全民瘋股票：計程車司機、菜販都在報明牌' : d === b ? '央行總裁警告股市過熱，將收緊銀根' : d === c ? '萬點崩跌！融資斷頭潮湧現' : '';
   return t ? `<p><b>${d === c ? '頭條快訊' : '時事'}</b>：${t}</p>` : '';

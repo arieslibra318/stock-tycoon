@@ -43,11 +43,11 @@ const SBY = Object.fromEntries(STOCKS.map(s => [s.id, s]));
 let DAYS = 40; const LIMIT = 0.07, LOT = 1000, FEE = 0.001425, TAX = 0.003, TICKS = 54;   // 09:00–13:30，每 5 分鐘一跳
 // 短篇每季只有一半天數，門檻跟著降低
 const RANKS_L = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 3e6 }, { name: '中實戶', min: 6e6 }, { name: '大戶', min: 1.5e7 }, { name: '證券大亨', min: 5e7 }];
-const RANKS_S = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 2.2e6 }, { name: '中實戶', min: 3e6 }, { name: '大戶', min: 5e6 }, { name: '證券大亨', min: 1.5e7 }];
+const RANKS_S = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 2.5e6 }, { name: '中實戶', min: 5e6 }, { name: '大戶', min: 1e7 }, { name: '證券大亨', min: 3e7 }];
 let RANKS = RANKS_L;
 const START_CASH = 2000000;
-// 每季代表一年，開季指數用當年台股年初的水準（1986–1990 年加權指數年初約 835、1039、2340、5119、9624 點）
-const YEAR_OPEN = { 1986: 835, 1987: 1039, 1988: 2340, 1989: 5119, 1990: 9624, 1991: 4530 };
+// 每季代表一年，開季指數用前一年底台股加權指數的收盤水準
+const YEAR_OPEN = { 1985: 838, 1986: 835, 1987: 1039, 1988: 2340, 1989: 5119, 1990: 9624, 1991: 4530, 1992: 4600, 1993: 3377, 1994: 6070, 1995: 7124, 1996: 5173 };
 let IDX_BASE = 4500;
 const VOL_K = 1.5;   // 80 年代末個股波動大，漲停跌停是家常便飯（只放大個股，不改大盤）
 // 融資券（依台股常見規定簡化）：融資成數 6 成、融券保證金 9 成、維持率 130%
@@ -75,6 +75,18 @@ const EVENTS = [
     head: '中東爆發戰爭　油價飆漲　塑化航運重挫', body: '油價一夜之間翻倍，原料和運費都變貴，塑化和航運股首當其衝。',
     ref: '改編自 1990 年 8 月伊拉克入侵科威特：油價飆漲，台股從同年 2 月的 12682 點一路跌到 10 月約 2485 點。',
     hints: [['shipping', '中東那邊的航線好像要停了，船東都在講戰爭。'], ['reporter', '外電：伊拉克在邊境集結大批軍隊。']] },
+  { id: 'pandemic', name: '疫情爆發', pre: 3, dur: 6, eff: k => k < 3 ? { idx: -0.05, sec: { '生技': 0.06, '百貨': -0.04, '航運': -0.02 } } : { idx: 0.022, sec: { '生技': 0.03 } },
+    head: '新型傳染病擴散　股市重挫　防疫生技股逆勢大漲', body: '學校停課、百貨公司門可羅雀，大家搶購口罩和藥品，生技股成了避風港。',
+    ref: '改編自 2003 年 SARS 與 2020 年新冠肺炎疫情：初期股市重挫，防疫、生技類股逆勢上漲，之後在寬鬆資金帶動下快速反彈。',
+    hints: [['reporter', '醫院那邊傳出一種新的傳染病，報社在準備專題。'], ['taxi', '最近機場排班的同業說，很多人戴口罩，好像有什麼病在傳。'], ['auntie', '藥房的口罩都被買光了，好像有什麼怪病。']] },
+  { id: 'portjam', name: '全球塞港、運價飆漲', pre: 2, dur: 5, eff: k => k < 3 ? { idx: 0.006, sec: { '航運': 0.07 } } : { idx: 0, sec: { '航運': -0.04 } },
+    head: '全球港口大塞車　貨櫃一櫃難求　航運股飆漲', body: '船都卡在港外排隊，運價一天比一天高，航運公司賺到不知道怎麼花。',
+    ref: '改編自 2021 年疫情期間全球塞港、運價飆漲：台灣貨櫃航運股大漲數倍，之後運價回落、股價也跟著修正。',
+    hints: [['shipping', '港口外面排了幾十艘船在等靠岸，貨櫃根本不夠用！'], ['taxi', '載到一個跑船的，說現在運費漲到嚇死人。']] },
+  { id: 'war', name: '歐陸爆發戰爭', pre: 2, dur: 5, eff: k => k < 2 ? { idx: -0.045, sec: { '鋼鐵': 0.025, '塑化': 0.015, '航運': -0.02 } } : { idx: 0.012 },
+    head: '歐洲爆發戰爭　原物料價格飆漲　全球股市急跌', body: '戰火讓能源和糧食價格飆漲，股市先跌一波，鋼鐵等原物料股反而逆勢上漲。',
+    ref: '改編自 2022 年 2 月俄烏戰爭爆發：全球股市急跌，能源、原物料與糧食價格飆漲。',
+    hints: [['banker', '國外同業說歐洲邊境局勢很緊張，資金都在往美元跑。'], ['reporter', '外電：邊境集結了大批坦克，隨時可能開戰。']] },
   { id: 'chips', name: '科學園區接大單', pre: 2, dur: 4, eff: k => ({ idx: 0.01, sec: { '電子': 0.055 } }),
     head: '電子新廠訂單滿載　電子股強勢領漲', body: '國外大廠的訂單湧進園區，工廠三班制趕工，電子股成了市場新寵。',
     ref: '改編自 1980 年新竹科學園區設立後，電子業逐漸成為台灣出口與股市的主角。',
@@ -132,14 +144,15 @@ function roundTick(p) { const t = tick(p); return Math.round(p / t) * t; }
 function genSeason(seed) {
   const r = mulberry32(seed), SS = typeof S !== 'undefined' && S ? S : null;
   DAYS = (SS && SS.len) || 40; RANKS = DAYS === 20 ? RANKS_S : RANKS_L; const season = (SS && SS.season) || 1;
-  IDX_BASE = YEAR_OPEN[1985 + season] || 4500;
-  const bubble = season === (typeof FINAL_SEASON !== 'undefined' ? FINAL_SEASON : 5), kb = 40 / DAYS;
+  const year = (SS && SS.total ? 1984 : 1985) + season; IDX_BASE = YEAR_OPEN[year] || 4500;
+  // 1990 年泡沫破裂；遊戲後半段（季數過半之後）偏空，大約六到七成的日子下跌
+  const bubble = year === 1990, late = !!(SS && SS.total && season > SS.total / 2), kb = 40 / DAYS;
   const pool = EVENTS.filter(e => !e.always && !e.policy).map(e => e.id);
   for (let i = pool.length - 1; i > 0; i--) { const j = r() * (i + 1) | 0;[pool[i], pool[j]] = [pool[j], pool[i]]; }
   // 每季兩個利多、兩個利空，順序隨機
-  const POS = ['finbubble', 'chips', 'land', 'easing', 'ai'];
-  const pos = pool.filter(id => POS.includes(id)).slice(0, 2), neg = pool.filter(id => !POS.includes(id)).slice(0, 2);
-  const deck = [pos[0], neg[0], pos[1], neg[1]]; for (let i = 3; i > 0; i--) { const j = r() * (i + 1) | 0;[deck[i], deck[j]] = [deck[j], deck[i]]; }
+  const POS = ['finbubble', 'chips', 'land', 'easing', 'ai', 'portjam'];
+  const nPos = late ? 1 : 2, pos = pool.filter(id => POS.includes(id)).slice(0, nPos), neg = pool.filter(id => !POS.includes(id)).slice(0, 4 - nPos);
+  const deck = pos.concat(neg); for (let i = 3; i > 0; i--) { const j = r() * (i + 1) | 0;[deck[i], deck[j]] = [deck[j], deck[i]]; }
   deck.splice(1 + (r() * 3 | 0), 0, 'ponzi');
   const events = []; let day = 5 + (r() * 3 | 0);
   for (const id of deck) { if (day > DAYS - 3) break; events.push({ id, day, def: EBY[id] }); day += EBY[id].dur + 2 + (r() * 4 | 0); }
@@ -159,9 +172,9 @@ function genSeason(seed) {
   for (let k = 0; k < 3; k++) { for (let t = 0; t < 30; t++) { const d = 4 + (r() * (DAYS - 10) | 0); if (events.some(e => Math.abs(e.day - d) < 4) || pumps.some(p => Math.abs(p.day - d) < 6)) continue; pumps.push({ day: d, stock: STOCKS[fullSeason[r() * fullSeason.length | 0]].id }); break; } }
   // 先算「不含天氣」的原始報酬，再套上天氣（天氣之後可能被即時天氣覆蓋）
   const raw = [STOCKS.map(() => 0)], thin = [false], weather = ['sun'], temp = [28], us = [0], nas = [0], jp = [0], kr = [0], usHead = [''];
-  let regime = 1; const MU = [0.01, 0.002, -0.005];   // 多頭、盤整、空頭的每日平均漲跌（1987–89 年台股平均約每兩個月 +12%）
+  let regime = late ? 2 : 1; const MU = late ? [0.008, -0.001, -0.0095] : [0.01, 0.002, -0.005];   // 多頭、盤整、空頭的每日平均漲跌（1987–89 年台股平均約每兩個月 +12%）
   for (let d = 1; d <= DAYS; d++) {
-    if (r() > 0.88) regime = r() < 0.45 ? 0 : r() < 0.6 ? 1 : 2;
+    if (r() > 0.88) regime = late ? (r() < 0.12 ? 0 : r() < 0.2 ? 1 : 2) : (r() < 0.45 ? 0 : r() < 0.6 ? 1 : 2);
     let idx = 0, sec = {}, sty = {}, vol = 1, th = false, storm = false, evUs = 0, head = null;
     // 1990 年：前段衝向萬點，央行緊縮後泡沫破裂
     if (bubble) { const f = d / DAYS; idx += (f <= 0.42 ? 0.011 : f <= 0.52 ? 0 : -0.028) * kb; if (f > 0.42 && f <= 0.62) vol *= 1.3; }
