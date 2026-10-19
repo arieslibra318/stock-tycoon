@@ -1,0 +1,224 @@
+<title>證券大亨</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Serif+TC:wght@700;900&family=VT323&display=swap">
+<style>
+/* 版面：全螢幕 3D 城市小行星＋1980 年代證券行風格 HUD（報紙米黃、台股紅漲綠跌、LED 琥珀看板） */
+:root{
+  --paper:#f6eedb; --paper-2:#eadfc4; --ink:#2b2622; --ink-soft:#6b6155;
+  --up:#d7263d; --down:#14965a; --led:#ffb000; --board:#15110d;
+  --accent:#c8402f; --gold:#e3a52b; --teal:#2b7f86; --shadow:rgba(30,20,10,.3);
+  --f-ui:'Huninn','Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;
+  --f-news:'Noto Serif TC','Songti TC','PMingLiU',serif;
+  --f-led:'VT323',ui-monospace,monospace;
+  color-scheme:light;
+}
+html,body{height:100%;margin:0;background:#cdb88f;color:var(--ink);font-family:var(--f-ui);overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#app{position:fixed;inset:0;overflow:hidden}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none}
+button{font-family:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.paper{background:var(--paper);border:2.5px solid var(--ink);border-radius:12px;box-shadow:0 4px 0 var(--ink),0 10px 24px var(--shadow)}
+.hide{display:none!important}
+.up{color:var(--up)}.down{color:var(--down)}
+#hud{position:absolute;inset:0;pointer-events:none}
+#hud > *{pointer-events:auto}
+#tl{position:absolute;left:max(12px,env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:7px;align-items:flex-start;max-width:min(46vw,330px)}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 14px 6px 6px}
+.brand canvas{width:44px;height:44px;border-radius:50%;background:#e9d9b4;border:2px solid var(--ink)}
+.brand b{display:block;font-size:16px}
+.brand small{display:block;font-size:12px;color:var(--ink-soft)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;gap:6px;align-items:baseline;padding:3px 10px;font-size:13px;background:var(--paper);border:2px solid var(--ink);border-radius:8px;box-shadow:0 2px 0 var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip i{font-style:normal;font-size:11px;color:var(--ink-soft)}
+.chip.bump{animation:bump .5s}
+@keyframes bump{40%{transform:scale(1.18)}}
+#ticker{position:absolute;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--board);color:var(--led);border:2.5px solid var(--ink);border-radius:10px;box-shadow:0 3px 0 var(--ink);padding:4px 14px 2px;font-family:var(--f-led);font-size:24px;line-height:1;display:flex;gap:12px;align-items:center;white-space:nowrap}
+#ticker .ph{font-family:var(--f-ui);font-size:12px;padding:2px 8px;border-radius:6px;background:#3a2f22;color:#f6eedb}
+#ticker .ph.open{background:var(--up)}
+#ticker .wx{font-family:var(--f-ui);font-size:12px;padding:2px 8px;border-radius:6px;background:#2b3a55;color:#e8f0ff}
+.goals{padding:8px 10px;font-size:13px;line-height:1.5;display:flex;flex-direction:column;gap:4px;max-width:300px}
+.goals b{font-size:11px;letter-spacing:.1em;color:var(--ink-soft)}
+.goals button{all:unset;cursor:pointer;display:flex;gap:6px;align-items:flex-start}
+.goals button:hover span:last-child{text-decoration:underline}
+.goals button:focus-visible{outline:2px solid var(--gold)}
+.goals .dot{width:10px;height:10px;border:2px solid var(--ink);border-radius:3px;flex:none;margin-top:4px}
+.goals .go{font-size:11px;color:var(--teal);margin-left:4px;white-space:nowrap}
+.lbl.goal{background:var(--teal);color:#fff;border-color:var(--ink)}
+.guide h4{margin:14px 0 4px}.guide p,.guide li{line-height:1.75}.guide ul{margin:0;padding-left:20px}
+#ticker .tl2{font-family:var(--f-ui);font-size:12px;color:#c9b48a}
+#tr{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));display:flex;gap:7px}
+.ib{width:46px;height:46px;border-radius:12px;background:var(--paper);border:2.5px solid var(--ink);box-shadow:0 3px 0 var(--ink);display:grid;place-items:center;padding:0;position:relative;font-size:11px}
+.ib:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.ib svg{width:25px;height:25px}
+.ib.off::after{content:"";position:absolute;left:8px;right:8px;top:50%;height:3px;background:var(--accent);transform:rotate(-40deg)}
+.ib .badge{position:absolute;right:-6px;top:-6px;min-width:18px;height:18px;border-radius:9px;background:var(--accent);color:#fff;font-size:11px;display:grid;place-items:center;border:2px solid var(--ink)}
+#pauseTag{position:absolute;left:50%;top:calc(58px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:5px 14px;border-radius:8px;font-size:13px;white-space:nowrap;max-width:calc(100vw - 24px);overflow:hidden;text-overflow:ellipsis}
+.ib.on{background:var(--gold)}
+.mtabs{display:flex;gap:6px;margin:4px 0 8px}
+#prompt{position:absolute;left:50%;bottom:calc(64px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);padding:8px 16px;font-size:15px;white-space:nowrap;display:flex;gap:8px;align-items:center;cursor:pointer}
+#prompt kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:6px;background:var(--ink);color:var(--paper);font-family:var(--f-led);font-size:20px}
+#toasts{position:absolute;left:50%;top:calc(64px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.toast{padding:7px 16px;font-size:14px;background:var(--paper);border:2.5px solid var(--ink);border-radius:999px;box-shadow:0 3px 0 var(--ink);animation:tin .3s ease-out,tout .4s ease-in 2.8s forwards;max-width:calc(100vw - 32px);text-align:center}
+@keyframes tin{from{transform:translateY(-10px);opacity:0}}
+@keyframes tout{to{opacity:0;transform:translateY(-6px)}}
+#marquee{position:absolute;left:0;right:0;bottom:0;padding-bottom:env(safe-area-inset-bottom,0px);background:var(--board);border-top:2.5px solid var(--ink);overflow:hidden;height:calc(34px + env(safe-area-inset-bottom,0px));pointer-events:none}
+#mqIn{position:absolute;left:0;top:4px;white-space:nowrap;font-family:var(--f-led);font-size:24px;color:var(--led);will-change:transform}
+#mqIn span{margin-right:34px}
+#hint{position:absolute;left:50%;bottom:calc(42px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font-size:12px;padding:4px 12px;background:rgba(246,238,219,.92);border:2px solid var(--ink);border-radius:999px;white-space:nowrap;pointer-events:none}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;left:0;top:0;font-size:12px;padding:2px 8px;background:rgba(246,238,219,.95);border:2px solid var(--ink);border-radius:6px;white-space:nowrap;pointer-events:none;will-change:transform}
+.lbl.q{background:var(--gold)}
+.lbl.me{background:var(--accent);color:#fff}
+.lbl.map{pointer-events:auto;cursor:pointer;font-size:13px}
+#touch{position:absolute;inset:0;pointer-events:none}
+#joy{position:absolute;left:calc(24px + env(safe-area-inset-left,0px));bottom:calc(56px + env(safe-area-inset-bottom,0px));width:124px;height:124px;border-radius:50%;background:rgba(246,238,219,.35);border:2.5px solid rgba(43,38,34,.6);pointer-events:auto;touch-action:none}
+#joyK{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:var(--paper);border:2.5px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+#tbtns{position:absolute;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(58px + env(safe-area-inset-bottom,0px));display:flex;gap:12px;align-items:flex-end;pointer-events:auto}
+.tb{width:62px;height:62px;border-radius:50%;background:var(--paper);border:2.5px solid var(--ink);box-shadow:0 3px 0 var(--ink);font-size:15px;touch-action:none;padding:0}
+.tb.big{width:76px;height:76px;background:var(--accent);color:#fff;font-size:17px}
+#dialog{position:absolute;left:50%;bottom:calc(46px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(680px,calc(100vw - 24px));display:flex;gap:12px;padding:14px 16px 14px 14px;cursor:pointer}
+#dlgP{width:72px;height:72px;flex:none;border-radius:50%;border:2.5px solid var(--ink);background:#e9d9b4}
+#dlgBody{flex:1;min-width:0}
+#dlgName{display:inline-block;font-size:14px;background:var(--ink);color:var(--paper);padding:2px 10px;border-radius:6px;margin-bottom:6px}
+#dlgText{font-size:17px;line-height:1.6;min-height:3.2em}
+#dlgNext{position:absolute;right:16px;bottom:10px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:10px solid var(--accent);animation:nb .8s infinite}
+@keyframes nb{50%{transform:translateY(4px)}}
+#dlgCh{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+#dlgCh button{text-align:left;border:2.5px solid var(--ink);background:#fff;border-radius:10px;padding:8px 14px;font-size:16px;box-shadow:0 3px 0 var(--ink)}
+#dlgCh button:hover,#dlgCh button.sel{background:#fbe6c4}
+.modal{position:absolute;inset:0;display:grid;place-items:center;background:rgba(30,20,10,.4);padding:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.box{width:min(760px,100%);max-height:min(88vh,780px);display:flex;flex-direction:column;overflow:hidden}
+.bh{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:2.5px solid var(--ink);background:var(--paper-2)}
+.bh h3{margin:0;font-size:18px;flex:1}
+.bh .x{width:36px;height:36px;border-radius:10px;border:2.5px solid var(--ink);background:#fff;font-size:20px;padding:0}
+.bb{overflow:auto;padding:12px 14px 16px;background:#fffaf0;flex:1;min-height:0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{border:2px solid var(--ink);background:#fff;border-radius:8px;padding:4px 12px;font-size:14px}
+.tab.on{background:var(--ink);color:var(--paper)}
+table.q{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+table.q th{font-size:12px;color:var(--ink-soft);text-align:right;font-weight:400;padding:4px 6px;border-bottom:2px solid var(--ink)}
+table.q th:first-child,table.q td:first-child{text-align:left}
+table.q td{padding:7px 6px;border-bottom:1.5px dashed #d8c9a8;text-align:right;white-space:nowrap}
+table.q td .sec{display:block;font-size:11px;color:var(--ink-soft)}
+.tw{overflow-x:auto}
+.qb{border:2px solid var(--ink);border-radius:7px;background:#fff;padding:3px 8px;font-size:13px;margin-left:3px}
+.qb.buy{background:#fbe1e1}.qb.sell{background:#dcf2e6}
+.qb:disabled{opacity:.35;cursor:not-allowed}
+.lim{font-size:10px;padding:1px 4px;border-radius:4px;color:#fff;margin-left:4px;vertical-align:2px}
+.lim.u{background:var(--up)}.lim.d{background:var(--down)}
+.sum{display:flex;flex-wrap:wrap;gap:8px 18px;padding:8px 12px;background:#f3e7cc;border-radius:10px;margin-bottom:10px;font-size:14px;font-variant-numeric:tabular-nums}
+.note{font-size:12px;color:var(--ink-soft);line-height:1.6;margin-top:10px}
+#saves{z-index:30;background:rgba(30,20,10,.55)}
+.slot{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;padding:10px 4px;border-bottom:1.5px dashed #d8c9a8}
+.slot b{font-size:15px}.slot small{display:block;color:var(--ink-soft);font-size:12px;line-height:1.6}
+.slot .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+#svCode{width:100%;min-height:70px;box-sizing:border-box;font:12px/1.4 ui-monospace,monospace;border:2px solid var(--ink);border-radius:8px;padding:6px;resize:vertical}
+.rumor{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;padding:8px 2px;border-bottom:1.5px dashed #d8c9a8;font-size:14px;align-items:start}
+.rumor .d{font-size:12px;color:var(--ink-soft);white-space:nowrap}
+.rumor .st{font-size:12px;padding:1px 7px;border-radius:6px;border:1.5px solid var(--ink);white-space:nowrap}
+.st.ok{background:#fbe1e1}.st.no{background:#ddd}.st.wait{background:#fff6d8}
+.btn{border:2.5px solid var(--ink);background:var(--paper);border-radius:10px;padding:7px 16px;font-size:15px;box-shadow:0 3px 0 var(--ink)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.btn.pri{background:var(--accent);color:#fff}
+/* 號外 */
+#extra{width:min(520px,100%);background:#f3ead2;border:3px solid var(--ink);box-shadow:0 12px 30px var(--shadow);padding:16px 18px;transform:rotate(-1.2deg);font-family:var(--f-news)}
+#extra .mast{display:flex;justify-content:space-between;align-items:center;border-bottom:3px double var(--ink);padding-bottom:6px;margin-bottom:10px}
+#extra .mast b{font-size:30px;font-weight:900;letter-spacing:.1em;color:var(--accent)}
+#extra .mast span{font-family:var(--f-ui);font-size:12px}
+#extra h2{margin:0 0 10px;font-size:clamp(22px,5vw,30px);line-height:1.3;font-weight:900;text-wrap:balance}
+#extra p{font-family:var(--f-ui);font-size:15px;line-height:1.7;margin:0 0 8px}
+#extra .ref{font-size:13px;color:var(--ink-soft);border-left:3px solid var(--gold);padding-left:10px}
+#extra .row{display:flex;justify-content:flex-end;margin-top:10px}
+/* 收盤 */
+#sumBody{overflow-x:hidden}
+#sumBox canvas{max-width:100%;width:100%;height:120px;display:block;border:2px solid var(--ink);border-radius:8px;background:var(--board)}
+.bigpl{font-size:28px;font-family:var(--f-led)}
+/* 標題 */
+#title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+#logo{font-family:var(--f-news);font-weight:900;font-size:clamp(54px,13vw,120px);line-height:1;color:var(--paper);-webkit-text-stroke:3px var(--ink);paint-order:stroke fill;text-shadow:0 6px 0 var(--ink);letter-spacing:.06em}
+#logo span{color:var(--up)}
+#logoSub{display:inline-block;background:var(--board);color:var(--led);font-family:var(--f-led);font-size:clamp(20px,4vw,30px);padding:2px 16px;border:2.5px solid var(--ink);border-radius:8px}
+#logoZh{font-size:clamp(16px,3.6vw,22px);color:#fff;text-shadow:0 2px 0 var(--ink),0 0 8px rgba(0,0,0,.5);letter-spacing:.1em}
+#titleBtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+#titleBtns .btn{font-size:19px;padding:10px 24px}
+#titleNote{font-size:13px;color:#fff;text-shadow:0 1px 0 var(--ink),0 0 6px var(--ink);max-width:560px;line-height:1.6}
+#loadTxt{color:#fff;text-shadow:0 1px 0 var(--ink)}
+#fade{position:absolute;inset:0;background:var(--paper);opacity:0;pointer-events:none;transition:opacity .6s;display:grid;place-items:center;font-family:var(--f-news);font-size:clamp(28px,6vw,46px);font-weight:900}
+@media (min-width:641px) and (max-width:1080px){
+  #ticker{left:auto;right:max(12px,env(safe-area-inset-right,0px));transform:none;top:calc(66px + env(safe-area-inset-top,0px))}
+  #pauseTag{top:calc(108px + env(safe-area-inset-top,0px))}
+}
+@media (max-width:640px){
+  .brand > div{display:none}.brand{padding:3px}.brand canvas{width:36px;height:36px}
+  #tl{max-width:calc(100vw - 230px);top:calc(56px + env(safe-area-inset-top,0px))}
+  #ticker{font-size:20px;padding:3px 10px 1px;gap:8px}
+  #ticker .tl2{display:none}
+  .ib{width:38px;height:38px;border-radius:10px}.ib svg{width:20px;height:20px}
+  #tr{gap:4px;top:calc(52px + env(safe-area-inset-top,0px))}
+  .ib{width:34px;height:34px;border-radius:9px}.ib svg{width:19px;height:19px}
+  #pauseTag{top:calc(98px + env(safe-area-inset-top,0px));font-size:12px}
+  #hint{display:none}
+  .goals{font-size:12px;max-width:calc(100vw - 24px);padding:6px 8px}
+  #ticker .wx{display:none}
+  #dlgText{font-size:15px}#dlgP{width:56px;height:56px}
+  #pauseTag{position:absolute;left:50%;top:calc(58px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:5px 14px;border-radius:8px;font-size:13px;white-space:nowrap;max-width:calc(100vw - 24px);overflow:hidden;text-overflow:ellipsis}
+.ib.on{background:var(--gold)}
+.mtabs{display:flex;gap:6px;margin:4px 0 8px}
+#prompt{bottom:calc(200px + env(safe-area-inset-bottom,0px))}
+  #toasts{top:calc(104px + env(safe-area-inset-top,0px))}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition:none!important}}
+</style>
+
+<div id="app">
+  <canvas id="c" tabindex="0" aria-label="證券大亨遊戲畫面"></canvas>
+  <div id="labels"></div>
+  <div id="hud" class="hide">
+    <div id="tl">
+      <div class="paper brand"><canvas id="pp" width="88" height="88"></canvas><div><b>阿德</b><small id="rank">跑單小弟</small></div></div>
+      <div class="chips">
+        <span class="chip" id="chCash"><i>現金</i><span>0</span></span>
+        <span class="chip" id="chNet"><i>總資產</i><span>0</span></span>
+        <span class="chip" id="chDay"><i>交易日</i><span>1/40</span></span>
+      </div>
+      <div class="paper goals" id="goals"></div>
+    </div>
+    <div id="ticker"><span class="tl2">加權</span><span id="tkIdx">4500.00</span><span id="tkChg">0.00%</span><span class="ph" id="tkPh">盤前 07:00</span><span class="wx" id="tkW">晴</span></div>
+    <div id="tr">
+      <button class="ib" id="bMap" title="城市地圖（M）" aria-label="城市地圖"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#e9d9b4" stroke="#2b2622" stroke-width="2"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" stroke="#2b2622" stroke-width="1.6" fill="none"/></svg></button>
+      <button class="ib" id="bPause" title="暫停時間（P）" aria-label="暫停時間"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1" fill="#2b2622"/><rect x="14" y="5" width="4" height="14" rx="1" fill="#2b2622"/></svg></button>
+      <button class="ib" id="bSkip" title="快轉到下一個時段（T）" aria-label="快轉"><svg viewBox="0 0 24 24"><path d="M4 6l7 6-7 6zM12 6l7 6-7 6z" fill="#e3a52b" stroke="#2b2622" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
+      <button class="ib" id="bNote" title="消息本（N）" aria-label="消息本"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2" fill="#fff" stroke="#2b2622" stroke-width="2"/><path d="M8 8h8M8 12h8M8 16h5" stroke="#2b2622" stroke-width="1.8"/></svg><span class="badge hide" id="noteBadge">!</span></button>
+      <button class="ib" id="bTrade" title="看盤、下單（K）" aria-label="看盤下單"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="#15110d" stroke="#2b2622" stroke-width="2"/><path d="M6 15l4-4 3 3 5-6" stroke="#ffb000" stroke-width="2" fill="none"/></svg></button>
+      <button class="ib" id="bSound" title="聲音" aria-label="聲音開關"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#e3a52b" stroke="#2b2622" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 8c2 2 2 6 0 8M18.5 5.5c3.5 3.5 3.5 9.5 0 13" stroke="#2b2622" stroke-width="1.8" fill="none"/></svg></button>
+      <button class="ib" id="bSave" title="存檔／讀檔（O）" aria-label="存檔與讀檔"><svg viewBox="0 0 24 24"><path d="M4 4h13l3 3v13H4z" fill="#fff" stroke="#2b2622" stroke-width="2" stroke-linejoin="round"/><rect x="7" y="4" width="9" height="6" fill="#e3a52b" stroke="#2b2622" stroke-width="1.6"/><rect x="7" y="13" width="10" height="7" fill="#e9d9b4" stroke="#2b2622" stroke-width="1.6"/></svg></button>
+      <button class="ib" id="bMenu" title="說明（H）" aria-label="說明與設定"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#fff" stroke="#2b2622" stroke-width="2"/><path d="M9.5 9.5a2.5 2.5 0 115 0c0 2-2.5 2-2.5 4M12 17h.01" stroke="#2b2622" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button>
+    </div>
+    <div id="pauseTag" class="hide">時間暫停中・按 P 或右上 ⏸ 繼續（可以自由走動、看盤、翻消息本）</div>
+    <div id="prompt" class="paper hide"><kbd>E</kbd><span id="promptT"></span></div>
+    <div id="toasts"></div>
+    <div id="hint">WASD 移動・Shift 快跑・E 說話／互動・K 看盤下單・N 消息本・T 快轉・M 地圖</div>
+    <div id="marquee"><div id="mqIn"></div></div>
+  </div>
+  <div id="touch" class="hide"><div id="joy"><div id="joyK"></div></div><div id="tbtns"><button class="tb" id="tTrade">看盤</button><button class="tb big" id="tAct">互動</button></div></div>
+  <div id="dialog" class="paper hide" role="dialog" aria-live="polite"><canvas id="dlgP" width="144" height="144"></canvas><div id="dlgBody"><span id="dlgName"></span><div id="dlgText"></div><div id="dlgCh"></div></div><span id="dlgNext"></span></div>
+  <div id="trade" class="modal hide"><div class="box paper"><div class="bh"><h3 id="trTitle">城中證券・看盤下單</h3><button class="x" data-close="trade" aria-label="關閉">×</button></div><div class="bb" id="trBody"></div></div></div>
+  <div id="notes" class="modal hide"><div class="box paper"><div class="bh"><h3>消息本</h3><button class="x" data-close="notes" aria-label="關閉">×</button></div><div class="bb" id="ntBody"></div></div></div>
+  <div id="help" class="modal hide"><div class="box paper"><div class="bh"><h3>說明與設定</h3><button class="x" data-close="help" aria-label="關閉">×</button></div><div class="bb" id="hpBody"></div></div></div>
+  <div id="saves" class="modal hide"><div class="box paper"><div class="bh"><h3>存檔與讀檔</h3><button class="x" data-close="saves" aria-label="關閉">×</button></div><div class="bb" id="svBody"></div></div></div>
+  <div id="sum" class="modal hide"><div class="box paper" id="sumBox"><div class="bh"><h3 id="sumTitle">收盤</h3></div><div class="bb" id="sumBody"></div></div></div>
+  <div id="ext" class="modal hide"><div id="extra"></div></div>
+  <div id="title">
+    <div id="logo">證券<span>大亨</span></div>
+    <div id="logoSub">TAIPEI 1980s ▲ STOCK STREET</div>
+    <div id="logoZh">城中小行星・從跑單小弟到證券大亨</div>
+    <div id="loadTxt">正在蓋騎樓、掛招牌……</div>
+    <div id="titleBtns" class="hide"><button class="btn pri" id="bStart">開始新的一年</button><button class="btn hide" id="bCont">從暫存點繼續</button><button class="btn" id="bLoad">讀取存檔</button></div>
+    <div id="titleNote">遊戲裡的公司、人物與行情都是虛構的；歷史事件經過改編並隨機排列，僅供體驗與學習，不構成任何投資建議。</div>
+  </div>
+  <div id="fade"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
