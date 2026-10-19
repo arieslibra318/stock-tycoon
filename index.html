@@ -2048,12 +2048,13 @@ function openHelp() {
     <p>時間速度：<button class="btn" data-sp="0.6">慢</button> <button class="btn" data-sp="1">標準</button> <button class="btn" data-sp="1.6">快</button>　目前：${S.speed === 0.6 ? '慢' : S.speed === 1.6 ? '快' : '標準'}</p>
     <p>天氣來源：<button class="btn" id="hpWx">${S.realWx ? '台北即時天氣（開）' : '遊戲模擬天氣'}</button></p>
     <p class="note" style="margin-top:-4px">即時天氣使用 Open-Meteo 的台北天氣，只會在盤前套用到「今天」。抓不到時自動改用模擬天氣。</p>
-    <p><button class="btn" id="hpSnd">聲音：${S.music ? '音樂開' : '音樂關'}・${S.sfx ? '音效開' : '音效關'}</button> <button class="btn" id="hpReset">重新開始新的一年</button></p>
+    <p><button class="btn" id="hpMus">音樂：${S.music ? '開' : '關'}</button> <button class="btn" id="hpSfx">音效：${S.sfx ? '開' : '關'}</button> <button class="btn" id="hpReset">重新開始新的一年</button></p>
     <p class="note" style="margin-top:-4px">重新開始不會刪掉暫存點和存檔格。</p>`;
   $('hpBody').innerHTML = h;
   $('hpBody').querySelectorAll('[data-h]').forEach(b => b.onclick = () => { helpTab = b.dataset.h; openHelp2(); });
   const q = id => $('hpBody').querySelector('#' + id);
-  if (q('hpSnd')) q('hpSnd').onclick = () => { cycleSound(); openHelp2(); };
+  if (q('hpMus')) q('hpMus').onclick = () => { setSound('music'); openHelp2(); };
+  if (q('hpSfx')) q('hpSfx').onclick = () => { setSound('sfx'); openHelp2(); };
   $('hpBody').querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { S.speed = +b.dataset.sp; saveGame(); openHelp2(); });
   if (q('hpWx')) q('hpWx').onclick = async () => { S.realWx = !S.realWx; saveGame(); openHelp2(); if (S.realWx) await useRealWeather(true); };
   if (q('hpReset')) q('hpReset').onclick = function () { if (this.dataset.c) { closeModals(); startGame(false); } else { this.dataset.c = 1; this.textContent = '再按一次確定'; this.style.background = 'var(--accent)'; this.style.color = '#fff'; } };
@@ -2561,8 +2562,8 @@ function endingAnim(cv, scene) {
 
 /* ---------- 結局音樂 ---------- */
 function endingTune(kind) {
-  if (!AU.ctx || !S.sfx) return () => { };
-  const c = AU.ctx, out = c.createGain(); out.gain.value = 0.7; out.connect(AU.master); AU.mus.gain.value = 0;
+  if (!AU.ctx || !S.music) return () => { };
+  const c = AU.ctx, out = c.createGain(); out.gain.value = 0.7; out.connect(AU.master); AU.hold = true;
   const tunes = {
     win: { wave: 'triangle', bpm: 132, notes: [[60, 1], [64, 1], [67, 1], [72, 2], [67, 1], [72, 3], [0, 1], [69, 1], [71, 1], [72, 1], [74, 2], [76, 1], [79, 3], [0, 1], [77, 1], [76, 1], [74, 1], [72, 4]] },
     normal: { wave: 'sine', bpm: 84, notes: [[64, 2], [67, 1], [69, 1], [72, 2], [69, 2], [67, 2], [64, 1], [62, 1], [60, 4], [62, 2], [64, 1], [67, 1], [69, 2], [67, 2], [64, 4]] },
@@ -2573,7 +2574,7 @@ function endingTune(kind) {
     if (n) { const o = c.createOscillator(), e = c.createGain(); o.type = tn.wave; o.frequency.value = 440 * Math.pow(2, (n - 69) / 12); e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(0.14, t + 0.03); e.gain.exponentialRampToValueAtTime(0.0001, t + d * beat * 0.95); o.connect(e); e.connect(out); o.start(t); o.stop(t + d * beat); }
     t += d * beat;
   }
-  return () => { out.gain.setTargetAtTime(0, c.currentTime, 0.2); setTimeout(() => { out.disconnect(); applySound(); }, 600); };
+  return () => { out.gain.setTargetAtTime(0, c.currentTime, 0.2); setTimeout(() => { out.disconnect(); AU.hold = false; }, 600); };
 }
 
 /* ---------- 結局演出 ---------- */
@@ -2761,22 +2762,25 @@ function initAudio() {
     const ctx = AU.ctx = new C();
     AU.master = ctx.createGain(); AU.master.gain.value = 0.9; AU.master.connect(ctx.destination);
     AU.sfx = ctx.createGain(); AU.sfx.connect(AU.master); AU.mus = ctx.createGain(); AU.mus.connect(AU.master);
-    // 海浪
+    // 音效用的雜訊素材（不會自己播放）
     const len = ctx.sampleRate * 3, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
     let b0 = 0; for (let i = 0; i < len; i++) { b0 = 0.985 * b0 + 0.015 * (Math.random() * 2 - 1); d[i] = b0 * 6; }
-    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
-    const wg = ctx.createGain(); wg.gain.value = 0.16;
-    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.11; const lg = ctx.createGain(); lg.gain.value = 0.1; lfo.connect(lg); lg.connect(wg.gain); lfo.start();
-    src.connect(lp); lp.connect(wg); wg.connect(AU.sfx); src.start();
     AU.noise = buf; applySound(); musicLoop();
+    // 切到別的分頁或縮小視窗時整個靜音
+    document.addEventListener('visibilitychange', () => { if (!AU.ctx) return; document.hidden ? AU.ctx.suspend() : AU.ctx.resume(); });
   } catch (e) { AU.ctx = null; }
 }
+// 聲音設定記在這台裝置上，重新開始或讀檔都沿用
+const SOUND_KEY = 'stock-tycoon-sound';
+function loadSoundPref() { try { const p = JSON.parse(localStorage.getItem(SOUND_KEY)); if (p) { S.music = !!p.music; S.sfx = !!p.sfx; } } catch (e) { } }
+function saveSoundPref() { try { localStorage.setItem(SOUND_KEY, JSON.stringify({ music: S.music, sfx: S.sfx })); } catch (e) { } }
 function applySound() {
   if (AU.ctx) { AU.mus.gain.value = S.music ? 0.5 : 0; AU.sfx.gain.value = S.sfx ? 1 : 0; }
   $('bSound').classList.toggle('off', !S.music && !S.sfx); $('bSound').title = `聲音：音樂${S.music ? '開' : '關'}・音效${S.sfx ? '開' : '關'}`;
 }
-function cycleSound() { initAudio(); if (S.music && S.sfx) S.music = false; else if (S.sfx) S.sfx = false; else { S.music = true; S.sfx = true; } applySound(); toast(`音樂${S.music ? '開' : '關'}・音效${S.sfx ? '開' : '關'}`); saveGame(); }
+// 右上角的喇叭：按一下全部靜音，再按一下全部打開；說明頁可以分開設定音樂和音效
+function cycleSound() { initAudio(); const on = !(S.music || S.sfx); S.music = on; S.sfx = on; applySound(); saveSoundPref(); toast(on ? '聲音已打開' : '聲音已全部關閉'); }
+function setSound(k) { initAudio(); S[k] = !S[k]; applySound(); saveSoundPref(); toast(`${k === 'music' ? '音樂' : '音效'}${S[k] ? '開' : '關'}`); }
 function tone(f, t, dur, type = 'sine', vol = 0.2, dest = AU.sfx, slide) {
   const c = AU.ctx, o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -2823,9 +2827,10 @@ function musicLoop() {
     if (!AU.ctx) return;
     while (next < c.currentTime + 0.3) {
       const bar = (i >> 4) % 4, s = i % 16, n = MEL[bar][s], open = PHASE() === 'open';
-      if (n) tone(mtof(n), next, step * 1.7, open ? 'square' : 'triangle', open ? 0.022 : 0.045, AU.mus);
-      if (s % 4 === 0) tone(mtof(BASS[bar] - 12), next, step * 3, 'sine', 0.08, AU.mus);
-      if (open && s % 2 === 1) tone(mtof(BASS[bar] + 12), next, step * 0.6, 'sine', 0.02, AU.mus);
+      const quiet = GAME.paused || !S.music || AU.hold;   // 暫停、關音樂、播結局時不排音符
+      if (n && !quiet) tone(mtof(n), next, step * 1.7, open ? 'square' : 'triangle', open ? 0.022 : 0.045, AU.mus);
+      if (s % 4 === 0 && !quiet) tone(mtof(BASS[bar] - 12), next, step * 3, 'sine', 0.08, AU.mus);
+      if (open && s % 2 === 1 && !quiet) tone(mtof(BASS[bar] + 12), next, step * 0.6, 'sine', 0.02, AU.mus);
       next += step; i++;
     }
   }, 100);
@@ -2904,7 +2909,7 @@ async function startGame(cont, state, opts) {
   $('fade').style.opacity = 1; await wait(600);
   if (state) { S = Object.assign(S0(), JSON.parse(JSON.stringify(state))); TIME.min = S.min || 360; cont = true; }
   else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; const o = opts || { len: prevLen, base: Math.random() * 2000000000 | 0 }; S.len = o.len; S.base = o.base; S.seed = seasonSeed(o.base, 1); S.tut = 0; }
-  genSeason(S.seed); applyWeatherOverrides();
+  loadSoundPref(); genSeason(S.seed); applyWeatherOverrides();
   lastPhase = PHASE(); MK.prices = null; MK.path = null;
   if (lastPhase === 'open') { MK.path = genIntraday(S.day); MK.k = -1; }
   if (lastPhase === 'post' || lastPhase === 'night') MK.prices = SEASON.close[S.day].slice();

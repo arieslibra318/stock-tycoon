@@ -17,9 +17,10 @@ function musicLoop() {
     if (!AU.ctx) return;
     while (next < c.currentTime + 0.3) {
       const bar = (i >> 4) % 4, s = i % 16, n = MEL[bar][s], open = PHASE() === 'open';
-      if (n) tone(mtof(n), next, step * 1.7, open ? 'square' : 'triangle', open ? 0.022 : 0.045, AU.mus);
-      if (s % 4 === 0) tone(mtof(BASS[bar] - 12), next, step * 3, 'sine', 0.08, AU.mus);
-      if (open && s % 2 === 1) tone(mtof(BASS[bar] + 12), next, step * 0.6, 'sine', 0.02, AU.mus);
+      const quiet = GAME.paused || !S.music || AU.hold;   // 暫停、關音樂、播結局時不排音符
+      if (n && !quiet) tone(mtof(n), next, step * 1.7, open ? 'square' : 'triangle', open ? 0.022 : 0.045, AU.mus);
+      if (s % 4 === 0 && !quiet) tone(mtof(BASS[bar] - 12), next, step * 3, 'sine', 0.08, AU.mus);
+      if (open && s % 2 === 1 && !quiet) tone(mtof(BASS[bar] + 12), next, step * 0.6, 'sine', 0.02, AU.mus);
       next += step; i++;
     }
   }, 100);
@@ -98,7 +99,7 @@ async function startGame(cont, state, opts) {
   $('fade').style.opacity = 1; await wait(600);
   if (state) { S = Object.assign(S0(), JSON.parse(JSON.stringify(state))); TIME.min = S.min || 360; cont = true; }
   else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; const o = opts || { len: prevLen, base: Math.random() * 2000000000 | 0 }; S.len = o.len; S.base = o.base; S.seed = seasonSeed(o.base, 1); S.tut = 0; }
-  genSeason(S.seed); applyWeatherOverrides();
+  loadSoundPref(); genSeason(S.seed); applyWeatherOverrides();
   lastPhase = PHASE(); MK.prices = null; MK.path = null;
   if (lastPhase === 'open') { MK.path = genIntraday(S.day); MK.k = -1; }
   if (lastPhase === 'post' || lastPhase === 'night') MK.prices = SEASON.close[S.day].slice();

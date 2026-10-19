@@ -119,8 +119,8 @@ function endingAnim(cv, scene) {
 
 /* ---------- 結局音樂 ---------- */
 function endingTune(kind) {
-  if (!AU.ctx || !S.sfx) return () => { };
-  const c = AU.ctx, out = c.createGain(); out.gain.value = 0.7; out.connect(AU.master); AU.mus.gain.value = 0;
+  if (!AU.ctx || !S.music) return () => { };
+  const c = AU.ctx, out = c.createGain(); out.gain.value = 0.7; out.connect(AU.master); AU.hold = true;
   const tunes = {
     win: { wave: 'triangle', bpm: 132, notes: [[60, 1], [64, 1], [67, 1], [72, 2], [67, 1], [72, 3], [0, 1], [69, 1], [71, 1], [72, 1], [74, 2], [76, 1], [79, 3], [0, 1], [77, 1], [76, 1], [74, 1], [72, 4]] },
     normal: { wave: 'sine', bpm: 84, notes: [[64, 2], [67, 1], [69, 1], [72, 2], [69, 2], [67, 2], [64, 1], [62, 1], [60, 4], [62, 2], [64, 1], [67, 1], [69, 2], [67, 2], [64, 4]] },
@@ -131,7 +131,7 @@ function endingTune(kind) {
     if (n) { const o = c.createOscillator(), e = c.createGain(); o.type = tn.wave; o.frequency.value = 440 * Math.pow(2, (n - 69) / 12); e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(0.14, t + 0.03); e.gain.exponentialRampToValueAtTime(0.0001, t + d * beat * 0.95); o.connect(e); e.connect(out); o.start(t); o.stop(t + d * beat); }
     t += d * beat;
   }
-  return () => { out.gain.setTargetAtTime(0, c.currentTime, 0.2); setTimeout(() => { out.disconnect(); applySound(); }, 600); };
+  return () => { out.gain.setTargetAtTime(0, c.currentTime, 0.2); setTimeout(() => { out.disconnect(); AU.hold = false; }, 600); };
 }
 
 /* ---------- 結局演出 ---------- */

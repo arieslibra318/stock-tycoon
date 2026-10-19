@@ -7,22 +7,25 @@ function initAudio() {
     const ctx = AU.ctx = new C();
     AU.master = ctx.createGain(); AU.master.gain.value = 0.9; AU.master.connect(ctx.destination);
     AU.sfx = ctx.createGain(); AU.sfx.connect(AU.master); AU.mus = ctx.createGain(); AU.mus.connect(AU.master);
-    // 海浪
+    // 音效用的雜訊素材（不會自己播放）
     const len = ctx.sampleRate * 3, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
     let b0 = 0; for (let i = 0; i < len; i++) { b0 = 0.985 * b0 + 0.015 * (Math.random() * 2 - 1); d[i] = b0 * 6; }
-    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
-    const wg = ctx.createGain(); wg.gain.value = 0.16;
-    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.11; const lg = ctx.createGain(); lg.gain.value = 0.1; lfo.connect(lg); lg.connect(wg.gain); lfo.start();
-    src.connect(lp); lp.connect(wg); wg.connect(AU.sfx); src.start();
     AU.noise = buf; applySound(); musicLoop();
+    // 切到別的分頁或縮小視窗時整個靜音
+    document.addEventListener('visibilitychange', () => { if (!AU.ctx) return; document.hidden ? AU.ctx.suspend() : AU.ctx.resume(); });
   } catch (e) { AU.ctx = null; }
 }
+// 聲音設定記在這台裝置上，重新開始或讀檔都沿用
+const SOUND_KEY = 'stock-tycoon-sound';
+function loadSoundPref() { try { const p = JSON.parse(localStorage.getItem(SOUND_KEY)); if (p) { S.music = !!p.music; S.sfx = !!p.sfx; } } catch (e) { } }
+function saveSoundPref() { try { localStorage.setItem(SOUND_KEY, JSON.stringify({ music: S.music, sfx: S.sfx })); } catch (e) { } }
 function applySound() {
   if (AU.ctx) { AU.mus.gain.value = S.music ? 0.5 : 0; AU.sfx.gain.value = S.sfx ? 1 : 0; }
   $('bSound').classList.toggle('off', !S.music && !S.sfx); $('bSound').title = `聲音：音樂${S.music ? '開' : '關'}・音效${S.sfx ? '開' : '關'}`;
 }
-function cycleSound() { initAudio(); if (S.music && S.sfx) S.music = false; else if (S.sfx) S.sfx = false; else { S.music = true; S.sfx = true; } applySound(); toast(`音樂${S.music ? '開' : '關'}・音效${S.sfx ? '開' : '關'}`); saveGame(); }
+// 右上角的喇叭：按一下全部靜音，再按一下全部打開；說明頁可以分開設定音樂和音效
+function cycleSound() { initAudio(); const on = !(S.music || S.sfx); S.music = on; S.sfx = on; applySound(); saveSoundPref(); toast(on ? '聲音已打開' : '聲音已全部關閉'); }
+function setSound(k) { initAudio(); S[k] = !S[k]; applySound(); saveSoundPref(); toast(`${k === 'music' ? '音樂' : '音效'}${S[k] ? '開' : '關'}`); }
 function tone(f, t, dur, type = 'sine', vol = 0.2, dest = AU.sfx, slide) {
   const c = AU.ctx, o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);

@@ -404,12 +404,13 @@ function openHelp() {
     <p>時間速度：<button class="btn" data-sp="0.6">慢</button> <button class="btn" data-sp="1">標準</button> <button class="btn" data-sp="1.6">快</button>　目前：${S.speed === 0.6 ? '慢' : S.speed === 1.6 ? '快' : '標準'}</p>
     <p>天氣來源：<button class="btn" id="hpWx">${S.realWx ? '台北即時天氣（開）' : '遊戲模擬天氣'}</button></p>
     <p class="note" style="margin-top:-4px">即時天氣使用 Open-Meteo 的台北天氣，只會在盤前套用到「今天」。抓不到時自動改用模擬天氣。</p>
-    <p><button class="btn" id="hpSnd">聲音：${S.music ? '音樂開' : '音樂關'}・${S.sfx ? '音效開' : '音效關'}</button> <button class="btn" id="hpReset">重新開始新的一年</button></p>
+    <p><button class="btn" id="hpMus">音樂：${S.music ? '開' : '關'}</button> <button class="btn" id="hpSfx">音效：${S.sfx ? '開' : '關'}</button> <button class="btn" id="hpReset">重新開始新的一年</button></p>
     <p class="note" style="margin-top:-4px">重新開始不會刪掉暫存點和存檔格。</p>`;
   $('hpBody').innerHTML = h;
   $('hpBody').querySelectorAll('[data-h]').forEach(b => b.onclick = () => { helpTab = b.dataset.h; openHelp2(); });
   const q = id => $('hpBody').querySelector('#' + id);
-  if (q('hpSnd')) q('hpSnd').onclick = () => { cycleSound(); openHelp2(); };
+  if (q('hpMus')) q('hpMus').onclick = () => { setSound('music'); openHelp2(); };
+  if (q('hpSfx')) q('hpSfx').onclick = () => { setSound('sfx'); openHelp2(); };
   $('hpBody').querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { S.speed = +b.dataset.sp; saveGame(); openHelp2(); });
   if (q('hpWx')) q('hpWx').onclick = async () => { S.realWx = !S.realWx; saveGame(); openHelp2(); if (S.realWx) await useRealWeather(true); };
   if (q('hpReset')) q('hpReset').onclick = function () { if (this.dataset.c) { closeModals(); startGame(false); } else { this.dataset.c = 1; this.textContent = '再按一次確定'; this.style.background = 'var(--accent)'; this.style.color = '#fff'; } };
