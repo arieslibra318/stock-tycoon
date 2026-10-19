@@ -18,7 +18,7 @@ const cls = x => x > 0.00001 ? 'up' : x < -0.00001 ? 'down' : '';
 /* ---------- 消息 ---------- */
 function giveRumor(n) {
   if (S.talked[n.id] === S.day) return null;
-  const m = makeRumor(n, S.day); S.talked[n.id] = S.day; if (!m) return null;
+  const m = makeRumor(n.rel ? Object.assign(Object.create(n), { rel: relOf(n) }) : n, S.day); S.talked[n.id] = S.day; bondUp(n); if (!m) return null;
   Object.assign(m, { day: S.day, npc: n.id, npcName: n.name }); S.rumors.push(m);
   $('noteBadge').classList.remove('hide'); return m;
 }
@@ -35,6 +35,10 @@ async function rumorTalk(n, intro) {
   const m = giveRumor(n);
   if (!m) { await say(n, S.talked[n.id] === S.day ? '今天就這些了，明天再來吧。' : '最近沒什麼特別的消息。'); return; }
   await say(n, m.text); toast('記進消息本了（按 N 查看）'); sfx('tick');
+  if (n.rel && bondLv(n.id) === 2 && Math.random() < 0.5) {
+    const m2 = makeRumor(Object.assign(Object.create(n), { rel: relOf(n), idx: n.idx + 50 }), S.day);
+    if (m2 && m2.text !== m.text) { Object.assign(m2, { day: S.day, npc: n.id, npcName: n.name }); S.rumors.push(m2); await say(n, '看在我們的交情，再偷偷跟你說一個：' + m2.text); }
+  }
 }
 const TALK_NIGHT = {
   whale: async n => {
@@ -243,17 +247,18 @@ function renderTrade() {
   h += `<div class="sum" style="background:#e6edf5">${intlLine()}</div>`;
   h += chartBox();
   h += `<div class="mtabs"><button class="tab ${trMode === 'cash' ? 'on' : ''}" data-m="cash">現股</button><button class="tab ${trMode === 'mar' ? 'on' : ''}" data-m="mar">融資（借錢買）</button><button class="tab ${trMode === 'sht' ? 'on' : ''}" data-m="sht">融券（借股票賣）</button></div>`;
+  h += qtyBar();
   const head = { cash: '<th>持有</th><th>均價</th><th>損益</th>', mar: '<th>融資</th><th>均價</th><th>損益</th><th>維持率</th>', sht: '<th>融券</th><th>均價</th><th>損益</th><th>維持率</th>' }[trMode];
   h += `<div class="tw"><table class="q"><tr><th>股票</th><th>成交</th><th>漲跌</th>${head}<th></th></tr>`;
   STOCKS.forEach((s, i) => {
     const ch = p[i] / pc[i] - 1, [up, dn] = limits(pc[i]);
     const lim = p[i] >= up ? '<span class="lim u">漲停</span>' : p[i] <= dn ? '<span class="lim d">跌停</span>' : '';
     let cells = '', q = 0, labels;
-    if (trMode === 'cash') { const hd = S.hold[s.id]; q = hd ? hd.q : 0; const pl = hd ? (p[i] - hd.cost) * q * LOT : 0; cells = `<td>${q} 張</td><td>${hd ? hd.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${hd ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td>`; labels = ['買1', '買5', '賣1', '全賣']; }
-    if (trMode === 'mar') { const m = S.mar[s.id]; q = m ? m.q : 0; const pl = m ? (p[i] - m.cost) * q * LOT : 0, r = m ? m.q * LOT * p[i] / m.loan : 0; cells = `<td>${q} 張</td><td>${m ? m.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${m ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td><td class="${m && r < 1.45 ? 'down' : ''}">${m ? Math.round(r * 100) + '%' : '—'}</td>`; labels = ['資買1', '資買5', '資賣1', '全賣']; }
-    if (trMode === 'sht') { const t = S.sht[s.id]; q = t ? t.q : 0; const pl = t ? (t.cost - p[i]) * q * LOT : 0, r = t ? (t.margin + t.proceeds) / (t.q * LOT * p[i]) : 0; cells = `<td>${q} 張</td><td>${t ? t.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${t ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td><td class="${t && r < 1.45 ? 'down' : ''}">${t ? Math.round(r * 100) + '%' : '—'}</td>`; labels = ['券賣1', '券賣5', '回補1', '全補']; }
+    if (trMode === 'cash') { const hd = S.hold[s.id]; q = hd ? hd.q : 0; const pl = hd ? (p[i] - hd.cost) * q * LOT : 0; cells = `<td>${q} 張</td><td>${hd ? hd.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${hd ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td>`; labels = ['買', '賣', '全賣']; }
+    if (trMode === 'mar') { const m = S.mar[s.id]; q = m ? m.q : 0; const pl = m ? (p[i] - m.cost) * q * LOT : 0, r = m ? m.q * LOT * p[i] / m.loan : 0; cells = `<td>${q} 張</td><td>${m ? m.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${m ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td><td class="${m && r < 1.45 ? 'down' : ''}">${m ? Math.round(r * 100) + '%' : '—'}</td>`; labels = ['資買', '資賣', '全賣']; }
+    if (trMode === 'sht') { const t = S.sht[s.id]; q = t ? t.q : 0; const pl = t ? (t.cost - p[i]) * q * LOT : 0, r = t ? (t.margin + t.proceeds) / (t.q * LOT * p[i]) : 0; cells = `<td>${q} 張</td><td>${t ? t.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${t ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td><td class="${t && r < 1.45 ? 'down' : ''}">${t ? Math.round(r * 100) + '%' : '—'}</td>`; labels = ['券賣', '回補', '全補']; }
     h += `<tr class="${chSel === s.id ? 'chOn' : ''}"><td class="chPick" data-cs="${s.id}" title="看${s.name}的走勢">${s.name}<span class="sec">${s.sector}・${ST_NAME[s.st]}</span></td><td class="${cls(ch)}">${p[i].toFixed(p[i] < 100 ? 2 : 1)}${lim}</td><td class="${cls(ch)}">${pct(ch)}</td>${cells}
-      <td><button class="qb buy" data-o="${s.id}" data-q="1" ${can ? '' : 'disabled'}>${labels[0]}</button><button class="qb buy" data-o="${s.id}" data-q="5" ${can ? '' : 'disabled'}>${labels[1]}</button><button class="qb sell" data-o="${s.id}" data-q="-1" ${can && q ? '' : 'disabled'}>${labels[2]}</button><button class="qb sell" data-o="${s.id}" data-q="-1000000" ${can && q ? '' : 'disabled'}>${labels[3]}</button></td></tr>`;
+      <td><button class="qb buy" data-o="${s.id}" data-side="1" ${can ? '' : 'disabled'}>${labels[0]}${qtyLab()}</button><button class="qb sell" data-o="${s.id}" data-side="-1" ${can && q ? '' : 'disabled'}>${labels[1]}${qtyLab()}</button><button class="qb sell" data-o="${s.id}" data-side="-9" ${can && q ? '' : 'disabled'}>${labels[2]}</button></td></tr>`;
   });
   const note = {
     cash: '1 張＝1000 股。手續費 0.1425%，賣出另收證券交易稅 0.3%（依現行制度簡化）。漲停時買不到、跌停時賣不掉。',
@@ -268,7 +273,8 @@ function renderTrade() {
   $('trBody').querySelectorAll('[data-cr]').forEach(b => b.onclick = () => { chRange = b.dataset.cr; renderTrade(); });
   $('trBody').querySelectorAll('[data-cs]').forEach(b => b.onclick = () => { chSel = b.dataset.cs; renderTrade(); });
   $('chSel').onchange = e => { chSel = e.target.value; renderTrade(); };
-  $('trBody').querySelectorAll('[data-o]').forEach(b => b.onclick = () => order(b.dataset.o, +b.dataset.q, trMode));
+  $('trBody').querySelectorAll('[data-o]').forEach(b => b.onclick = () => { const sd = +b.dataset.side; order(b.dataset.o, sd === -9 ? -1e6 : qtyFor(b.dataset.o, sd, trMode), trMode); });
+  $('trBody').querySelectorAll('[data-qty]').forEach(b => b.onclick = () => { const v = b.dataset.qty; trQty = /^\d+$/.test(v) ? +v : v; renderTrade(); });
 }
 function order(id, q, mode = 'cash') {
   if (PHASE() !== 'open' || !canTradeHere()) return;
@@ -340,7 +346,7 @@ function togglePause() {
 /* ---------- 消息本 ---------- */
 let noteTab = 'list';
 function openNotes() {
-  if (GAME.busy) return; GAME.busy = true; S.notesSeen = true; $('notes').classList.remove('hide'); $('noteBadge').classList.add('hide'); renderNotes();
+  if (GAME.busy) return; GAME.busy = true; S.notesSeen = true; S.tutN = true; $('notes').classList.remove('hide'); $('noteBadge').classList.add('hide'); renderNotes();
 }
 function renderNotes() {
   const st = m => m.st === 'ok' ? '<span class="st ok">應驗</span>' : m.st === 'no' ? '<span class="st no">落空</span>' : '<span class="st wait">待驗證</span>';
@@ -350,9 +356,9 @@ function renderNotes() {
     for (const m of S.rumors.slice().reverse()) h += `<div class="rumor"><span class="d">第 ${m.day} 天<br>${m.npcName}</span><span>${m.text}${m.kind === 'tip' ? `<br><small style="color:var(--ink-soft)">驗證日：第 ${m.resolve} 天收盤</small>` : m.st === 'no' && !m.truth ? '<br><small style="color:var(--ink-soft)">這件事後來沒有發生</small>' : ''}</span>${st(m)}</div>`;
   } else if (noteTab === 'src') {
     const t = {}; for (const m of S.rumors) { const k = m.npcName; t[k] = t[k] || [0, 0]; if (m.st) { t[k][1]++; if (m.st === 'ok') t[k][0]++; } }
-    h += '<table class="q"><tr><th>消息來源</th><th>應驗</th><th>已驗證</th><th>準確率</th></tr>';
-    for (const k in t) h += `<tr><td>${k}</td><td>${t[k][0]}</td><td>${t[k][1]}</td><td>${t[k][1] ? Math.round(t[k][0] / t[k][1] * 100) + '%' : '—'}</td></tr>`;
-    h += '</table><p class="note">每個人的消息準確度不一樣，而且不會告訴你。多聽幾次，看誰比較準，再決定要不要相信。</p>';
+    h += '<table class="q"><tr><th>消息來源</th><th>應驗</th><th>已驗證</th><th>準確率</th><th>交情</th></tr>';
+    for (const k in t) h += `<tr><td>${k}</td><td>${t[k][0]}</td><td>${t[k][1]}</td><td>${t[k][1] ? Math.round(t[k][0] / t[k][1] * 100) + '%' : '—'}</td><td>${(x => x && x.rel ? BOND_NAME[bondLv(x.id)] : '—')(NPCS.find(x => x.name === k))}</td></tr>`;
+    h += '</table><p class="note">每個人的消息準確度不一樣，而且不會告訴你。常去找同一個人聊天會累積交情：聊滿 3 天變「熟識」，消息更準；聊滿 7 天變「麻吉」，偶爾還會多講一則。多聽幾次，看誰比較準，再決定要不要相信。</p>';
   } else if (noteTab === 'egg') {
     const tot = EGG_LIST.length + EGG_CERT_POS.length, n = Object.keys(S.eggs).length + S.certs.length;
     h += `<div class="sum">已發現 <b>${n}/${tot}</b> 個彩蛋</div>`;
@@ -389,7 +395,7 @@ function openHelp() {
     <h4>7. 事件卡與歷史小百科</h4>
     <p>每一季會從真實歷史改編的事件裡抽 5 張，隨機排列，包括 1987 黑色星期一、1979–1981 聯準會暴力升息、1995–1996 台海飛彈危機、1997 亞洲金融風暴、2023–2024 AI 浪潮等。爆發時會出現「號外」，消息本的「歷史小百科」記錄它改編自哪一段歷史。地下投資公司每一季一定會倒，別把錢放太久。</p>
     <h4>8. 身分晉升</h4>
-    <p><b>結局</b>：故事共 ${FINAL_SEASON} 季，第 ${FINAL_SEASON} 季結束（1990 年泡沫破裂）時，總資產 ${wan(WIN_NET)} 以上是成功結局、低於本金 ${wan(START_CASH)} 是失敗結局，中間是普通結局。中途當上證券大亨會提早迎來成功結局，總資產跌破 ${BROKE_NET / 1e4} 萬 則提早失敗。結局之後可以繼續自由遊玩。</p>
+    <p><b>結局</b>：故事共 ${FINAL_SEASON} 季，第 ${FINAL_SEASON} 季結束（1990 年泡沫破裂）時，總資產 ${wan(winNet())} 以上是成功結局、低於本金 ${wan(START_CASH)} 是失敗結局，中間是普通結局。中途當上證券大亨會提早迎來成功結局，總資產跌破 ${BROKE_NET / 1e4} 萬 則提早失敗。結局之後可以繼續自由遊玩。${S.base != null ? `本局是${(S.len || 40) === 20 ? '短篇（每季 20 天）' : '完整版（每季 40 天）'}，挑戰碼 <b>${challengeCode()}</b>，朋友輸入同一個碼就會遇到同一盤行情（開啟即時天氣時會不同）。` : ''}</p>
     <p>${RANKS.map(r => `${r.name}（${wan(r.min)}）`).join(' → ')}。大哥大一支 ${wan(PHONE_PRICE)}，買了以後在哪裡都能下單。</p>
     <h4>9. 操作</h4>
     <p>WASD／方向鍵移動、Shift 快跑、E 說話、K 看盤下單、N 消息本、P 暫停、T 快轉到下一個時段、M 城市地圖、H 指南、Q 暫存、O 存檔與讀檔、拖曳轉視角。遊戲不會自動存檔，記得隨手按 Q 留暫存點。手機用左下搖桿、右下「互動」「看盤」。</p>
@@ -438,7 +444,7 @@ const GOALS = [
 let GUIDE = null, goalT = 0;
 function goalKey(g) { return g.daily ? `${g.id}@${S.season}-${S.day}` : g.id; }
 function updateGoals(dt) {
-  goalT -= dt; if (goalT > 0) return; goalT = 0.4;
+  goalT -= dt; if (goalT > 0) return; goalT = 0.4; tutTick();
   const list = [];
   for (const g of GOALS) {
     if (g.when && !g.when()) continue;
@@ -623,16 +629,17 @@ async function seasonEnd() {
   const nw = netWorth();
   await new Promise(res => {
     $('sumTitle').textContent = '一季結束';
-    $('sumBody').innerHTML = `<p style="font-size:16px;line-height:1.7">四十個交易日過去了。你從 ${wan(START_CASH)} 開始，現在總資產 <b class="${cls(nw - START_CASH)}">${money(nw)}</b>，身分是「<b>${RANKS[rankOf(nw)].name}</b>」。</p>
+    $('sumBody').innerHTML = `<p style="font-size:16px;line-height:1.7">${DAYS} 個交易日過去了。你從 ${wan(START_CASH)} 開始，現在總資產 <b class="${cls(nw - START_CASH)}">${money(nw)}</b>，身分是「<b>${RANKS[rankOf(nw)].name}</b>」。</p>
       <p style="line-height:1.7">同一季大盤 ${pct(SEASON.index[DAYS] / SEASON.index[0] - 1)}，你的資產 ${pct(nw / ((S.netHist || [])[0] || START_CASH) - 1)}。</p>
+      ${S.base != null ? `<p style="line-height:1.7">本局挑戰碼 <b>${challengeCode()}</b>（朋友輸入同一個碼，就會遇到同一盤行情）。</p>` : ''}
       <p style="line-height:1.7">這一季遇到的大事：${S.seen.map(id => EBY[id].name).join('、') || '（沒有）'}。到「消息本 → 歷史小百科」可以看它們改編自哪一段歷史。</p>
       <p style="line-height:1.7">新的一季會重新洗牌：事件的順序、時間、哪些人消息準，都會不一樣。${S.ended ? '' : S.season + 1 === FINAL_SEASON ? '<b>下一季是最後一季</b>，季末會依總資產迎來結局。' : `還有 ${FINAL_SEASON - S.season} 季迎來結局。`}</p>
       <div style="display:flex;justify-content:flex-end"><button class="btn pri" id="sumOk">開始新的一季</button></div>`;
     $('sum').classList.remove('hide'); $('sumOk').onclick = () => { $('sum').classList.add('hide'); res(); };
   });
   const log = (S.log || []).filter(l => l.s !== S.season).concat([seasonEntry()]);
-  const keep = { cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won, eggs: S.eggs, certs: S.certs, bullSeason: S.bullSeason, ended: S.ended, log, rank: S.rank };
-  S = Object.assign(S0(), keep); S.dayStartNet = S.cash; genSeason(S.seed);
+  const keep = { cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won, eggs: S.eggs, certs: S.certs, bullSeason: S.bullSeason, ended: S.ended, log, rank: S.rank, base: S.base, len: S.len, bond: S.bond, tut: S.tut };
+  S = Object.assign(S0(), keep); if (S.base != null) S.seed = seasonSeed(S.base, S.season); S.dayStartNet = S.cash; genSeason(S.seed);
 }
 function checkRank() {
   const r = rankOf(netWorth());
@@ -675,12 +682,12 @@ function morningPaper() {
     const key = `${S.season}-${S.day}`; if (GAME.mpDay === key || PHASE() !== 'pre') return res(); GAME.mpDay = key;
     const d = S.day, W = WEATHER[SEASON.weather[d]], ev = SEASON.events.find(e => d >= e.day && d < e.day + e.def.dur);
     GAME.busy = true;
-    $('extra').innerHTML = `<div class="mast"><b>早報</b><span>城中日報・第 ${d} 個交易日・06:00</span></div>
+    $('extra').innerHTML = `<div class="mast"><b>早報</b><span>城中日報・${yearOf(S.season)} 年・第 ${d} 個交易日・06:00</span></div>
       <h2>${SEASON.usHead[d]}</h2>
       <p><b>美股昨夜收盤</b>：道瓊 <span class="${cls(SEASON.us[d])}">${pct(SEASON.us[d])}</span>、那斯達克 <span class="${cls(SEASON.nas[d])}">${pct(SEASON.nas[d])}</span></p>
       <p><b>台股昨日</b>：${d > 1 ? `加權指數收 ${SEASON.index[d - 1].toFixed(0)} 點（<span class="${cls(SEASON.index[d - 1] / SEASON.index[d - 2] - 1)}">${pct(SEASON.index[d - 1] / SEASON.index[d - 2] - 1)}</span>）` : '新的一年第一個交易日'}</p>
       <p><b>今日天氣</b>：${W.name} ${SEASON.temp[d]}°C${W.closed ? '，颱風假休市' : ''}</p>
-      ${ev ? `<p><b>焦點新聞</b>：${ev.def.head}</p>` : ''}
+      ${eraNews(d)}${ev ? `<p><b>焦點新聞</b>：${ev.def.head}</p>` : ''}
       <p class="ref">8:00 日本、韓國股市開盤，可以先看國際盤的方向；9:00 台股開盤，13:30 收盤。</p>
       <div class="row"><button class="btn pri" id="extOk">看完了</button></div>`;
     $('ext').classList.remove('hide'); sfx('tick');
@@ -691,7 +698,7 @@ function setChip(id, html) { const el = $(id).lastElementChild; if (el.innerHTML
 function refreshHUD() {
   const nw = netWorth(), dpl = nw - S.dayStartNet;
   setChip('chCash', wan(S.cash)); setChip('chNet', `${wan(nw)} <span class="${cls(dpl)}" style="font-size:11px">${dpl >= 0 ? '+' : ''}${(dpl / Math.max(1, S.dayStartNet) * 100).toFixed(1)}%</span>`); setChip('chDay', `${S.day}/${DAYS}`);
-  $('rank').textContent = `${RANKS[S.rank].name}・第 ${S.season}${S.ended ? '' : '/' + FINAL_SEASON} 季`;
+  $('rank').textContent = `${RANKS[S.rank].name}・第 ${S.season}${S.ended ? '' : '/' + FINAL_SEASON} 季（${yearOf(S.season)}）`;
 }
 function updateTicker() {
   const p = prices(), ix = idxOf(p), ich = ix / SEASON.index[S.day - 1] - 1, ph = PHASE();
@@ -724,10 +731,11 @@ function updateLabels() {
       const hp = n.dir.clone().multiplyScalar(R + (n.sit ? 1.7 : 2.05) * (n.ch.L.scale || 1)); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) < 0) continue;
       const p = proj(hp); if (!p) continue;
       const fresh = S.talked[n.id] !== S.day && !['home', 'phone', 'temple', 'ped', 'fortune', 'busker', 'yulan'].includes(n.role);
-      lbl((fresh ? '● ' : '') + n.name, fresh ? 'q' : '', p[0], p[1]);
+      lbl((fresh ? '● ' : '') + n.name + ['', ' ♥', ' ♥♥'][n.rel ? bondLv(n.id) : 0], fresh ? 'q' : '', p[0], p[1]);
     }
     if (GUIDE && PLACE_BY[GUIDE]) { const pl = PLACE_BY[GUIDE], d = Math.round(angDist(PL.dir, pl.front) * 10), hp = pl.front.clone().multiplyScalar(R + 4.2); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) > 0) { const p = proj(hp); if (p) lbl(`▼ ${pl.name}・${d} 公尺`, 'goal', p[0], p[1]); } }
     for (const e of EGGS) { const ed = EGG_SPOTS[e.id]; if (!ed || angDist(PL.dir, ed) > 14) continue; const hp = ed.clone().multiplyScalar(R + 4.2); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) > 0) { const p = proj(hp); if (p) lbl(e.name, S.eggs[e.id] ? '' : 'q', p[0], p[1]); } }
+    if (pedSay.t > 0 && pedSay.n && pedSay.n.ch.root.visible && angDist(PL.dir, pedSay.n.dir) < 16) { const p = proj(pedSay.n.dir.clone().multiplyScalar(R + 2.4)); if (p) lbl(pedSay.txt, 'q', p[0], p[1] - 22); }
     if (crowdSay.t > 0 && crowdSay.n && angDist(PL.dir, crowdSay.n.dir) < 16) { const p = proj(crowdSay.n.dir.clone().multiplyScalar(R + 2.3)); if (p) lbl(crowdSay.txt, 'q', p[0], p[1] - 22); }
   }
   for (let i = LBL.used; i < LBL.pool.length; i++) if (LBL.pool[i].style.display !== 'none') LBL.pool[i].style.display = 'none';
@@ -735,7 +743,8 @@ function updateLabels() {
 
 /* ---------- 人物更新 ---------- */
 function updateNPCs(dt) {
-  const ph = PHASE(), ix = idxOf(prices()), ich = ix / SEASON.index[S.day - 1] - 1;
+  const ph = PHASE(), ix = idxOf(prices()), ich = ix / SEASON.index[Math.min(S.day, DAYS) - 1] - 1, mood = marketMood();
+  GAME.pedK = mood < -0.02 ? 0.6 : mood > 0.02 ? 1.25 : 1;
   crowdSay.t -= dt;
   if (ph === 'open' && crowdSay.t < -4 && Math.random() < 0.02) { const crowd = NPCS.filter(n => n.sit && n.road === 'E'); crowdSay = { t: 3, n: crowd[Math.random() * crowd.length | 0], txt: ich > 0.03 ? '漲停啦！發了發了！' : ich > 0.005 ? '紅通通，好看！' : ich < -0.03 ? '跌停了……我的買菜錢！' : ich < -0.005 ? '唉唷，又綠了' : '怎麼都不動啦' }; if (ich > 0.01) crowdSay.n.ch.wave = 1.2; }
   for (const n of NPCS) {
@@ -746,6 +755,7 @@ function updateNPCs(dt) {
     if (n.day && ph === 'night') n.ch.root.visible = false;
     if (n.dry && WEATHER[SEASON.weather[Math.min(S.day, DAYS)]].thin) n.ch.root.visible = false;
     if (n.walk && ph === 'night' && n.idx % 2) n.ch.root.visible = false;
+    if (n.walk && mood < -0.02 && n.idx % 3 === 0) n.ch.root.visible = false;
     if (!n.ch.root.visible) continue;
     let tgt = n.fwd0;
     if ((n.facing || d < 3) && !n.sit) { const t2 = tangentize(PL.dir.clone().sub(n.dir), n.dir); if (isFinite(t2.x)) tgt = t2; }
@@ -753,7 +763,7 @@ function updateNPCs(dt) {
     if (n.walk) {
       const w = n.walk;
       if (!n.facing && d > 2.6 && !GAME.busy) {
-        n.wd = n.wd || 1; n.s += n.wd * w.v * dt;
+        n.wd = n.wd || 1; n.s += n.wd * w.v * (GAME.pedK || 1) * dt;
         const lo = Math.min(w.a, w.b), hi = Math.max(w.a, w.b); if (n.s > hi) { n.s = hi; n.wd = -1; } if (n.s < lo) { n.s = lo; n.wd = 1; }
         n.dir = slot(w.road, n.s, w.side, w.off).dir; n.fwd0 = tangentize(roadPoint(w.road, n.s + n.wd).sub(roadPoint(w.road, n.s)), n.dir); n.ch.speed = 0.3;
       } else n.ch.speed = 0;

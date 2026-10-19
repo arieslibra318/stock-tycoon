@@ -17,11 +17,15 @@ const STOCKS = [
 ];
 const ST_NAME = { 成長: '成長股', 價值: '價值股', 循環: '景氣循環股' };
 const SBY = Object.fromEntries(STOCKS.map(s => [s.id, s]));
-const DAYS = 40, LIMIT = 0.07, LOT = 1000, FEE = 0.001425, TAX = 0.003, TICKS = 54;   // 09:00–13:30，每 5 分鐘一跳
-const RANKS = [
-  { name: '跑單小弟', min: 0 }, { name: '散戶', min: 3e6 }, { name: '中實戶', min: 6e6 }, { name: '大戶', min: 1.5e7 }, { name: '證券大亨', min: 5e7 },
-];
+let DAYS = 40; const LIMIT = 0.07, LOT = 1000, FEE = 0.001425, TAX = 0.003, TICKS = 54;   // 09:00–13:30，每 5 分鐘一跳
+// 短篇每季只有一半天數，門檻跟著降低
+const RANKS_L = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 3e6 }, { name: '中實戶', min: 6e6 }, { name: '大戶', min: 1.5e7 }, { name: '證券大亨', min: 5e7 }];
+const RANKS_S = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 2.5e6 }, { name: '中實戶', min: 4e6 }, { name: '大戶', min: 8e6 }, { name: '證券大亨', min: 2.5e7 }];
+let RANKS = RANKS_L;
 const START_CASH = 2000000;
+// 每季代表一年，開季指數用當年台股年初的水準（1986–1990 年加權指數年初約 835、1039、2340、5119、9624 點）
+const YEAR_OPEN = { 1986: 835, 1987: 1039, 1988: 2340, 1989: 5119, 1990: 9624, 1991: 4530 };
+let IDX_BASE = 4500;
 const VOL_K = 1.5;   // 80 年代末個股波動大，漲停跌停是家常便飯（只放大個股，不改大盤）
 // 融資券（依台股常見規定簡化）：融資成數 6 成、融券保證金 9 成、維持率 130%
 const MARGIN_LOAN = 0.6, SHORT_MARGIN = 0.9, MAINT = 1.3, LOAN_DAY = 0.065 / 250, SHORT_FEE = 0.0008, PHONE_PRICE = 60000;
@@ -103,7 +107,10 @@ function gauss(r) { let u = 0, v = 0; while (u === 0) u = r(); while (v === 0) v
 function tick(p) { return p < 10 ? 0.01 : p < 50 ? 0.05 : p < 100 ? 0.1 : p < 500 ? 0.5 : 1; }
 function roundTick(p) { const t = tick(p); return Math.round(p / t) * t; }
 function genSeason(seed) {
-  const r = mulberry32(seed);
+  const r = mulberry32(seed), SS = typeof S !== 'undefined' && S ? S : null;
+  DAYS = (SS && SS.len) || 40; RANKS = DAYS === 20 ? RANKS_S : RANKS_L; const season = (SS && SS.season) || 1;
+  IDX_BASE = YEAR_OPEN[1985 + season] || 4500;
+  const bubble = season === (typeof FINAL_SEASON !== 'undefined' ? FINAL_SEASON : 5), kb = 40 / DAYS;
   const pool = EVENTS.filter(e => !e.always && !e.policy).map(e => e.id);
   for (let i = pool.length - 1; i > 0; i--) { const j = r() * (i + 1) | 0;[pool[i], pool[j]] = [pool[j], pool[i]]; }
   // 每季兩個利多、兩個利空，順序隨機
@@ -122,6 +129,8 @@ function genSeason(seed) {
   for (let d = 1; d <= DAYS; d++) {
     if (r() > 0.88) regime = r() < 0.45 ? 0 : r() < 0.6 ? 1 : 2;
     let idx = 0, sec = {}, sty = {}, vol = 1, th = false, storm = false, evUs = 0, head = null;
+    // 1990 年：前段衝向萬點，央行緊縮後泡沫破裂
+    if (bubble) { const f = d / DAYS; idx += (f <= 0.42 ? 0.011 : f <= 0.52 ? 0 : -0.028) * kb; if (f > 0.42 && f <= 0.62) vol *= 1.3; }
     for (const e of events) { const k = d - e.day; if (k >= 0 && k < e.def.dur) { const f = e.def.eff(k); idx += f.idx || 0; vol *= f.vol || 1; if (f.thin) th = true; if (e.id === 'typhoon') storm = true; for (const s in f.sec || {}) sec[s] = (sec[s] || 0) + f.sec[s]; for (const s in f.st || {}) sty[s] = (sty[s] || 0) + f.st[s]; if (e.def.us) evUs += e.def.us(k); if (e.def.usHead && e.def.usHead(k)) head = e.def.usHead(k); if (e.id === 'crash' && k === 0) { evUs += -0.2; head = '華爾街大崩盤　道瓊單日重挫逾兩成'; } if (e.id === 'gulf' && k === 0) { evUs += -0.025; head = '伊拉克入侵科威特　油價飆漲、美股下跌'; } } }
     const u = gauss(r) * 0.009 + evUs; us.push(u); nas.push(u * 1.25 + gauss(r) * 0.004);
     usHead.push(head || (u > 0.004 ? pickR(r, US_UP) : u < -0.004 ? pickR(r, US_DN) : pickR(r, US_FLAT)));
@@ -148,7 +157,7 @@ const WEATHER = {
 const isClosed = d => !!(WEATHER[SEASON.weather[d]] || {}).closed;
 function rebuildSeason() {
   const S2 = SEASON, close = [STOCKS.map(s => s.p0)], ret = [STOCKS.map(() => 0)], limit = [{ up: LIMIT, dn: LIMIT, ns: false }], policy = [];
-  const base0 = STOCKS.reduce((a, s) => a + s.cap * s.p0, 0), idx = [4500];
+  const base0 = STOCKS.reduce((a, s) => a + s.cap * s.p0, 0), idx = [IDX_BASE];
   let base = LIMIT, emUntil = 0, reformed = false;
   for (let d = 1; d <= DAYS; d++) {
     const rp = mulberry32(S2.seed * 31 + d * 7);
@@ -161,7 +170,7 @@ function rebuildSeason() {
       close.push(prev.map((p, i) => { const [up, dn] = limitsL(p, L); return clamp(roundTick(p * (1 + clamp(S2.raw[d][i] + STOCKS[i].beta * W.mood, -L.dn, L.up))), dn, up); }));
       ret.push(close[d].map((p, i) => p / prev[i] - 1));
     }
-    idx.push(4500 * close[d].reduce((a, p, i) => a + STOCKS[i].cap * p, 0) / base0);
+    idx.push(IDX_BASE * close[d].reduce((a, p, i) => a + STOCKS[i].cap * p, 0) / base0);
   }
   S2.close = close; S2.ret = ret; S2.index = idx; S2.limit = limit; S2.policy = policy;
 }
@@ -198,7 +207,7 @@ function genIntraday(d) {
     return path;
   });
 }
-const idxOf = prices => 4500 * prices.reduce((a, p, i) => a + STOCKS[i].cap * p, 0) / STOCKS.reduce((a, s) => a + s.cap * s.p0, 0);
+const idxOf = prices => IDX_BASE * prices.reduce((a, p, i) => a + STOCKS[i].cap * p, 0) / STOCKS.reduce((a, s) => a + s.cap * s.p0, 0);
 
 /* ---------- 消息 ---------- */
 const TIP_UP = ['{n}有人在偷偷吃貨，明天應該會漲。', '我有朋友在{n}上班，說接到大訂單，明天會漲啦！', '{n}的線型很漂亮，明天要攻上去了。', '聽說有人要拉{n}，明天買就對了。'];

@@ -103,6 +103,19 @@ table.q th:first-child,table.q td:first-child{text-align:left}
 table.q td{padding:7px 6px;border-bottom:1.5px dashed #d8c9a8;text-align:right;white-space:nowrap}
 table.q td .sec{display:block;font-size:11px;color:var(--ink-soft)}
 .tw{overflow-x:auto}
+#newBox{max-width:560px;width:100%;text-align:left;padding:14px 16px;border:3px solid var(--ink);border-radius:14px;background:#fffaf0;color:var(--ink);box-shadow:0 6px 0 rgba(0,0,0,.25)}
+#newBox h3{margin:0 0 6px}
+.nbRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.nbRow>span{min-width:64px;font-weight:700}
+#nbCode{font:inherit;font-size:16px;padding:6px 10px;border:2px solid var(--ink);border-radius:8px;width:150px;text-transform:uppercase;letter-spacing:.1em;background:#fff}
+.nbNote{font-size:13px;color:var(--ink-soft);margin:2px 0;line-height:1.6}
+.qtyBar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 8px;font-size:13px}
+.qtyBar>span{font-weight:700;margin-right:2px}
+.qtyBar .tab{padding:3px 10px;font-size:13px}
+#flash{position:fixed;inset:0;pointer-events:none;z-index:25;opacity:0;background:radial-gradient(ellipse at center,transparent 42%,var(--fc,rgba(255,196,60,.8)) 100%)}
+#flash.go{animation:flashK 1.2s ease-out}
+#flash.go.alarm{animation:flashK .8s ease-in-out 3}
+@keyframes flashK{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
 #ending{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden}
 #ending.hide{display:none}
 #endCv{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -244,8 +257,10 @@ tr.chOn td{background:#fff3cf}
     <div id="logoZh">城中小行星・從跑單小弟到證券大亨</div>
     <div id="loadTxt">正在蓋騎樓、掛招牌……</div>
     <div id="titleBtns" class="hide"><button class="btn pri" id="bStart">開始新的一年</button><button class="btn hide" id="bCont">從暫存點繼續</button><button class="btn" id="bLoad">讀取存檔</button></div>
+    <div id="newBox" class="hide"></div>
     <div id="titleNote">遊戲裡的公司、人物與行情都是虛構的；歷史事件經過改編並隨機排列，僅供體驗與學習，不構成任何投資建議。</div>
   </div>
+  <div id="flash"></div>
   <div id="fade"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

@@ -39,10 +39,10 @@ function loop() {
     if (!GAME.busy && !GAME.paused) TIME.min += dt * RATE[PHASE()] * (S.speed || 1);
     const ph = PHASE();
     if (ph !== lastPhase) { lastPhase = ph; onPhase(ph); }
-    if (ph === 'open' && MK.path) { const k = clamp(Math.floor((TIME.min - 540) / 5), 0, TICKS); if (k !== MK.k) { MK.k = k; MK.prices = MK.path.map(p => p[k]); GAME.idxTicks.push(idxOf(MK.prices)); drawBoard(); renderTrade(); if (k % 3 === 0) sfx('tick2'); } }
+    if (ph === 'open' && MK.path) { const k = clamp(Math.floor((TIME.min - 540) / 5), 0, TICKS); if (k !== MK.k) { MK.k = k; MK.prices = MK.path.map(p => p[k]); GAME.idxTicks.push(idxOf(MK.prices)); drawBoard(); renderTrade(); marketPulse(); if (k % 3 === 0) sfx('tick2'); } }
     if (!GAME.busy && TIME.min >= 23 * 60) endDay();
     if (PHASE() === 'pre' && TIME.min >= 480 && GAME.jkDay !== `${S.season}-${S.day}`) { GAME.jkDay = `${S.season}-${S.day}`; toast(`08:00 日韓開盤：日經 ${pct(SEASON.jp[S.day])}・韓股 ${pct(SEASON.kr[S.day])}`); sfx('tick'); renderTrade(); }
-    updateGoals(dt); updateRain(dt); updateCerts(dt);
+    updateGoals(dt); updateRain(dt); updateCerts(dt); updateStreet(dt);
     movePlayer(dt); placeChar(PL.ch, PL.dir, PL.fwd, 0); PL.ch.speed = PL.speed / 5; PL.ch.update(dt, GAME.t);
     updateNPCs(dt); NEAR = findNear(); updatePrompt(); updateTicker(); updateMarquee(dt);
     const tHide = !IS_TOUCH || GAME.busy || GAME.mode !== 'ground'; if (tHide !== GAME.tHide) { GAME.tHide = tHide; $('touch').classList.toggle('hide', tHide); }
@@ -77,21 +77,27 @@ async function intro() {
   GAME.busy = true;
   const o = NPC_BY.oldhand;
   try {
-    await say(null, '1980 年代末，台北。股市一天比一天熱，連菜市場都在討論股票。');
+    await say(null, `${yearOf(S.season)} 年，台北。股市一天比一天熱，連菜市場都在討論股票。`);
     await say('me', '我是阿德，帶著家裡給的兩百萬來台北。從今天起，我要在證券行闖出一片天！');
     await say(o, '少年仔，第一次來證券行喔？聽阿伯一句話：消息到處都有，真真假假，要自己判斷。');
     await say(o, '每天 6 點看早報，知道美股昨晚怎麼走；8 點日本、韓國先開盤；9 點台股開盤、下午 1 點半收盤。開盤前去街上多聽聽，記在消息本裡，看誰講得準。');
     await say(o, '還有，那種保證月息四分的投資公司……天底下哪有這麼好的事，你自己想想。');
     await say('me', '（左上角的「任務提示」會告訴我下一步。按 H 看新手指南、P 暫停時間；遊戲不會自動存檔，隨手按 Q 留個暫存點。）');
+    if (S.tut === 0) {
+      await say(NPC_BY.broker, '我是營業員小美。第一次來的話，我帶你走一遍：先聽消息、再下單、收盤看結果。');
+      const c = await choose(['好，帶我走一遍', '我會玩了，跳過教學']);
+      if (c === 1) S.tut = TUT.length; else GUIDE = 'broker';
+    }
   } finally { DLG.hide(); GAME.busy = false; }
   toast('先去街上打聽消息，9 點再回證券行下單');
 }
-async function startGame(cont, state) {
+async function startGame(cont, state, opts) {
   initAudio();
+  const prevLen = (S && S.len) || 40; $('newBox').classList.add('hide');
   DLG.hide(); ['trade', 'notes', 'help', 'saves', 'sum', 'ext'].forEach(id => $(id).classList.add('hide')); GAME.busy = false; GAME.ending = false; GAME.paused = false; $('pauseTag').classList.add('hide'); $('bPause').classList.remove('on');
   $('fade').style.opacity = 1; await wait(600);
   if (state) { S = Object.assign(S0(), JSON.parse(JSON.stringify(state))); TIME.min = S.min || 360; cont = true; }
-  else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; }
+  else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; const o = opts || { len: prevLen, base: Math.random() * 2000000000 | 0 }; S.len = o.len; S.base = o.base; S.seed = seasonSeed(o.base, 1); S.tut = 0; }
   genSeason(S.seed); applyWeatherOverrides();
   lastPhase = PHASE(); MK.prices = null; MK.path = null;
   if (lastPhase === 'open') { MK.path = genIntraday(S.day); MK.k = -1; }
@@ -116,7 +122,7 @@ async function boot() {
     setPlayerAt(slot('E', 4, 1, 2.3).dir); placeChar(PL.ch, PL.dir, PL.fwd, 0);
     bindInput(); drawBoard(); buildRain(); buildCerts();
     $('loadTxt').classList.add('hide'); $('titleBtns').classList.remove('hide'); if (hasSave()) $('bCont').classList.remove('hide');
-    $('bStart').onclick = () => startGame(false); $('bCont').onclick = () => startGame(true); $('bLoad').onclick = () => openSaves();
+    $('bStart').onclick = openNewGame; $('bCont').onclick = () => startGame(true); $('bLoad').onclick = () => openSaves();
     loop();
   } catch (e) { $('loadTxt').textContent = '載入失敗：' + e.message; console.error(e); }
 }

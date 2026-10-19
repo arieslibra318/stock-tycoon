@@ -2,8 +2,9 @@
    結局：第 5 季結束（1990 年泡沫破裂）時依總資產分成成功／普通／失敗；
    中途成為證券大亨直接成功，總資產跌破 30 萬直接失敗
    ========================================================= */
-const FINAL_SEASON = 5, WIN_NET = 1e7, BROKE_NET = 3e5;
-const endingKind = nw => nw >= WIN_NET ? 'win' : nw < START_CASH ? 'fail' : 'normal';
+const FINAL_SEASON = 5, BROKE_NET = 3e5, WIN_BY_LEN = { 40: 1e7, 20: 4e6 };
+const winNet = () => WIN_BY_LEN[S.len || 40] || 1e7;
+const endingKind = nw => nw >= winNet() ? 'win' : nw < START_CASH ? 'fail' : 'normal';
 function seasonEntry() {
   const nw = netWorth(), base = (S.netHist || [])[0] || S.dayStartNet || START_CASH, d = Math.min(S.day, DAYS);
   return { s: S.season, me: nw / base - 1, idx: SEASON.index[d] / SEASON.index[0] - 1 };
@@ -21,9 +22,9 @@ const ENDINGS = {
     quote: '市場永遠都在，紀律讓你一直留在場上。',
   },
   tycoon: {
-    tag: '成功結局', title: '證券大亨誕生', paper: ['城中日報・號外', '從跑單小弟到證券大亨　身價破五千萬'],
+    tag: '成功結局', title: '證券大亨誕生', get paper() { return ['城中日報・號外', `從跑單小弟到證券大亨　身價破${wan(RANKS[RANKS.length - 1].min).replace(' ', '')}`]; },
     lines: () => [
-      `第 ${S.season} 季第 ${Math.min(S.day, DAYS)} 天，你的總資產突破五千萬，證券行的報價看板好像為你停了三秒。`,
+      `第 ${S.season} 季第 ${Math.min(S.day, DAYS)} 天，你的總資產突破 ${wan(RANKS[RANKS.length - 1].min)}，證券行的報價看板好像為你停了三秒。`,
       '記者小周連夜寫稿，大戶阿忠在居酒屋舉杯：「後生可畏！」',
       '可是你心裡清楚，運氣和實力一樣重要，下一次不一定這麼幸運。',
       '你捐了一筆錢給城中公園，換上新的長椅，讓下棋的阿伯坐得舒服一點。',
@@ -146,7 +147,8 @@ function playEnding(kind) {
     <div class="endStats"><h3 style="margin:0 0 8px">${E.tag}・${E.title}</h3>
       <div class="sum" style="margin-bottom:8px"><span>最終總資產 <b class="${cls(nw - START_CASH)}">${money(nw)}</b></span><span>本金的 <b>${(nw / START_CASH).toFixed(1)}</b> 倍</span><span>身分 <b>${RANKS[rankOf(nw)].name}</b></span><span>彩蛋 <b>${eggN}/${eggT}</b></span></div>
       <table class="q"><tr><th style="text-align:left">季</th><th>你的資產</th><th>同期大盤</th></tr>${log.map(l => `<tr><td style="text-align:left">第 ${l.s} 季</td><td class="${cls(l.me)}">${pct(l.me)}</td><td class="${cls(l.idx)}">${pct(l.idx)}</td></tr>`).join('')}</table>
-      <p class="note">${kind === 'win' || kind === 'tycoon' ? '恭喜！' : kind === 'normal' ? '守住本金就贏過很多人了。' : '下一次，試試少用融資、多聽準的人說話。'}結局只看第 ${FINAL_SEASON} 季結束時的總資產：${wan(WIN_NET)} 以上是成功、低於本金是失敗，中間是普通；中途當上證券大亨或資產跌破 ${BROKE_NET / 1e4} 萬 會提早迎來結局。</p>
+      <p class="note">${kind === 'win' || kind === 'tycoon' ? '恭喜！' : kind === 'normal' ? '守住本金就贏過很多人了。' : '下一次，試試少用融資、多聽準的人說話。'}結局只看第 ${FINAL_SEASON} 季結束時的總資產：${wan(winNet())} 以上是成功、低於本金是失敗，中間是普通；中途當上證券大亨或資產跌破 ${BROKE_NET / 1e4} 萬 會提早迎來結局。</p>
+      ${S.base != null ? `<p class="note">本局挑戰碼 <b>${challengeCode()}</b>：朋友開新局時輸入這個碼，就會遇到同一盤行情，可以比比看誰的結局比較好。</p>` : ''}
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="endAgain">重新開始新的人生</button><button class="btn pri" id="endGo">繼續自由遊玩</button></div></div>
     <button class="endSkip" id="endSkip">跳過 ▸</button>`;
   root.className = 'end-' + scene; root.classList.remove('hide');
