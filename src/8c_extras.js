@@ -83,7 +83,11 @@ function marketMood() {
   if (ph === 'open' || ph === 'post' || ph === 'night') return idxOf(prices()) / SEASON.index[d - 1] - 1;
   return d > 1 ? SEASON.index[d - 1] / SEASON.index[d - 2] - 1 : 0;
 }
+let buskT = 3;
 function updateStreet(dt) {
+  // 靠近拉二胡的阿伯，會先聽到琴聲
+  const bk = NPC_BY.busker; buskT -= dt;
+  if (bk && buskT < 0) { buskT = 13; if (GAME.mode === 'ground' && !GAME.busy && bk.ch.root.visible && angDist(PL.dir, bk.dir) < 14) { erhu(); if (!S.eggs.busker) pedSay = { t: 4, n: bk, txt: '♪～' }; } }
   pedSay.t -= dt; pedT -= dt; if (pedT > 0 || GAME.mode !== 'ground') return; pedT = 5 + Math.random() * 4;
   const mood = marketMood(), ph = PHASE(), k = NPC_BY.kiosk;
   if ((ph === 'post' || ph === 'night') && Math.abs(mood) >= 0.03 && k && k.ch.root.visible && angDist(PL.dir, k.dir) < 14) { pedSay = { t: 4, n: k, txt: `號外！號外！今天大盤${mood > 0 ? '大漲' : '大跌'} ${Math.abs(mood * 100).toFixed(1)}%！` }; return; }

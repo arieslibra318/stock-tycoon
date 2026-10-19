@@ -77,7 +77,7 @@ const NPCS = [
   { id: 'phone', name: '通訊行小姐', look: 'phone', road: 'E', s: -62, side: 1, off: 2.6, role: 'phone' },
   { id: 'landlady', name: '房東太太', look: 'landlady', road: 'E', s: 62, side: -1, off: 2.6, role: 'home' },
   { id: 'fortune', name: '算命仙', look: 'fortune', road: 'M', s: -58.5, side: 1, off: 3.2, role: 'fortune', sit: true },
-  { id: 'busker', name: '拉二胡的阿伯', look: 'busker', road: 'M', s: 55, side: -1, off: 3.2, role: 'busker', sit: true },
+  { id: 'busker', name: '拉二胡的阿伯', look: 'busker', road: 'M', s: 66, side: -1, off: 2.35, role: 'busker', sit: true },
   { id: 'yulan', name: '賣玉蘭花的阿嬤', look: 'yulan', road: 'E', s: 77, side: 1, off: 2.6, role: 'yulan' },
   { id: 'shoe', name: '擦鞋阿南', look: 'shoe', road: 'E', s: -69, side: -1, off: 2.9, role: 'shoeshine', rel: 0.55, sit: true },
   { id: 'analyst', name: '陳博士', look: 'analyst', road: 'E', s: 15.9, side: 1, off: 3.0, role: 'analyst', rel: 0.7, appear: ph => ph !== 'night' && irregular('analyst', 0.4), appearP: 0.4, appearNote: '研究部分析師陳博士在證券行門口講盤' },
@@ -88,7 +88,7 @@ const NPCS = [
 ];
 // 行人：在比較空的街段來回走，跟他們聊天會聽到小道消息或彩蛋提示
 const PED_NAMES = ['上班族小林', '高中生小琪', '公務員老吳', '燙髮的陳小姐', '散步的阿公', '送貨的阿強', '補習班老師', '剛下班的護士', '大學生阿凱', '騎樓下的阿姨', '跑業務的小張', '收報紙的阿伯'];
-[['M', 20, 40, 1, 2.6], ['M', 44, 62, 1, 2.5], ['M', 34, 52, -1, 2.6], ['M', 58, 78, -1, 2.5], ['M', -20, -55, 1, 2.6], ['M', -22, -50, -1, 2.5],
+[['M', 20, 40, 1, 2.6], ['M', 44, 62, 1, 2.5], ['M', 34, 52, -1, 2.6], ['M', 58, 78, -1, 3.1], ['M', -20, -55, 1, 2.6], ['M', -22, -50, -1, 2.5],
  ['M', -55, -78, -1, 2.6], ['E', 50, 74, 1, 2.6], ['E', 65, 80, -1, 2.5], ['E', -32, -58, 1, 2.6], ['E', -50, -65, -1, 2.6], ['E', 16, 25, 1, 2.5]].forEach(([road, a, b, side, off], i) => {
   NPCS.push({ id: 'ped' + i, name: PED_NAMES[i], look: 'ped' + (i % 6), road, s: a, side, off, role: 'ped', walk: { road, a, b, side, off, v: 1.1 + (i % 4) * 0.15 } });
 });

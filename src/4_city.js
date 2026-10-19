@@ -199,6 +199,8 @@ function buildCity() {
   }
   // 街頭小攤：算命、二胡、玉蘭花、擦鞋
   { const sl = slot('M', -58.5, 1, 2.3), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(1.3, 0.75, 0.7, 0x9b6a45, 0, 0.375, 0.2); gb.box(1.36, 0.06, 0.76, 0xc8402f, 0, 0.78, 0.2); gb.cyl(0.03, 0.03, 2.2, 0x555555, 0.75, 1.1, 0.4, 6); CITY.merge(gb, m); addSignQuad(m, 0.75, 2.0, 0.42, 0.9, 0.9, 0, signCell('鐵口直斷', '#c8402f', '#fff3d6', false, '算命・卜卦')); COLLIDERS.push({ d: sl.dir, r: 0.6 }); }
+  // 街頭藝人：小板凳、打開的琴盒、立牌
+  { const sl = slot('M', 66, -1, 2.35), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(0.42, 0.36, 0.36, 0x6b4a3a, 0, 0.18, -0.12); gb.box(0.8, 0.1, 0.34, 0x2b2622, 0.15, 0.05, 0.62); gb.box(0.72, 0.03, 0.26, 0xb5302a, 0.15, 0.11, 0.62); for (let k = 0; k < 5; k++) gb.cyl(0.04, 0.04, 0.02, 0xf2c14e, -0.1 + k * 0.12, 0.13, 0.58 + (k % 2) * 0.06, 8); gb.cyl(0.025, 0.025, 1.3, 0x555555, -0.7, 0.65, 0.2, 6); CITY.merge(gb, m); addSignQuad(m, -0.7, 1.35, 0.23, 0.95, 0.32, 0, signCell('街頭藝人', '#2b2622', '#ffd27a', false, '歡迎點歌')); COLLIDERS.push({ d: sl.dir, r: 0.45 }); }
   { const sl = slot('E', 75.5, 1, 1.9), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(0.9, 0.6, 0.6, 0x9b6a45, 0, 0.5, 0); for (let k = 0; k < 9; k++) gb.sph(0.07, 0xfffbe8, -0.3 + (k % 3) * 0.3, 0.86, -0.15 + Math.floor(k / 3) * 0.15, 1, 1.4, 1, 6); for (const x of [-0.35, 0.35]) gb.cyl(0.18, 0.18, 0.05, 0x333333, x, 0.18, 0.32, 10, 0, 0, Math.PI / 2); CITY.merge(gb, m); COLLIDERS.push({ d: sl.dir, r: 0.5 }); }
   { const sl = slot('E', -69, -1, 2.0), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(0.6, 0.35, 0.45, 0x6b4a3a, 0, 0.18, 0.55); gb.box(0.3, 0.1, 0.2, 0x2b2622, 0, 0.4, 0.55); CITY.merge(gb, m); }
   // 散落各處的「紙本股票憑證」

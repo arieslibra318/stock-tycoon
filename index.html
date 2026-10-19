@@ -716,6 +716,8 @@ function buildCity() {
   }
   // 街頭小攤：算命、二胡、玉蘭花、擦鞋
   { const sl = slot('M', -58.5, 1, 2.3), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(1.3, 0.75, 0.7, 0x9b6a45, 0, 0.375, 0.2); gb.box(1.36, 0.06, 0.76, 0xc8402f, 0, 0.78, 0.2); gb.cyl(0.03, 0.03, 2.2, 0x555555, 0.75, 1.1, 0.4, 6); CITY.merge(gb, m); addSignQuad(m, 0.75, 2.0, 0.42, 0.9, 0.9, 0, signCell('鐵口直斷', '#c8402f', '#fff3d6', false, '算命・卜卦')); COLLIDERS.push({ d: sl.dir, r: 0.6 }); }
+  // 街頭藝人：小板凳、打開的琴盒、立牌
+  { const sl = slot('M', 66, -1, 2.35), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(0.42, 0.36, 0.36, 0x6b4a3a, 0, 0.18, -0.12); gb.box(0.8, 0.1, 0.34, 0x2b2622, 0.15, 0.05, 0.62); gb.box(0.72, 0.03, 0.26, 0xb5302a, 0.15, 0.11, 0.62); for (let k = 0; k < 5; k++) gb.cyl(0.04, 0.04, 0.02, 0xf2c14e, -0.1 + k * 0.12, 0.13, 0.58 + (k % 2) * 0.06, 8); gb.cyl(0.025, 0.025, 1.3, 0x555555, -0.7, 0.65, 0.2, 6); CITY.merge(gb, m); addSignQuad(m, -0.7, 1.35, 0.23, 0.95, 0.32, 0, signCell('街頭藝人', '#2b2622', '#ffd27a', false, '歡迎點歌')); COLLIDERS.push({ d: sl.dir, r: 0.45 }); }
   { const sl = slot('E', 75.5, 1, 1.9), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(0.9, 0.6, 0.6, 0x9b6a45, 0, 0.5, 0); for (let k = 0; k < 9; k++) gb.sph(0.07, 0xfffbe8, -0.3 + (k % 3) * 0.3, 0.86, -0.15 + Math.floor(k / 3) * 0.15, 1, 1.4, 1, 6); for (const x of [-0.35, 0.35]) gb.cyl(0.18, 0.18, 0.05, 0x333333, x, 0.18, 0.32, 10, 0, 0, Math.PI / 2); CITY.merge(gb, m); COLLIDERS.push({ d: sl.dir, r: 0.5 }); }
   { const sl = slot('E', -69, -1, 2.0), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(0.6, 0.35, 0.45, 0x6b4a3a, 0, 0.18, 0.55); gb.box(0.3, 0.1, 0.2, 0x2b2622, 0, 0.4, 0.55); CITY.merge(gb, m); }
   // 散落各處的「紙本股票憑證」
@@ -1510,7 +1512,7 @@ const NPCS = [
   { id: 'phone', name: '通訊行小姐', look: 'phone', road: 'E', s: -62, side: 1, off: 2.6, role: 'phone' },
   { id: 'landlady', name: '房東太太', look: 'landlady', road: 'E', s: 62, side: -1, off: 2.6, role: 'home' },
   { id: 'fortune', name: '算命仙', look: 'fortune', road: 'M', s: -58.5, side: 1, off: 3.2, role: 'fortune', sit: true },
-  { id: 'busker', name: '拉二胡的阿伯', look: 'busker', road: 'M', s: 55, side: -1, off: 3.2, role: 'busker', sit: true },
+  { id: 'busker', name: '拉二胡的阿伯', look: 'busker', road: 'M', s: 66, side: -1, off: 2.35, role: 'busker', sit: true },
   { id: 'yulan', name: '賣玉蘭花的阿嬤', look: 'yulan', road: 'E', s: 77, side: 1, off: 2.6, role: 'yulan' },
   { id: 'shoe', name: '擦鞋阿南', look: 'shoe', road: 'E', s: -69, side: -1, off: 2.9, role: 'shoeshine', rel: 0.55, sit: true },
   { id: 'analyst', name: '陳博士', look: 'analyst', road: 'E', s: 15.9, side: 1, off: 3.0, role: 'analyst', rel: 0.7, appear: ph => ph !== 'night' && irregular('analyst', 0.4), appearP: 0.4, appearNote: '研究部分析師陳博士在證券行門口講盤' },
@@ -1521,7 +1523,7 @@ const NPCS = [
 ];
 // 行人：在比較空的街段來回走，跟他們聊天會聽到小道消息或彩蛋提示
 const PED_NAMES = ['上班族小林', '高中生小琪', '公務員老吳', '燙髮的陳小姐', '散步的阿公', '送貨的阿強', '補習班老師', '剛下班的護士', '大學生阿凱', '騎樓下的阿姨', '跑業務的小張', '收報紙的阿伯'];
-[['M', 20, 40, 1, 2.6], ['M', 44, 62, 1, 2.5], ['M', 34, 52, -1, 2.6], ['M', 58, 78, -1, 2.5], ['M', -20, -55, 1, 2.6], ['M', -22, -50, -1, 2.5],
+[['M', 20, 40, 1, 2.6], ['M', 44, 62, 1, 2.5], ['M', 34, 52, -1, 2.6], ['M', 58, 78, -1, 3.1], ['M', -20, -55, 1, 2.6], ['M', -22, -50, -1, 2.5],
  ['M', -55, -78, -1, 2.6], ['E', 50, 74, 1, 2.6], ['E', 65, 80, -1, 2.5], ['E', -32, -58, 1, 2.6], ['E', -50, -65, -1, 2.6], ['E', 16, 25, 1, 2.5]].forEach(([road, a, b, side, off], i) => {
   NPCS.push({ id: 'ped' + i, name: PED_NAMES[i], look: 'ped' + (i % 6), road, s: a, side, off, role: 'ped', walk: { road, a, b, side, off, v: 1.1 + (i % 4) * 0.15 } });
 });
@@ -1777,7 +1779,7 @@ const TALK_NIGHT = {
 const PED_LINES = [
   '今天股市又在吵了，我只想好好上班。', '聽說館前街最北邊有一頭金色的牛，摸了會帶來好運。', '館前街最南邊那隻黑熊，看起來兇，其實是在提醒大家別貪心。',
   '公園那邊下棋的阿伯，以前可是證券行的紅人。', '我阿公說以前的股票是印在紙上的，現在路邊還撿得到喔，哈哈。', '算命仙說我今年財運旺，結果股票套牢了。',
-  '車站附近常常有人在拉二胡，很好聽。', '晚上去居酒屋，大戶喝醉了什麼都講。', '颱風天證券行休市，我反而最開心。', '有人說看早報的美股就知道今天台股怎麼走，真的嗎？',
+  '車站對面常常有個阿伯在拉二胡，走近就聽得到。', '晚上去居酒屋，大戶喝醉了什麼都講。', '颱風天證券行休市，我反而最開心。', '有人說看早報的美股就知道今天台股怎麼走，真的嗎？',
   '城中路東邊有個賣玉蘭花的阿嬤，跟她買一串，聞了心情就好。', '我上次在車站旁邊撿到一張很舊的股票，背面還蓋著紅色印章。', '廟埕裡好像也藏著什麼東西，亮亮的。',
 ];
 const LUCK = ['大吉：明天出門往東走，會遇到貴人。', '中吉：該停損的時候別猶豫，留得青山在。', '小吉：別人搶著買的時候，你可以先喝杯茶。', '上上籤：耐心是你最好的明牌。', '吉：今晚去居酒屋，說不定能聽到好消息。', '平：今天適合研究，不適合衝動。'];
@@ -1787,7 +1789,7 @@ function erhu() {
 }
 const EGG_LIST = [
   { id: 'bull', name: '摸摸城中金牛', hint: '館前街的最北邊（星球北極）' }, { id: 'bear', name: '拍拍城中黑熊', hint: '館前街的最南邊（星球南極）' },
-  { id: 'fortune', name: '找算命仙算一次', hint: '館前街南段的騎樓下' }, { id: 'busker', name: '聽阿伯拉二胡', hint: '館前街北段，靠近車站' }, { id: 'yulan', name: '買一串玉蘭花', hint: '城中路東邊的盡頭' },
+  { id: 'fortune', name: '找算命仙算一次', hint: '館前街南段的騎樓下' }, { id: 'busker', name: '聽阿伯拉二胡', hint: '館前街從金牛往車站走，車站對面那一側的騎樓前（靠近會聽到二胡聲）' }, { id: 'yulan', name: '買一串玉蘭花', hint: '城中路東邊的盡頭' },
 ];
 function findEgg(id, label) {
   if (S.eggs[id]) return; S.eggs[id] = 1; sfx('done');
@@ -2783,7 +2785,11 @@ function marketMood() {
   if (ph === 'open' || ph === 'post' || ph === 'night') return idxOf(prices()) / SEASON.index[d - 1] - 1;
   return d > 1 ? SEASON.index[d - 1] / SEASON.index[d - 2] - 1 : 0;
 }
+let buskT = 3;
 function updateStreet(dt) {
+  // 靠近拉二胡的阿伯，會先聽到琴聲
+  const bk = NPC_BY.busker; buskT -= dt;
+  if (bk && buskT < 0) { buskT = 13; if (GAME.mode === 'ground' && !GAME.busy && bk.ch.root.visible && angDist(PL.dir, bk.dir) < 14) { erhu(); if (!S.eggs.busker) pedSay = { t: 4, n: bk, txt: '♪～' }; } }
   pedSay.t -= dt; pedT -= dt; if (pedT > 0 || GAME.mode !== 'ground') return; pedT = 5 + Math.random() * 4;
   const mood = marketMood(), ph = PHASE(), k = NPC_BY.kiosk;
   if ((ph === 'post' || ph === 'night') && Math.abs(mood) >= 0.03 && k && k.ch.root.visible && angDist(PL.dir, k.dir) < 14) { pedSay = { t: 4, n: k, txt: `號外！號外！今天大盤${mood > 0 ? '大漲' : '大跌'} ${Math.abs(mood * 100).toFixed(1)}%！` }; return; }
