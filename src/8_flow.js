@@ -564,7 +564,8 @@ function showSummary() {
     $('sumBody').innerHTML = `<canvas id="sumCv" width="700" height="160"></canvas>
       <div class="sum" style="margin-top:10px"><span>加權指數 <b class="${cls(ich)}">${ic.toFixed(2)}（${pct(ich)}）</b></span><span>成交量 <b>${volumeOf(d)} 億</b></span></div>
       <p style="margin:6px 0">你今天 <span class="bigpl ${cls(dpl)}">${dpl >= 0 ? '+' : ''}${money(dpl)}</span>　總資產 <b>${money(nw)}</b></p>
-      <p style="margin:6px 0;font-size:14px">${moves[0][1] >= 0 ? '漲最多' : '跌最少'}：<b class="${cls(moves[0][1])}">${moves[0][0].name} ${pct(moves[0][1])}</b>　${moves[5][1] < 0 ? '跌最多' : '漲最少'}：<b class="${cls(moves[5][1])}">${moves[5][0].name} ${pct(moves[5][1])}</b></p>
+      <p style="margin:6px 0;font-size:14px">今日強勢：${moves.slice(0, 3).map(([s, x]) => `<b class="${cls(x)}">${s.name} ${pct(x)}</b>`).join('、')}</p>
+      <p style="margin:6px 0;font-size:14px">今日弱勢：${moves.slice(-3).reverse().map(([s, x]) => `<b class="${cls(x)}">${s.name} ${pct(x)}</b>`).join('、')}</p>
       ${(GAME.marginMsgs || []).map(m => `<p style="margin:6px 0;font-size:14px" class="down">⚠ ${m}</p>`).join('')}
       ${ok + no ? `<p style="margin:6px 0;font-size:14px">今天驗證的消息：應驗 ${ok} 則、落空 ${no} 則（消息本裡看得到是誰說的）</p>` : ''}
       <p class="note">下午到晚上可以繼續打聽明天的消息。</p>
