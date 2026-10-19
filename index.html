@@ -1372,7 +1372,7 @@ function resolveRumors(d) {
    ========================================================= */
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'stock-tycoon-v1';
-const S0 = () => ({ seed: (Math.random() * 1e9) | 0, day: 1, season: 1, cash: START_CASH, hold: {}, mar: {}, sht: {}, eggs: {}, certs: [], bullSeason: 0, speed: 1, realWx: false, wOver: {}, goalSeen: {}, tradeDay: 0, izDay: 0, notesSeen: false, usedMargin: false, deposit: 0, depDay: 0, ponziGone: false, phone: false, rumors: [], talked: {}, rank: 0, seen: [], dayStartNet: START_CASH, min: 7 * 60, music: true, sfx: true, pos: null, won: false });
+const S0 = () => ({ seed: (Math.random() * 1e9) | 0, day: 1, season: 1, cash: START_CASH, hold: {}, mar: {}, sht: {}, eggs: {}, certs: [], bullSeason: 0, speed: 1, realWx: false, wOver: {}, goalSeen: {}, tradeDay: 0, izDay: 0, notesSeen: false, usedMargin: false, deposit: 0, depDay: 0, ponziGone: false, phone: false, rumors: [], talked: {}, rank: 0, seen: [], dayStartNet: START_CASH, min: 7 * 60, music: false, sfx: false, pos: null, won: false });
 let S = S0();
 const GAME = { mode: 'title', started: false, busy: false, t: 0, idxTicks: [] };
 const MK = { path: null, k: -1, prices: null };
@@ -2770,9 +2770,9 @@ function initAudio() {
     document.addEventListener('visibilitychange', () => { if (!AU.ctx) return; document.hidden ? AU.ctx.suspend() : AU.ctx.resume(); });
   } catch (e) { AU.ctx = null; }
 }
-// 聲音設定記在這台裝置上，重新開始或讀檔都沿用
+// 聲音預設關閉；玩家自己打開後記在這台裝置上，重新開始或讀檔都沿用
 const SOUND_KEY = 'stock-tycoon-sound';
-function loadSoundPref() { try { const p = JSON.parse(localStorage.getItem(SOUND_KEY)); if (p) { S.music = !!p.music; S.sfx = !!p.sfx; } } catch (e) { } }
+function loadSoundPref() { let p = null; try { p = JSON.parse(localStorage.getItem(SOUND_KEY)); } catch (e) { } S.music = !!(p && p.music); S.sfx = !!(p && p.sfx); return !!p; }
 function saveSoundPref() { try { localStorage.setItem(SOUND_KEY, JSON.stringify({ music: S.music, sfx: S.sfx })); } catch (e) { } }
 function applySound() {
   if (AU.ctx) { AU.mus.gain.value = S.music ? 0.5 : 0; AU.sfx.gain.value = S.sfx ? 1 : 0; }
@@ -2909,7 +2909,7 @@ async function startGame(cont, state, opts) {
   $('fade').style.opacity = 1; await wait(600);
   if (state) { S = Object.assign(S0(), JSON.parse(JSON.stringify(state))); TIME.min = S.min || 360; cont = true; }
   else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; const o = opts || { len: prevLen, base: Math.random() * 2000000000 | 0 }; S.len = o.len; S.base = o.base; S.seed = seasonSeed(o.base, 1); S.tut = 0; }
-  loadSoundPref(); genSeason(S.seed); applyWeatherOverrides();
+  const hadPref = loadSoundPref(); genSeason(S.seed); applyWeatherOverrides();
   lastPhase = PHASE(); MK.prices = null; MK.path = null;
   if (lastPhase === 'open') { MK.path = genIntraday(S.day); MK.k = -1; }
   if (lastPhase === 'post' || lastPhase === 'night') MK.prices = SEASON.close[S.day].slice();
@@ -2920,6 +2920,7 @@ async function startGame(cont, state, opts) {
   applySound(); refreshHUD(); drawBoard();
   $('fade').style.opacity = 0; canvas.focus();
   if (cont) { GAME.mpDay = TIME.min > 365 ? `${S.season}-${S.day}` : null; GAME.jkDay = TIME.min >= 480 ? `${S.season}-${S.day}` : null; }
+  if (!hadPref) setTimeout(() => toast('聲音預設是關的，想聽音樂和音效，按右上角的喇叭'), 1500);
   if (!cont) setTimeout(intro, 700); else toast(`${state ? '讀取存檔完成' : '歡迎回來'}：第 ${S.season} 季・第 ${S.day} 個交易日 ${fmtTime()}`);
   setTimeout(async () => { await dayWeather(); await morningPaper(); }, cont ? 1500 : 11000);
 }

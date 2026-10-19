@@ -3,7 +3,7 @@
    ========================================================= */
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'stock-tycoon-v1';
-const S0 = () => ({ seed: (Math.random() * 1e9) | 0, day: 1, season: 1, cash: START_CASH, hold: {}, mar: {}, sht: {}, eggs: {}, certs: [], bullSeason: 0, speed: 1, realWx: false, wOver: {}, goalSeen: {}, tradeDay: 0, izDay: 0, notesSeen: false, usedMargin: false, deposit: 0, depDay: 0, ponziGone: false, phone: false, rumors: [], talked: {}, rank: 0, seen: [], dayStartNet: START_CASH, min: 7 * 60, music: true, sfx: true, pos: null, won: false });
+const S0 = () => ({ seed: (Math.random() * 1e9) | 0, day: 1, season: 1, cash: START_CASH, hold: {}, mar: {}, sht: {}, eggs: {}, certs: [], bullSeason: 0, speed: 1, realWx: false, wOver: {}, goalSeen: {}, tradeDay: 0, izDay: 0, notesSeen: false, usedMargin: false, deposit: 0, depDay: 0, ponziGone: false, phone: false, rumors: [], talked: {}, rank: 0, seen: [], dayStartNet: START_CASH, min: 7 * 60, music: false, sfx: false, pos: null, won: false });
 let S = S0();
 const GAME = { mode: 'title', started: false, busy: false, t: 0, idxTicks: [] };
 const MK = { path: null, k: -1, prices: null };

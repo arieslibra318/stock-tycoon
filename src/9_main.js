@@ -99,7 +99,7 @@ async function startGame(cont, state, opts) {
   $('fade').style.opacity = 1; await wait(600);
   if (state) { S = Object.assign(S0(), JSON.parse(JSON.stringify(state))); TIME.min = S.min || 360; cont = true; }
   else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; const o = opts || { len: prevLen, base: Math.random() * 2000000000 | 0 }; S.len = o.len; S.base = o.base; S.seed = seasonSeed(o.base, 1); S.tut = 0; }
-  loadSoundPref(); genSeason(S.seed); applyWeatherOverrides();
+  const hadPref = loadSoundPref(); genSeason(S.seed); applyWeatherOverrides();
   lastPhase = PHASE(); MK.prices = null; MK.path = null;
   if (lastPhase === 'open') { MK.path = genIntraday(S.day); MK.k = -1; }
   if (lastPhase === 'post' || lastPhase === 'night') MK.prices = SEASON.close[S.day].slice();
@@ -110,6 +110,7 @@ async function startGame(cont, state, opts) {
   applySound(); refreshHUD(); drawBoard();
   $('fade').style.opacity = 0; canvas.focus();
   if (cont) { GAME.mpDay = TIME.min > 365 ? `${S.season}-${S.day}` : null; GAME.jkDay = TIME.min >= 480 ? `${S.season}-${S.day}` : null; }
+  if (!hadPref) setTimeout(() => toast('聲音預設是關的，想聽音樂和音效，按右上角的喇叭'), 1500);
   if (!cont) setTimeout(intro, 700); else toast(`${state ? '讀取存檔完成' : '歡迎回來'}：第 ${S.season} 季・第 ${S.day} 個交易日 ${fmtTime()}`);
   setTimeout(async () => { await dayWeather(); await morningPaper(); }, cont ? 1500 : 11000);
 }

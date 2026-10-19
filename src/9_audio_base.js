@@ -15,9 +15,9 @@ function initAudio() {
     document.addEventListener('visibilitychange', () => { if (!AU.ctx) return; document.hidden ? AU.ctx.suspend() : AU.ctx.resume(); });
   } catch (e) { AU.ctx = null; }
 }
-// 聲音設定記在這台裝置上，重新開始或讀檔都沿用
+// 聲音預設關閉；玩家自己打開後記在這台裝置上，重新開始或讀檔都沿用
 const SOUND_KEY = 'stock-tycoon-sound';
-function loadSoundPref() { try { const p = JSON.parse(localStorage.getItem(SOUND_KEY)); if (p) { S.music = !!p.music; S.sfx = !!p.sfx; } } catch (e) { } }
+function loadSoundPref() { let p = null; try { p = JSON.parse(localStorage.getItem(SOUND_KEY)); } catch (e) { } S.music = !!(p && p.music); S.sfx = !!(p && p.sfx); return !!p; }
 function saveSoundPref() { try { localStorage.setItem(SOUND_KEY, JSON.stringify({ music: S.music, sfx: S.sfx })); } catch (e) { } }
 function applySound() {
   if (AU.ctx) { AU.mus.gain.value = S.music ? 0.5 : 0; AU.sfx.gain.value = S.sfx ? 1 : 0; }
