@@ -1,36 +1,23 @@
 /* =========================================================
-   extras：挑戰碼與遊戲長度、下單張數、行情回饋、街頭反應、交情、新手教學、年代新聞
+   extras：遊戲長度、下單張數、行情回饋、街頭反應、交情、新手教學、年代新聞
    ========================================================= */
 const yearOf = s => 1985 + s;
 
-/* ---------- 挑戰碼：同一個碼＝同一盤行情（不開即時天氣時） ---------- */
+/* ---------- 開新局：選遊戲長度 ---------- */
+// 每季的種子由這一局的 base 推出來，換季時行情重新洗牌
 const seasonSeed = (base, s) => ((Math.imul(base ^ 0x5bd1e995, 2654435761) >>> 0) + s * 104729) % 2000000000;
-function challengeCode(base = S.base, len = S.len || 40) { return base == null ? '' : (len === 20 ? 'S' : 'L') + base.toString(36).toUpperCase().padStart(6, '0'); }
-function parseCode(t) {
-  const m = /^([SL])([0-9A-Z]{1,7})$/.exec((t || '').toUpperCase().replace(/[^0-9A-Z]/g, ''));
-  if (!m) return null; const base = parseInt(m[2], 36);
-  return base >= 0 && base < 2147483647 ? { len: m[1] === 'S' ? 20 : 40, base } : null;
-}
-function dailyBase() { const d = new Date(); return (d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()) * 7919 % 2000000000; }
-const NEWOPT = { len: 40, code: '' };
+const NEWOPT = { len: 40 };
 function openNewGame() { $('titleBtns').classList.add('hide'); $('newBox').classList.remove('hide'); renderNewGame(); }
-function renderNewGame(msg) {
+function renderNewGame() {
   const L = NEWOPT.len;
   $('newBox').innerHTML = `<h3>開始新的一年</h3>
     <div class="nbRow"><span>遊戲長度</span><button class="tab ${L === 20 ? 'on' : ''}" data-len="20">短篇・每季 20 天</button><button class="tab ${L === 40 ? 'on' : ''}" data-len="40">完整版・每季 40 天</button></div>
     <p class="nbNote">兩種都是 5 季，從 1986 年走到 1990 年泡沫破裂；短篇大約只要完整版一半的時間。</p>
-    <div class="nbRow"><span>挑戰碼</span><input id="nbCode" maxlength="9" placeholder="留白＝隨機新局" value="${NEWOPT.code}" aria-label="挑戰碼" autocomplete="off"><button class="btn" id="nbDaily">今日挑戰</button></div>
-    <p class="nbNote">同一個挑戰碼會出現同一盤行情，可以和朋友比誰賺得多（挑戰碼裡已經含有遊戲長度）。${msg ? `<br><b class="down">${msg}</b>` : ''}</p>
     <div class="nbRow" style="justify-content:flex-end;margin-bottom:0"><button class="btn" id="nbBack">返回</button><button class="btn pri" id="nbGo">開始</button></div>`;
   const q = s => $('newBox').querySelector(s);
-  $('newBox').querySelectorAll('[data-len]').forEach(b => b.onclick = () => { NEWOPT.len = +b.dataset.len; NEWOPT.code = ''; renderNewGame(); });
-  q('#nbDaily').onclick = () => { NEWOPT.code = challengeCode(dailyBase(), NEWOPT.len); renderNewGame(); };
+  $('newBox').querySelectorAll('[data-len]').forEach(b => b.onclick = () => { NEWOPT.len = +b.dataset.len; renderNewGame(); });
   q('#nbBack').onclick = () => { $('newBox').classList.add('hide'); $('titleBtns').classList.remove('hide'); };
-  q('#nbGo').onclick = () => {
-    const t = q('#nbCode').value.trim();
-    if (t) { const p = parseCode(t); if (!p) return renderNewGame('挑戰碼看起來不對，應該是 S 或 L 開頭、後面接英文和數字'); NEWOPT.code = t; startGame(false, null, p); }
-    else startGame(false, null, { len: NEWOPT.len, base: Math.random() * 2000000000 | 0 });
-  };
+  q('#nbGo').onclick = () => startGame(false, null, { len: NEWOPT.len, base: Math.random() * 2000000000 | 0 });
 }
 
 /* ---------- 下單張數 ---------- */

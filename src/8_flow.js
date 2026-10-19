@@ -395,7 +395,7 @@ function openHelp() {
     <h4>7. 事件卡與歷史小百科</h4>
     <p>每一季會從真實歷史改編的事件裡抽 5 張，隨機排列，包括 1987 黑色星期一、1979–1981 聯準會暴力升息、1995–1996 台海飛彈危機、1997 亞洲金融風暴、2023–2024 AI 浪潮等。爆發時會出現「號外」，消息本的「歷史小百科」記錄它改編自哪一段歷史。地下投資公司每一季一定會倒，別把錢放太久。</p>
     <h4>8. 身分晉升</h4>
-    <p><b>結局</b>：故事共 ${FINAL_SEASON} 季，第 ${FINAL_SEASON} 季結束（1990 年泡沫破裂）時，總資產 ${wan(winNet())} 以上是成功結局、低於本金 ${wan(START_CASH)} 是失敗結局，中間是普通結局。中途當上證券大亨會提早迎來成功結局，總資產跌破 ${BROKE_NET / 1e4} 萬 則提早失敗。結局之後可以繼續自由遊玩。${S.base != null ? `本局是${(S.len || 40) === 20 ? '短篇（每季 20 天）' : '完整版（每季 40 天）'}，挑戰碼 <b>${challengeCode()}</b>，朋友輸入同一個碼就會遇到同一盤行情（開啟即時天氣時會不同）。` : ''}</p>
+    <p><b>結局</b>：故事共 ${FINAL_SEASON} 季，第 ${FINAL_SEASON} 季結束（1990 年泡沫破裂）時，總資產 ${wan(winNet())} 以上是成功結局、低於本金 ${wan(START_CASH)} 是失敗結局，中間是普通結局。中途當上證券大亨會提早迎來成功結局，總資產跌破 ${BROKE_NET / 1e4} 萬 則提早失敗。結局之後可以繼續自由遊玩。${(S.len || 40) === 20 ? '本局是短篇（每季 20 天）。' : '本局是完整版（每季 40 天）。'}</p>
     <p>${RANKS.map(r => `${r.name}（${wan(r.min)}）`).join(' → ')}。大哥大一支 ${wan(PHONE_PRICE)}，買了以後在哪裡都能下單。</p>
     <h4>9. 操作</h4>
     <p>WASD／方向鍵移動、Shift 快跑、E 說話、K 看盤下單、N 消息本、P 暫停、T 快轉到下一個時段、M 城市地圖、H 指南、Q 暫存、O 存檔與讀檔、拖曳轉視角。遊戲不會自動存檔，記得隨手按 Q 留暫存點。手機用左下搖桿、右下「互動」「看盤」。</p>
@@ -632,7 +632,6 @@ async function seasonEnd() {
     $('sumTitle').textContent = '一季結束';
     $('sumBody').innerHTML = `<p style="font-size:16px;line-height:1.7">${DAYS} 個交易日過去了。你從 ${wan(START_CASH)} 開始，現在總資產 <b class="${cls(nw - START_CASH)}">${money(nw)}</b>，身分是「<b>${RANKS[rankOf(nw)].name}</b>」。</p>
       <p style="line-height:1.7">同一季大盤 ${pct(SEASON.index[DAYS] / SEASON.index[0] - 1)}，你的資產 ${pct(nw / ((S.netHist || [])[0] || START_CASH) - 1)}。</p>
-      ${S.base != null ? `<p style="line-height:1.7">本局挑戰碼 <b>${challengeCode()}</b>（朋友輸入同一個碼，就會遇到同一盤行情）。</p>` : ''}
       <p style="line-height:1.7">這一季遇到的大事：${S.seen.map(id => EBY[id].name).join('、') || '（沒有）'}。到「消息本 → 歷史小百科」可以看它們改編自哪一段歷史。</p>
       <p style="line-height:1.7">新的一季會重新洗牌：事件的順序、時間、哪些人消息準，都會不一樣。${S.ended ? '' : S.season + 1 === FINAL_SEASON ? '<b>下一季是最後一季</b>，季末會依總資產迎來結局。' : `還有 ${FINAL_SEASON - S.season} 季迎來結局。`}</p>
       <div style="display:flex;justify-content:flex-end"><button class="btn pri" id="sumOk">開始新的一季</button></div>`;
