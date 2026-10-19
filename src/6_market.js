@@ -19,7 +19,7 @@ const ST_NAME = { 成長: '成長股', 價值: '價值股', 循環: '景氣循�
 const SBY = Object.fromEntries(STOCKS.map(s => [s.id, s]));
 const DAYS = 40, LIMIT = 0.07, LOT = 1000, FEE = 0.001425, TAX = 0.003, TICKS = 54;   // 09:00–13:30，每 5 分鐘一跳
 const RANKS = [
-  { name: '跑單小弟', min: 0 }, { name: '散戶', min: 4e6 }, { name: '中實戶', min: 1e7 }, { name: '大戶', min: 3e7 }, { name: '證券大亨', min: 1e8 },
+  { name: '跑單小弟', min: 0 }, { name: '散戶', min: 3e6 }, { name: '中實戶', min: 6e6 }, { name: '大戶', min: 1.5e7 }, { name: '證券大亨', min: 5e7 },
 ];
 const START_CASH = 2000000;
 // 融資券（依台股常見規定簡化）：融資成數 6 成、融券保證金 9 成、維持率 130%
@@ -39,11 +39,11 @@ const EVENTS = [
     head: '金融股連日漲停　證券行擠爆菜籃族', body: '大家都說銀行股閉著眼睛買都會賺，證券行門口排起了長龍。',
     ref: '改編自 1989～1990 年台股泡沫：金融股股價飆到上千元，大批「菜籃族」湧進證券行，最後泡沫破裂。',
     hints: [['auntie', '菜市場大家都在買銀行股，說閉著眼睛買都會賺！'], ['taxi', '我載的客人十個有八個在講金融股。'], ['banker', '銀行開放民營的消息傳很久了，金融股可能要飛。']] },
-  { id: 'ponzi', name: '地下投資公司倒閉', always: true, pre: 3, dur: 3, eff: k => ({ idx: -0.05 }),
+  { id: 'ponzi', name: '地下投資公司倒閉', always: true, pre: 3, dur: 3, eff: k => ({ idx: k === 0 ? -0.025 : -0.008 }),
     head: '地下投資公司爆發擠兌　大量資金撤出股市', body: '標榜月息四分的投資公司一夕倒閉，投資人圍在門口討錢，許多人拋售股票救急。',
     ref: '改編自 1980 年代末台灣地下投資公司以高利吸金，1989 年修法取締後，1990 年前後接連倒閉，許多投資人血本無歸。',
     hints: [['oldhand', '那種月息四分的投資公司，錢是從哪裡來的？你想過嗎？'], ['reporter', '聽說法務部要修法取締地下投資公司了。'], ['banker', '最近好幾家投資公司的支票跳票，同業都在傳。']] },
-  { id: 'gulf', name: '中東戰火、油價飆漲', pre: 2, dur: 5, eff: k => ({ idx: -0.045, sec: { '塑化': -0.03, '航運': -0.035 } }),
+  { id: 'gulf', name: '中東戰火、油價飆漲', pre: 2, dur: 5, eff: k => k < 3 ? { idx: -0.04, sec: { '塑化': -0.03, '航運': -0.035 } } : { idx: 0.015 },
     head: '中東爆發戰爭　油價飆漲　塑化航運重挫', body: '油價一夜之間翻倍，原料和運費都變貴，塑化和航運股首當其衝。',
     ref: '改編自 1990 年 8 月伊拉克入侵科威特：油價飆漲，台股從同年 2 月的 12682 點一路跌到 10 月約 2485 點。',
     hints: [['shipping', '中東那邊的航線好像要停了，船東都在講戰爭。'], ['reporter', '外電：伊拉克在邊境集結大批軍隊。']] },
@@ -105,7 +105,11 @@ function genSeason(seed) {
   const r = mulberry32(seed);
   const pool = EVENTS.filter(e => !e.always && !e.policy).map(e => e.id);
   for (let i = pool.length - 1; i > 0; i--) { const j = r() * (i + 1) | 0;[pool[i], pool[j]] = [pool[j], pool[i]]; }
-  const deck = pool.slice(0, 4); deck.splice(1 + (r() * 3 | 0), 0, 'ponzi');
+  // 每季兩個利多、兩個利空，順序隨機
+  const POS = ['finbubble', 'chips', 'land', 'easing', 'ai'];
+  const pos = pool.filter(id => POS.includes(id)).slice(0, 2), neg = pool.filter(id => !POS.includes(id)).slice(0, 2);
+  const deck = [pos[0], neg[0], pos[1], neg[1]]; for (let i = 3; i > 0; i--) { const j = r() * (i + 1) | 0;[deck[i], deck[j]] = [deck[j], deck[i]]; }
+  deck.splice(1 + (r() * 3 | 0), 0, 'ponzi');
   const events = []; let day = 5 + (r() * 3 | 0);
   for (const id of deck) { if (day > DAYS - 3) break; events.push({ id, day, def: EBY[id] }); day += EBY[id].dur + 2 + (r() * 4 | 0); }
   // 主力拉抬：拉兩天、倒三天
@@ -113,7 +117,7 @@ function genSeason(seed) {
   for (let k = 0; k < 2; k++) { for (let t = 0; t < 30; t++) { const d = 4 + (r() * (DAYS - 10) | 0); if (events.some(e => Math.abs(e.day - d) < 4) || pumps.some(p => Math.abs(p.day - d) < 6)) continue; pumps.push({ day: d, stock: STOCKS[r() * STOCKS.length | 0].id }); break; } }
   // 先算「不含天氣」的原始報酬，再套上天氣（天氣之後可能被即時天氣覆蓋）
   const raw = [STOCKS.map(() => 0)], thin = [false], weather = ['sun'], temp = [28], us = [0], nas = [0], jp = [0], kr = [0], usHead = [''];
-  let regime = 1; const MU = [0.006, 0.0005, -0.006];
+  let regime = 1; const MU = [0.01, 0.002, -0.005];   // 多頭、盤整、空頭的每日平均漲跌（1987–89 年台股平均約每兩個月 +12%）
   for (let d = 1; d <= DAYS; d++) {
     if (r() > 0.88) regime = r() < 0.45 ? 0 : r() < 0.6 ? 1 : 2;
     let idx = 0, sec = {}, sty = {}, vol = 1, th = false, storm = false, evUs = 0, head = null;
