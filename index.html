@@ -104,6 +104,35 @@ table.q th:first-child,table.q td:first-child{text-align:left}
 table.q td{padding:7px 6px;border-bottom:1.5px dashed #d8c9a8;text-align:right;white-space:nowrap}
 table.q td .sec{display:block;font-size:11px;color:var(--ink-soft)}
 .tw{overflow-x:auto}
+.gHead{display:flex!important;gap:6px;align-items:center}
+.gCnt{min-width:18px;height:18px;border-radius:9px;background:var(--ink);color:var(--paper);font-size:11px;display:grid;place-items:center;padding:0 4px}
+.gArr{font-size:12px;color:var(--ink-soft)}
+.gPeek{font-size:12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bMore{display:none}
+#moreMenu{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:calc(96px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;padding:6px;gap:4px;min-width:150px;z-index:5}
+#moreMenu.hide{display:none}
+#moreMenu button{font:inherit;font-size:15px;text-align:left;padding:10px 12px;border:2px solid var(--ink);border-radius:9px;background:#fff}
+.chToggle{width:100%;margin-bottom:10px}
+@media (max-width:640px){
+  #bMap,#bSound,#bSave,#bMenu{display:none}
+  #bMore{display:grid}
+  #tr .ib{width:40px;height:40px}#tr .ib svg{width:21px;height:21px}
+  #trade.modal,#notes.modal,#help.modal,#saves.modal{padding:0}
+  #trade .box,#notes .box,#help .box,#saves .box{width:100%;height:100%;max-height:none;border-radius:0}
+  #trBody .tw{overflow:visible}
+  #trBody table.q,#trBody table.q tbody{display:block}
+  #trBody table.q tr:first-child{display:none}
+  #trBody table.q tr{display:grid;grid-template-columns:1fr auto auto;gap:3px 12px;align-items:center;padding:9px 2px;border-bottom:1.5px dashed #d8c9a8}
+  #trBody table.q tr.chOn{background:#fff3cf}
+  #trBody table.q td{border:0;padding:0}
+  #trBody table.q td:first-child{text-align:left;font-size:15px}
+  #trBody table.q td[data-l]{font-size:12px;color:var(--ink-soft);text-align:left}
+  #trBody table.q td[data-l]::before{content:attr(data-l) " ";font-size:11px;opacity:.8}
+  #trBody table.q td:last-child{grid-column:1/-1;display:flex;gap:6px;margin-top:4px}
+  #trBody table.q td:last-child .qb{flex:1;height:40px;font-size:15px;margin:0}
+  #trBody .qtyBar,#trBody .mtabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  #trBody .qtyBar>*,#trBody .mtabs>*{flex:none}
+}
 #mini{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));bottom:calc(46px + env(safe-area-inset-bottom,0px));width:150px;height:150px;border-radius:50%;cursor:pointer;filter:drop-shadow(0 3px 0 rgba(43,38,34,.9))}
 #mini.touch{bottom:auto;top:calc(120px + env(safe-area-inset-top,0px));width:104px;height:104px}
 .tagN,.tagW{display:inline-block;margin-left:4px;padding:0 5px;border-radius:4px;font-size:11px;color:#fff;vertical-align:1px}
@@ -1976,7 +2005,7 @@ function renderTrade() {
   let h = `<div class="sum"><span>現金 <b>${money(S.cash)}</b></span><span>現股市值 <b>${money(hv)}</b></span>${mp.loan ? `<span>融資 市值 <b>${money(mp.mv)}</b>／借款 <b>${money(mp.loan)}</b></span>` : ''}${mp.sv ? `<span>融券 擔保 <b>${money(mp.coll)}</b>／市值 <b>${money(mp.sv)}</b></span>` : ''}${S.deposit ? `<span>金滿堂存款 <b>${money(S.deposit)}</b></span>` : ''}<span>總資產 <b>${money(nw)}</b></span><span>今日 <b class="${cls(dpl)}">${dpl >= 0 ? '+' : ''}${money(dpl)}</b></span></div>`;
   h += `<div style="font-size:13px;margin-bottom:4px">${isClosed(S.day) ? '<b>颱風假休市</b>　今天不能下單' : open ? (here ? '<b class="up">● 盤中</b>　點按鈕立即以成交價成交' : '盤中，但你不在證券行附近（或沒有大哥大），只能看盤') : '<b>○ 未開盤</b>　盤中（09:00–13:30）才能下單'}${GAME.paused ? '　<b>⏸ 時間暫停中</b>' : ''}</div>`;
   h += `<div class="sum" style="background:#e6edf5">${intlLine()}</div>`;
-  h += chartBox();
+  h += NARROW() && !chOpen ? '<button class="btn chToggle" data-cht>展開走勢圖 ▾</button>' : (NARROW() ? '<button class="btn chToggle" data-cht>收起走勢圖 ▴</button>' : '') + chartBox();
   h += `<div class="mtabs"><button class="tab ${trMode === 'cash' ? 'on' : ''}" data-m="cash">現股</button><button class="tab ${trMode === 'mar' ? 'on' : ''}" data-m="mar">融資（借錢買）</button><button class="tab ${trMode === 'sht' ? 'on' : ''}" data-m="sht">融券（借股票賣）</button></div>`;
   h += qtyBar() + secBar() + ipoBox() + callBox();
   const head = { cash: '<th>持有</th><th>均價</th><th>損益</th>', mar: '<th>融資</th><th>均價</th><th>損益</th><th>維持率</th>', sht: '<th>融券</th><th>均價</th><th>損益</th><th>維持率</th>' }[trMode];
@@ -1989,6 +2018,7 @@ function renderTrade() {
     if (trMode === 'cash') { const hd = S.hold[s.id]; q = hd ? hd.q : 0; const pl = hd ? (p[i] - hd.cost) * q * LOT : 0; cells = `<td>${q} 張</td><td>${hd ? hd.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${hd ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td>`; labels = ['買', '賣', '全賣']; }
     if (trMode === 'mar') { const m = S.mar[s.id]; q = m ? m.q : 0; const pl = m ? (p[i] - m.cost) * q * LOT : 0, r = m ? m.q * LOT * p[i] / m.loan : 0; cells = `<td>${q} 張</td><td>${m ? m.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${m ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td><td class="${m && r < 1.45 ? 'down' : ''}">${m ? Math.round(r * 100) + '%' : '—'}</td>`; labels = ['資買', '資賣', '全賣']; }
     if (trMode === 'sht') { const t = S.sht[s.id]; q = t ? t.q : 0; const pl = t ? (t.cost - p[i]) * q * LOT : 0, r = t ? (t.margin + t.proceeds) / (t.q * LOT * p[i]) : 0; cells = `<td>${q} 張</td><td>${t ? t.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${t ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td><td class="${t && r < 1.45 ? 'down' : ''}">${t ? Math.round(r * 100) + '%' : '—'}</td>`; labels = ['券賣', '回補', '全補']; }
+    cells = labelCells(cells, trMode);
     h += `<tr class="${chSel === s.id ? 'chOn' : ''}"><td class="chPick" data-cs="${s.id}" title="看${s.name}的走勢">${s.name}${stockTags(i)}<span class="sec">${s.sector}・${ST_NAME[s.st]}</span></td><td class="${cls(ch)}">${p[i].toFixed(p[i] < 100 ? 2 : 1)}${lim}</td><td class="${cls(ch)}">${pct(ch)}</td>${cells}
       <td><button class="qb buy" data-o="${s.id}" data-side="1" ${can ? '' : 'disabled'}>${labels[0]}${qtyLab()}</button><button class="qb sell" data-o="${s.id}" data-side="-1" ${can && q ? '' : 'disabled'}>${labels[1]}${qtyLab()}</button><button class="qb sell" data-o="${s.id}" data-side="-9" ${can && q ? '' : 'disabled'}>${labels[2]}</button></td></tr>`;
   });
@@ -2004,7 +2034,8 @@ function renderTrade() {
   $('trBody').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { trMode = b.dataset.m; renderTrade(); });
   $('trBody').querySelectorAll('[data-cr]').forEach(b => b.onclick = () => { chRange = b.dataset.cr; renderTrade(); });
   $('trBody').querySelectorAll('[data-cs]').forEach(b => b.onclick = () => { chSel = b.dataset.cs; renderTrade(); });
-  $('chSel').onchange = e => { chSel = e.target.value; renderTrade(); };
+  if ($('chSel')) $('chSel').onchange = e => { chSel = e.target.value; renderTrade(); };
+  $('trBody').querySelectorAll('[data-cht]').forEach(b => b.onclick = () => { chOpen = !chOpen; renderTrade(); });
   $('trBody').querySelectorAll('[data-sec]').forEach(b => b.onclick = () => { trSec = b.dataset.sec; renderTrade(); });
   $('trBody').querySelectorAll('[data-sub]').forEach(b => b.onclick = () => subscribe(b.dataset.sub));
   $('trBody').querySelectorAll('[data-pay]').forEach(b => b.onclick = () => payCall(b.dataset.pay));
@@ -2193,8 +2224,8 @@ function updateGoals(dt) {
     list.push(g); if (list.length >= 3) break;
   }
   if (GUIDE && !list.some(g => g.at === GUIDE)) GUIDE = null;
-  const html = '<b>任務提示</b>' + list.map(g => { const pl = g.at && PLACE_BY[g.at]; const d = pl ? Math.round(angDist(PL.dir, pl.front) * 10) : 0; return `<button data-g="${g.at || ''}"><span class="dot"></span><span>${g.text()}${pl && d > 25 ? `<span class="go">${GUIDE === g.at ? '帶路中' : '帶路'} ${d} 公尺</span>` : ''}</span></button>`; }).join('');
-  const el = $('goals'); if (el._h !== html) { el._h = html; el.innerHTML = html; el.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const a = b.dataset.g; if (!a) return; GUIDE = GUIDE === a ? null : a; if (GUIDE) toast(`已標出目的地：${PLACE_BY[a].name}`); goalT = 0; }); }
+  const html = goalsHead(list) + (goalsFolded() ? goalsPeek(list) : list.map(g => { const pl = g.at && PLACE_BY[g.at]; const d = pl ? Math.round(angDist(PL.dir, pl.front) * 10) : 0; return `<button data-g="${g.at || ''}"><span class="dot"></span><span>${g.text()}${pl && d > 25 ? `<span class="go">${GUIDE === g.at ? '帶路中' : '帶路'} ${d} 公尺</span>` : ''}</span></button>`; }).join(''));
+  const el = $('goals'); if (el._h !== html) { el._h = html; el.innerHTML = html; el.querySelectorAll('[data-gh]').forEach(b => b.onclick = () => { toggleGoals(); el._h = ''; goalT = 0; }); el.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const a = b.dataset.g; if (!a) return; GUIDE = GUIDE === a ? null : a; if (GUIDE) toast(`已標出目的地：${PLACE_BY[a].name}`); goalT = 0; }); }
 }
 
 /* ---------- 紙本股票憑證（彩蛋） ---------- */
@@ -3033,6 +3064,36 @@ function countSteps(dt) {
   stepLast = PL.dir.clone();
   stepT -= dt; if (stepT < 0) { stepT = 0.3; const el = $('chStep').lastElementChild, t = Math.floor(S.stepsDay || 0).toLocaleString('zh-TW'); if (el.textContent !== t) el.textContent = t; }
 }
+/* =========================================================
+   mobile：窄螢幕的看盤卡片、任務提示收合、上方按鈕收進「更多」選單
+   ========================================================= */
+const NARROW = () => innerWidth <= 640;
+let chOpen = false;
+// 窄螢幕把表格改成卡片時，每一格前面要有標題
+function labelCells(html, mode) {
+  const L = { cash: ['持有', '均價', '損益'], mar: ['融資', '均價', '損益', '維持率'], sht: ['融券', '均價', '損益', '維持率'] }[mode]; let k = 0;
+  return html.replace(/<td/g, () => `<td data-l="${L[k++] || ''}"`);
+}
+
+/* ---------- 任務提示：可以收合（手機預設收起，只露出第一項） ---------- */
+const GOALS_KEY = 'stock-tycoon-goals-fold';
+function goalsFolded() { try { const v = localStorage.getItem(GOALS_KEY); if (v !== null) return v === '1'; } catch (e) { } return NARROW(); }
+function toggleGoals() { const f = !goalsFolded(); try { localStorage.setItem(GOALS_KEY, f ? '1' : '0'); } catch (e) { } }
+function goalsHead(list) { const f = goalsFolded(); return `<button class="gHead" data-gh aria-expanded="${!f}" title="${f ? '展開' : '收起'}任務提示"><b>任務提示</b><span class="gCnt">${list.length}</span><span class="gArr">${f ? '▸' : '▾'}</span></button>`; }
+function goalsPeek(list) { return list[0] ? `<div class="gPeek">${list[0].text().replace(/<[^>]+>/g, '')}</div>` : ''; }
+
+/* ---------- 上方按鈕：手機只留常用的，其他收進「更多」 ---------- */
+function buildMore() {
+  const b = document.createElement('button'); b.className = 'ib'; b.id = 'bMore'; b.title = '更多'; b.setAttribute('aria-label', '更多功能'); b.setAttribute('aria-expanded', 'false');
+  b.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.2" fill="#2b2622"/><circle cx="12" cy="12" r="2.2" fill="#2b2622"/><circle cx="19" cy="12" r="2.2" fill="#2b2622"/></svg>';
+  $('tr').appendChild(b);
+  const m = document.createElement('div'); m.id = 'moreMenu'; m.className = 'paper hide'; $('hud').appendChild(m);
+  const close = () => { m.classList.add('hide'); b.setAttribute('aria-expanded', 'false'); };
+  const items = [['map', '城市地圖', () => toggleMap()], ['snd', '', () => cycleSound()], ['save', '存檔與讀檔', () => openSaves()], ['help', '說明與設定', () => openHelp()]];
+  const render = () => { m.innerHTML = items.map(([k, t]) => `<button data-mm="${k}">${k === 'snd' ? `聲音：${S.music || S.sfx ? '開' : '關'}` : t}</button>`).join(''); m.querySelectorAll('[data-mm]').forEach(x => x.onclick = e => { e.stopPropagation(); const it = items.find(i => i[0] === x.dataset.mm); close(); it[2](); }); };
+  b.onclick = e => { e.stopPropagation(); if (m.classList.contains('hide')) { render(); m.classList.remove('hide'); b.setAttribute('aria-expanded', 'true'); } else close(); };
+  addEventListener('pointerdown', e => { if (!m.contains(e.target) && e.target !== b && !b.contains(e.target)) close(); });
+}
 /* ---------- 聲音 ---------- */
 const AU = { ctx: null };
 function initAudio() {
@@ -3213,7 +3274,7 @@ async function boot() {
     buildCity(); buildCars(); buildNPCs(); NPCS.forEach(n => n.ch.root.visible = false);
     PL.ch = new Character(LOOKS.me); scene.add(PL.ch.root); drawPortrait($('pp'), LOOKS.me);
     setPlayerAt(slot('E', 4, 1, 2.3).dir); placeChar(PL.ch, PL.dir, PL.fwd, 0);
-    bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini();
+    bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore();
     $('loadTxt').classList.add('hide'); $('titleBtns').classList.remove('hide'); if (hasSave()) $('bCont').classList.remove('hide');
     $('bStart').onclick = openNewGame; $('bCont').onclick = () => startGame(true); $('bLoad').onclick = () => openSaves();
     loop();

@@ -245,7 +245,7 @@ function renderTrade() {
   let h = `<div class="sum"><span>現金 <b>${money(S.cash)}</b></span><span>現股市值 <b>${money(hv)}</b></span>${mp.loan ? `<span>融資 市值 <b>${money(mp.mv)}</b>／借款 <b>${money(mp.loan)}</b></span>` : ''}${mp.sv ? `<span>融券 擔保 <b>${money(mp.coll)}</b>／市值 <b>${money(mp.sv)}</b></span>` : ''}${S.deposit ? `<span>金滿堂存款 <b>${money(S.deposit)}</b></span>` : ''}<span>總資產 <b>${money(nw)}</b></span><span>今日 <b class="${cls(dpl)}">${dpl >= 0 ? '+' : ''}${money(dpl)}</b></span></div>`;
   h += `<div style="font-size:13px;margin-bottom:4px">${isClosed(S.day) ? '<b>颱風假休市</b>　今天不能下單' : open ? (here ? '<b class="up">● 盤中</b>　點按鈕立即以成交價成交' : '盤中，但你不在證券行附近（或沒有大哥大），只能看盤') : '<b>○ 未開盤</b>　盤中（09:00–13:30）才能下單'}${GAME.paused ? '　<b>⏸ 時間暫停中</b>' : ''}</div>`;
   h += `<div class="sum" style="background:#e6edf5">${intlLine()}</div>`;
-  h += chartBox();
+  h += NARROW() && !chOpen ? '<button class="btn chToggle" data-cht>展開走勢圖 ▾</button>' : (NARROW() ? '<button class="btn chToggle" data-cht>收起走勢圖 ▴</button>' : '') + chartBox();
   h += `<div class="mtabs"><button class="tab ${trMode === 'cash' ? 'on' : ''}" data-m="cash">現股</button><button class="tab ${trMode === 'mar' ? 'on' : ''}" data-m="mar">融資（借錢買）</button><button class="tab ${trMode === 'sht' ? 'on' : ''}" data-m="sht">融券（借股票賣）</button></div>`;
   h += qtyBar() + secBar() + ipoBox() + callBox();
   const head = { cash: '<th>持有</th><th>均價</th><th>損益</th>', mar: '<th>融資</th><th>均價</th><th>損益</th><th>維持率</th>', sht: '<th>融券</th><th>均價</th><th>損益</th><th>維持率</th>' }[trMode];
@@ -258,6 +258,7 @@ function renderTrade() {
     if (trMode === 'cash') { const hd = S.hold[s.id]; q = hd ? hd.q : 0; const pl = hd ? (p[i] - hd.cost) * q * LOT : 0; cells = `<td>${q} 張</td><td>${hd ? hd.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${hd ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td>`; labels = ['買', '賣', '全賣']; }
     if (trMode === 'mar') { const m = S.mar[s.id]; q = m ? m.q : 0; const pl = m ? (p[i] - m.cost) * q * LOT : 0, r = m ? m.q * LOT * p[i] / m.loan : 0; cells = `<td>${q} 張</td><td>${m ? m.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${m ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td><td class="${m && r < 1.45 ? 'down' : ''}">${m ? Math.round(r * 100) + '%' : '—'}</td>`; labels = ['資買', '資賣', '全賣']; }
     if (trMode === 'sht') { const t = S.sht[s.id]; q = t ? t.q : 0; const pl = t ? (t.cost - p[i]) * q * LOT : 0, r = t ? (t.margin + t.proceeds) / (t.q * LOT * p[i]) : 0; cells = `<td>${q} 張</td><td>${t ? t.cost.toFixed(2) : '—'}</td><td class="${cls(pl)}">${t ? (pl >= 0 ? '+' : '') + wan(pl) : '—'}</td><td class="${t && r < 1.45 ? 'down' : ''}">${t ? Math.round(r * 100) + '%' : '—'}</td>`; labels = ['券賣', '回補', '全補']; }
+    cells = labelCells(cells, trMode);
     h += `<tr class="${chSel === s.id ? 'chOn' : ''}"><td class="chPick" data-cs="${s.id}" title="看${s.name}的走勢">${s.name}${stockTags(i)}<span class="sec">${s.sector}・${ST_NAME[s.st]}</span></td><td class="${cls(ch)}">${p[i].toFixed(p[i] < 100 ? 2 : 1)}${lim}</td><td class="${cls(ch)}">${pct(ch)}</td>${cells}
       <td><button class="qb buy" data-o="${s.id}" data-side="1" ${can ? '' : 'disabled'}>${labels[0]}${qtyLab()}</button><button class="qb sell" data-o="${s.id}" data-side="-1" ${can && q ? '' : 'disabled'}>${labels[1]}${qtyLab()}</button><button class="qb sell" data-o="${s.id}" data-side="-9" ${can && q ? '' : 'disabled'}>${labels[2]}</button></td></tr>`;
   });
@@ -273,7 +274,8 @@ function renderTrade() {
   $('trBody').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { trMode = b.dataset.m; renderTrade(); });
   $('trBody').querySelectorAll('[data-cr]').forEach(b => b.onclick = () => { chRange = b.dataset.cr; renderTrade(); });
   $('trBody').querySelectorAll('[data-cs]').forEach(b => b.onclick = () => { chSel = b.dataset.cs; renderTrade(); });
-  $('chSel').onchange = e => { chSel = e.target.value; renderTrade(); };
+  if ($('chSel')) $('chSel').onchange = e => { chSel = e.target.value; renderTrade(); };
+  $('trBody').querySelectorAll('[data-cht]').forEach(b => b.onclick = () => { chOpen = !chOpen; renderTrade(); });
   $('trBody').querySelectorAll('[data-sec]').forEach(b => b.onclick = () => { trSec = b.dataset.sec; renderTrade(); });
   $('trBody').querySelectorAll('[data-sub]').forEach(b => b.onclick = () => subscribe(b.dataset.sub));
   $('trBody').querySelectorAll('[data-pay]').forEach(b => b.onclick = () => payCall(b.dataset.pay));
@@ -462,8 +464,8 @@ function updateGoals(dt) {
     list.push(g); if (list.length >= 3) break;
   }
   if (GUIDE && !list.some(g => g.at === GUIDE)) GUIDE = null;
-  const html = '<b>任務提示</b>' + list.map(g => { const pl = g.at && PLACE_BY[g.at]; const d = pl ? Math.round(angDist(PL.dir, pl.front) * 10) : 0; return `<button data-g="${g.at || ''}"><span class="dot"></span><span>${g.text()}${pl && d > 25 ? `<span class="go">${GUIDE === g.at ? '帶路中' : '帶路'} ${d} 公尺</span>` : ''}</span></button>`; }).join('');
-  const el = $('goals'); if (el._h !== html) { el._h = html; el.innerHTML = html; el.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const a = b.dataset.g; if (!a) return; GUIDE = GUIDE === a ? null : a; if (GUIDE) toast(`已標出目的地：${PLACE_BY[a].name}`); goalT = 0; }); }
+  const html = goalsHead(list) + (goalsFolded() ? goalsPeek(list) : list.map(g => { const pl = g.at && PLACE_BY[g.at]; const d = pl ? Math.round(angDist(PL.dir, pl.front) * 10) : 0; return `<button data-g="${g.at || ''}"><span class="dot"></span><span>${g.text()}${pl && d > 25 ? `<span class="go">${GUIDE === g.at ? '帶路中' : '帶路'} ${d} 公尺</span>` : ''}</span></button>`; }).join(''));
+  const el = $('goals'); if (el._h !== html) { el._h = html; el.innerHTML = html; el.querySelectorAll('[data-gh]').forEach(b => b.onclick = () => { toggleGoals(); el._h = ''; goalT = 0; }); el.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const a = b.dataset.g; if (!a) return; GUIDE = GUIDE === a ? null : a; if (GUIDE) toast(`已標出目的地：${PLACE_BY[a].name}`); goalT = 0; }); }
 }
 
 /* ---------- 紙本股票憑證（彩蛋） ---------- */
