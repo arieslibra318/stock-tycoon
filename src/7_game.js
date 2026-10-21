@@ -120,6 +120,7 @@ function pushOut(nd) {
 }
 function moveInput() {
   const k = INPUT.keys; let x = 0, y = 0;
+  const manual = !!(k.KeyW || k.KeyS || k.KeyA || k.KeyD || k.ArrowUp || k.ArrowDown || k.ArrowLeft || k.ArrowRight || INPUT.joy.on), auto = autoInput(manual); if (auto) return auto;
   if (k.KeyW || k.ArrowUp) y += 1; if (k.KeyS || k.ArrowDown) y -= 1; if (k.KeyA || k.ArrowLeft) x -= 1; if (k.KeyD || k.ArrowRight) x += 1;
   let run = !!(k.ShiftLeft || k.ShiftRight);
   if (INPUT.joy.on) { x = INPUT.joy.x; y = INPUT.joy.y; run = Math.hypot(x, y) > 0.92; }
@@ -237,4 +238,4 @@ async function talkTo(n) {
   try { await (TALK[n.role] || TALK.rumor)(n); }
   finally { DLG.hide(); n.facing = false; GAME.busy = false; saveGame(); refreshHUD(); }
 }
-function toast(html) { const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = html; $('toasts').appendChild(el); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); setTimeout(() => el.remove(), 3300); }
+function toast(html) { const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = html; $('toasts').appendChild(el); while ($('toasts').children.length > (innerWidth <= 640 || innerHeight <= 500 ? 2 : 3)) $('toasts').firstChild.remove(); setTimeout(() => el.remove(), 3300); }

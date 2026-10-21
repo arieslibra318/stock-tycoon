@@ -54,7 +54,8 @@ function loop() {
   updateCars(dt, GAME.started ? PL.dir : new V3(0, 1, 0));
   updateCamera(dt); updateLighting(); DLG.tick(dt);
   sky.position.copy(camera.position);
-  renderer.render(scene, camera); updateLabels();
+  if (!POWER || (GAME.frame = (GAME.frame || 0) + 1) % 2) renderer.render(scene, camera);
+  updateLabels();
 }
 /* ---------- 雨 ---------- */
 let RAIN = null;
@@ -123,7 +124,7 @@ async function boot() {
     buildCity(); buildCars(); buildNPCs(); NPCS.forEach(n => n.ch.root.visible = false);
     PL.ch = new Character(LOOKS.me); scene.add(PL.ch.root); drawPortrait($('pp'), LOOKS.me);
     setPlayerAt(slot('E', 4, 1, 2.3).dir); placeChar(PL.ch, PL.dir, PL.fwd, 0);
-    bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore();
+    applyPower(); bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore();
     $('loadTxt').classList.add('hide'); $('titleBtns').classList.remove('hide'); if (hasSave()) $('bCont').classList.remove('hide');
     $('bStart').onclick = openNewGame; $('bCont').onclick = () => startGame(true); $('bLoad').onclick = () => openSaves();
     loop();

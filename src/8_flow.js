@@ -414,12 +414,15 @@ function openHelp() {
     <p>時間速度：<button class="btn" data-sp="0.6">慢</button> <button class="btn" data-sp="1">標準</button> <button class="btn" data-sp="1.6">快</button>　目前：${S.speed === 0.6 ? '慢' : S.speed === 1.6 ? '快' : '標準'}</p>
     <p>天氣來源：<button class="btn" id="hpWx">${S.realWx ? '台北即時天氣（開）' : '遊戲模擬天氣'}</button></p>
     <p class="note" style="margin-top:-4px">即時天氣使用 Open-Meteo 的台北天氣，只會在盤前套用到「今天」。抓不到時自動改用模擬天氣。</p>
-    <p><button class="btn" id="hpMus">音樂：${S.music ? '開' : '關'}</button> <button class="btn" id="hpSfx">音效：${S.sfx ? '開' : '關'}</button> <button class="btn" id="hpReset">重新開始新的一年</button></p>
+    <p><button class="btn" id="hpMus">音樂：${S.music ? '開' : '關'}</button> <button class="btn" id="hpSfx">音效：${S.sfx ? '開' : '關'}</button> <button class="btn" id="hpPow">省電模式：${POWER ? '開' : '關'}</button> <button class="btn" id="hpVib">震動：${VIB ? '開' : '關'}</button> <button class="btn" id="hpReset">重新開始新的一年</button></p>
+    <p class="note"><b>手機小技巧</b>：點人物頭上的名字，阿德會自己走過去說話。想像 App 一樣全螢幕玩，可以把遊戲加入主畫面——iPhone 用 Safari 的「分享 → 加入主畫面」，Android 用 Chrome 右上角「⋮ → 加到主畫面」或「安裝應用程式」。</p>
     <p class="note" style="margin-top:-4px">重新開始不會刪掉暫存點和存檔格。</p>`;
   $('hpBody').innerHTML = h;
   $('hpBody').querySelectorAll('[data-h]').forEach(b => b.onclick = () => { helpTab = b.dataset.h; openHelp2(); });
   const q = id => $('hpBody').querySelector('#' + id);
   if (q('hpMus')) q('hpMus').onclick = () => { setSound('music'); openHelp2(); };
+  if (q('hpPow')) q('hpPow').onclick = () => { setPower(!POWER); openHelp2(); };
+  if (q('hpVib')) q('hpVib').onclick = () => { setVib(!VIB); openHelp2(); };
   if (q('hpSfx')) q('hpSfx').onclick = () => { setSound('sfx'); openHelp2(); };
   $('hpBody').querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { S.speed = +b.dataset.sp; saveGame(); openHelp2(); });
   if (q('hpWx')) q('hpWx').onclick = async () => { S.realWx = !S.realWx; saveGame(); openHelp2(); if (S.realWx) await useRealWeather(true); };
@@ -617,7 +620,7 @@ async function onPhase(ph) {
   if (ph === 'post' && MK.path) {
     MK.prices = SEASON.close[S.day].slice(); GAME.dayPath = MK.path; MK.path = null; drawBoard();
     GAME.marginMsgs = settleMargin(); GAME.marginMsgs.forEach(m => toast(m)); if (GAME.marginMsgs.length) sfx('bad');
-    if (GAME.callRing) { GAME.callRing = false; ring(); flash('rgba(215,38,61,.8)', true); }
+    if (GAME.callRing) { GAME.callRing = false; ring(); flash('rgba(215,38,61,.8)', true); buzz([300, 120, 300]); }
     if (S.deposit > 0 && (S.day - S.depDay) % 5 === 4 && !S.ponziGone) { const it = Math.round(S.deposit * 0.01); S.cash += it; toast(`金滿堂配息 ${money(it)} 元`); }
     await showSummary(); GAME.marginMsgs = []; checkRank(); saveGame();
   }
@@ -746,10 +749,10 @@ function updateLabels() {
       const hp = n.dir.clone().multiplyScalar(R + (n.sit ? 1.7 : 2.05) * (n.ch.L.scale || 1)); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) < 0) continue;
       const p = proj(hp); if (!p) continue;
       const fresh = S.talked[n.id] !== S.day && !['home', 'phone', 'temple', 'ped', 'fortune', 'busker', 'yulan'].includes(n.role);
-      lbl((fresh ? '● ' : '') + n.name + (n.rel && hearts(n.id) ? ' ' + '♥'.repeat(hearts(n.id)) : ''), fresh ? 'q' : '', p[0], p[1]);
+      lbl((fresh ? '● ' : '') + n.name + (n.rel && hearts(n.id) ? ' ' + '♥'.repeat(hearts(n.id)) : ''), fresh ? 'q tap' : 'tap', p[0], p[1], () => tapTalk(n));
     }
     if (GUIDE && PLACE_BY[GUIDE]) { const pl = PLACE_BY[GUIDE], d = Math.round(angDist(PL.dir, pl.front) * 10), hp = pl.front.clone().multiplyScalar(R + 4.2); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) > 0) { const p = proj(hp); if (p) lbl(`▼ ${pl.name}・${d} 公尺`, 'goal', p[0], p[1]); } }
-    for (const e of EGGS) { const ed = EGG_SPOTS[e.id]; if (!ed || angDist(PL.dir, ed) > 14) continue; const hp = ed.clone().multiplyScalar(R + 4.2); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) > 0) { const p = proj(hp); if (p) lbl(e.name, S.eggs[e.id] ? '' : 'q', p[0], p[1]); } }
+    for (const e of EGGS) { const ed = EGG_SPOTS[e.id]; if (!ed || angDist(PL.dir, ed) > 14) continue; const hp = ed.clone().multiplyScalar(R + 4.2); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) > 0) { const p = proj(hp); if (p) lbl(e.name, S.eggs[e.id] ? 'tap' : 'q tap', p[0], p[1], () => tapEgg(e)); } }
     if (pedSay.t > 0 && pedSay.n && pedSay.n.ch.root.visible && angDist(PL.dir, pedSay.n.dir) < 16) { const p = proj(pedSay.n.dir.clone().multiplyScalar(R + 2.4)); if (p) lbl(pedSay.txt, 'q', p[0], p[1] - 22); }
     if (crowdSay.t > 0 && crowdSay.n && angDist(PL.dir, crowdSay.n.dir) < 16) { const p = proj(crowdSay.n.dir.clone().multiplyScalar(R + 2.3)); if (p) lbl(crowdSay.txt, 'q', p[0], p[1] - 22); }
   }
@@ -763,7 +766,7 @@ function updateNPCs(dt) {
   crowdSay.t -= dt;
   if (ph === 'open' && crowdSay.t < -4 && Math.random() < 0.02) { const crowd = NPCS.filter(n => n.sit && n.road === 'E'); crowdSay = { t: 3, n: crowd[Math.random() * crowd.length | 0], txt: ich > 0.03 ? '漲停啦！發了發了！' : ich > 0.005 ? '紅通通，好看！' : ich < -0.03 ? '跌停了……我的買菜錢！' : ich < -0.005 ? '唉唷，又綠了' : '怎麼都不動啦' }; if (ich > 0.01) crowdSay.n.ch.wave = 1.2; }
   for (const n of NPCS) {
-    const d = angDist(PL.dir, n.dir), vis = GAME.mode !== 'title' && (GAME.mode === 'map' ? false : d < 36);
+    const d = angDist(PL.dir, n.dir), vis = GAME.mode !== 'title' && (GAME.mode === 'map' ? false : d < (POWER ? 24 : 36));
     n.ch.root.visible = vis; if (!vis) continue;
     if (n.role === 'ponzi') n.ch.root.visible = !S.ponziGone;
     if (n.night && ph !== 'night') n.ch.root.visible = false;

@@ -34,7 +34,7 @@ function subscribe(id) {
 function ipoDraw() {
   for (const id in S.subs || {}) {
     if (S.subs[id] !== S.day) continue; const x = SEASON.ipos.find(x => STOCKS[x.i].id === id); delete S.subs[id]; if (!x) continue;
-    if (Math.random() < IPO_WIN) { const h = S.hold[id] || (S.hold[id] = { q: 0, cost: 0 }); h.cost = (h.cost * h.q + x.price) / (h.q + 1); h.q += 1; toast(`<b class="up">恭喜中籤！</b>${STOCKS[x.i].name} 1 張以承銷價 ${x.price} 元入帳，今天掛牌`); sfx('done'); }
+    if (Math.random() < IPO_WIN) { const h = S.hold[id] || (S.hold[id] = { q: 0, cost: 0 }); h.cost = (h.cost * h.q + x.price) / (h.q + 1); h.q += 1; toast(`<b class="up">恭喜中籤！</b>${STOCKS[x.i].name} 1 張以承銷價 ${x.price} 元入帳，今天掛牌`); sfx('done'); buzz([60, 40, 120]); }
     else { S.cash += x.price * LOT; toast(`${STOCKS[x.i].name}沒抽中，申購款已退回`); }
   }
 }

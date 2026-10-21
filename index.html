@@ -1,4 +1,4 @@
-<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#2b2622"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="證券大亨"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>證券大亨</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -104,6 +104,34 @@ table.q th:first-child,table.q td:first-child{text-align:left}
 table.q td{padding:7px 6px;border-bottom:1.5px dashed #d8c9a8;text-align:right;white-space:nowrap}
 table.q td .sec{display:block;font-size:11px;color:var(--ink-soft)}
 .tw{overflow-x:auto}
+.lbl.tap{pointer-events:auto;cursor:pointer}
+#title #titleNote{background:rgba(43,38,34,.68);padding:8px 14px;border-radius:10px;text-shadow:none}
+.mmInfo{font-size:13px;color:var(--ink-soft);padding:4px 6px}
+@media (max-width:640px){
+  html body #tl{max-width:calc(100vw - 132px)}
+  #tl .chips{gap:4px}#tl .chip{padding:2px 7px;font-size:12px}#tl .chip i{font-size:10px}
+  #chStep{display:none}
+  html body #toasts{top:auto;bottom:calc(262px + env(safe-area-inset-bottom,0px));width:calc(100vw - 32px)}
+  html body .toast{font-size:13px;padding:6px 12px;text-align:center}
+}
+@media (orientation:landscape) and (max-height:500px){
+  html body #tl{top:calc(6px + env(safe-area-inset-top,0px));max-width:min(36vw,280px);gap:4px}
+  .brand > div{display:none}.brand{padding:3px}.brand canvas{width:32px;height:32px}
+  #tl .chips{gap:4px}#tl .chip{padding:1px 7px;font-size:12px}#tl .chip i{font-size:10px}#chStep{display:none}
+  .goals{max-height:38vh;overflow:auto}
+  html body #tr{top:calc(6px + env(safe-area-inset-top,0px))}
+  html body #ticker{top:calc(56px + env(safe-area-inset-top,0px))}
+  html body #mini.touch{top:calc(98px + env(safe-area-inset-top,0px));width:88px;height:88px}
+  html body #hint{display:none}
+  #joy{width:100px;height:100px;bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  #tbtns{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  .tb{width:52px;height:52px}.tb.big{width:64px;height:64px}
+  #marquee{display:none}
+  html body #prompt{bottom:calc(82px + env(safe-area-inset-bottom,0px))}
+  html body #toasts{top:auto;bottom:calc(124px + env(safe-area-inset-bottom,0px));max-width:min(560px,70vw)}
+  #dialog{bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+  .modal{padding:6px}.box{max-height:calc(100vh - 12px)}
+}
 .gHead{display:flex!important;gap:6px;align-items:center}
 .gCnt{min-width:18px;height:18px;border-radius:9px;background:var(--ink);color:var(--paper);font-size:11px;display:grid;place-items:center;padding:0 4px}
 .gArr{font-size:12px;color:var(--ink-soft)}
@@ -1597,6 +1625,7 @@ function pushOut(nd) {
 }
 function moveInput() {
   const k = INPUT.keys; let x = 0, y = 0;
+  const manual = !!(k.KeyW || k.KeyS || k.KeyA || k.KeyD || k.ArrowUp || k.ArrowDown || k.ArrowLeft || k.ArrowRight || INPUT.joy.on), auto = autoInput(manual); if (auto) return auto;
   if (k.KeyW || k.ArrowUp) y += 1; if (k.KeyS || k.ArrowDown) y -= 1; if (k.KeyA || k.ArrowLeft) x -= 1; if (k.KeyD || k.ArrowRight) x += 1;
   let run = !!(k.ShiftLeft || k.ShiftRight);
   if (INPUT.joy.on) { x = INPUT.joy.x; y = INPUT.joy.y; run = Math.hypot(x, y) > 0.92; }
@@ -1714,7 +1743,7 @@ async function talkTo(n) {
   try { await (TALK[n.role] || TALK.rumor)(n); }
   finally { DLG.hide(); n.facing = false; GAME.busy = false; saveGame(); refreshHUD(); }
 }
-function toast(html) { const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = html; $('toasts').appendChild(el); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); setTimeout(() => el.remove(), 3300); }
+function toast(html) { const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = html; $('toasts').appendChild(el); while ($('toasts').children.length > (innerWidth <= 640 || innerHeight <= 500 ? 2 : 3)) $('toasts').firstChild.remove(); setTimeout(() => el.remove(), 3300); }
 /* ---------- 對話框 ---------- */
 const DLG = {
   active: false, typing: false, full: '', i: 0, res: null, choices: null, sel: 0, who: null,
@@ -2174,12 +2203,15 @@ function openHelp() {
     <p>時間速度：<button class="btn" data-sp="0.6">慢</button> <button class="btn" data-sp="1">標準</button> <button class="btn" data-sp="1.6">快</button>　目前：${S.speed === 0.6 ? '慢' : S.speed === 1.6 ? '快' : '標準'}</p>
     <p>天氣來源：<button class="btn" id="hpWx">${S.realWx ? '台北即時天氣（開）' : '遊戲模擬天氣'}</button></p>
     <p class="note" style="margin-top:-4px">即時天氣使用 Open-Meteo 的台北天氣，只會在盤前套用到「今天」。抓不到時自動改用模擬天氣。</p>
-    <p><button class="btn" id="hpMus">音樂：${S.music ? '開' : '關'}</button> <button class="btn" id="hpSfx">音效：${S.sfx ? '開' : '關'}</button> <button class="btn" id="hpReset">重新開始新的一年</button></p>
+    <p><button class="btn" id="hpMus">音樂：${S.music ? '開' : '關'}</button> <button class="btn" id="hpSfx">音效：${S.sfx ? '開' : '關'}</button> <button class="btn" id="hpPow">省電模式：${POWER ? '開' : '關'}</button> <button class="btn" id="hpVib">震動：${VIB ? '開' : '關'}</button> <button class="btn" id="hpReset">重新開始新的一年</button></p>
+    <p class="note"><b>手機小技巧</b>：點人物頭上的名字，阿德會自己走過去說話。想像 App 一樣全螢幕玩，可以把遊戲加入主畫面——iPhone 用 Safari 的「分享 → 加入主畫面」，Android 用 Chrome 右上角「⋮ → 加到主畫面」或「安裝應用程式」。</p>
     <p class="note" style="margin-top:-4px">重新開始不會刪掉暫存點和存檔格。</p>`;
   $('hpBody').innerHTML = h;
   $('hpBody').querySelectorAll('[data-h]').forEach(b => b.onclick = () => { helpTab = b.dataset.h; openHelp2(); });
   const q = id => $('hpBody').querySelector('#' + id);
   if (q('hpMus')) q('hpMus').onclick = () => { setSound('music'); openHelp2(); };
+  if (q('hpPow')) q('hpPow').onclick = () => { setPower(!POWER); openHelp2(); };
+  if (q('hpVib')) q('hpVib').onclick = () => { setVib(!VIB); openHelp2(); };
   if (q('hpSfx')) q('hpSfx').onclick = () => { setSound('sfx'); openHelp2(); };
   $('hpBody').querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { S.speed = +b.dataset.sp; saveGame(); openHelp2(); });
   if (q('hpWx')) q('hpWx').onclick = async () => { S.realWx = !S.realWx; saveGame(); openHelp2(); if (S.realWx) await useRealWeather(true); };
@@ -2377,7 +2409,7 @@ async function onPhase(ph) {
   if (ph === 'post' && MK.path) {
     MK.prices = SEASON.close[S.day].slice(); GAME.dayPath = MK.path; MK.path = null; drawBoard();
     GAME.marginMsgs = settleMargin(); GAME.marginMsgs.forEach(m => toast(m)); if (GAME.marginMsgs.length) sfx('bad');
-    if (GAME.callRing) { GAME.callRing = false; ring(); flash('rgba(215,38,61,.8)', true); }
+    if (GAME.callRing) { GAME.callRing = false; ring(); flash('rgba(215,38,61,.8)', true); buzz([300, 120, 300]); }
     if (S.deposit > 0 && (S.day - S.depDay) % 5 === 4 && !S.ponziGone) { const it = Math.round(S.deposit * 0.01); S.cash += it; toast(`金滿堂配息 ${money(it)} 元`); }
     await showSummary(); GAME.marginMsgs = []; checkRank(); saveGame();
   }
@@ -2506,10 +2538,10 @@ function updateLabels() {
       const hp = n.dir.clone().multiplyScalar(R + (n.sit ? 1.7 : 2.05) * (n.ch.L.scale || 1)); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) < 0) continue;
       const p = proj(hp); if (!p) continue;
       const fresh = S.talked[n.id] !== S.day && !['home', 'phone', 'temple', 'ped', 'fortune', 'busker', 'yulan'].includes(n.role);
-      lbl((fresh ? '● ' : '') + n.name + (n.rel && hearts(n.id) ? ' ' + '♥'.repeat(hearts(n.id)) : ''), fresh ? 'q' : '', p[0], p[1]);
+      lbl((fresh ? '● ' : '') + n.name + (n.rel && hearts(n.id) ? ' ' + '♥'.repeat(hearts(n.id)) : ''), fresh ? 'q tap' : 'tap', p[0], p[1], () => tapTalk(n));
     }
     if (GUIDE && PLACE_BY[GUIDE]) { const pl = PLACE_BY[GUIDE], d = Math.round(angDist(PL.dir, pl.front) * 10), hp = pl.front.clone().multiplyScalar(R + 4.2); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) > 0) { const p = proj(hp); if (p) lbl(`▼ ${pl.name}・${d} 公尺`, 'goal', p[0], p[1]); } }
-    for (const e of EGGS) { const ed = EGG_SPOTS[e.id]; if (!ed || angDist(PL.dir, ed) > 14) continue; const hp = ed.clone().multiplyScalar(R + 4.2); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) > 0) { const p = proj(hp); if (p) lbl(e.name, S.eggs[e.id] ? '' : 'q', p[0], p[1]); } }
+    for (const e of EGGS) { const ed = EGG_SPOTS[e.id]; if (!ed || angDist(PL.dir, ed) > 14) continue; const hp = ed.clone().multiplyScalar(R + 4.2); _pv.copy(hp).sub(camera.position); if (_pv.dot(cf) > 0) { const p = proj(hp); if (p) lbl(e.name, S.eggs[e.id] ? 'tap' : 'q tap', p[0], p[1], () => tapEgg(e)); } }
     if (pedSay.t > 0 && pedSay.n && pedSay.n.ch.root.visible && angDist(PL.dir, pedSay.n.dir) < 16) { const p = proj(pedSay.n.dir.clone().multiplyScalar(R + 2.4)); if (p) lbl(pedSay.txt, 'q', p[0], p[1] - 22); }
     if (crowdSay.t > 0 && crowdSay.n && angDist(PL.dir, crowdSay.n.dir) < 16) { const p = proj(crowdSay.n.dir.clone().multiplyScalar(R + 2.3)); if (p) lbl(crowdSay.txt, 'q', p[0], p[1] - 22); }
   }
@@ -2523,7 +2555,7 @@ function updateNPCs(dt) {
   crowdSay.t -= dt;
   if (ph === 'open' && crowdSay.t < -4 && Math.random() < 0.02) { const crowd = NPCS.filter(n => n.sit && n.road === 'E'); crowdSay = { t: 3, n: crowd[Math.random() * crowd.length | 0], txt: ich > 0.03 ? '漲停啦！發了發了！' : ich > 0.005 ? '紅通通，好看！' : ich < -0.03 ? '跌停了……我的買菜錢！' : ich < -0.005 ? '唉唷，又綠了' : '怎麼都不動啦' }; if (ich > 0.01) crowdSay.n.ch.wave = 1.2; }
   for (const n of NPCS) {
-    const d = angDist(PL.dir, n.dir), vis = GAME.mode !== 'title' && (GAME.mode === 'map' ? false : d < 36);
+    const d = angDist(PL.dir, n.dir), vis = GAME.mode !== 'title' && (GAME.mode === 'map' ? false : d < (POWER ? 24 : 36));
     n.ch.root.visible = vis; if (!vis) continue;
     if (n.role === 'ponzi') n.ch.root.visible = !S.ponziGone;
     if (n.night && ph !== 'night') n.ch.root.visible = false;
@@ -2793,14 +2825,14 @@ function ring() { if (!AU.ctx || !S.sfx) return; const t = AU.ctx.currentTime; f
 function celebrate(text, good) {
   toast(`<b class="${good ? 'up' : 'down'}">${text}</b>`);
   if (good) {
-    sfx('done'); flash('rgba(255,196,60,.8)');
+    sfx('done'); flash('rgba(255,196,60,.8)'); buzz(70);
     const crowd = NPCS.filter(n => n.sit && n.road === 'E' && n.ch.root.visible); crowd.forEach(n => n.ch.wave = 2.5);
     if (crowd.length) crowdSay = { t: 3.5, n: crowd[0], txt: '漲停！漲停啦！' };
-  } else { sfx('bad'); flash('rgba(20,150,90,.7)'); }
+  } else { sfx('bad'); flash('rgba(20,150,90,.7)'); buzz([40, 50, 40]); }
 }
 function marginWarn(s, r, kind) {
   const lv = r < 1.36 ? 2 : r < 1.45 ? 1 : 0; if (lv <= (PULSE.warn[s.id] || 0)) return; PULSE.warn[s.id] = lv;
-  ring(); flash('rgba(215,38,61,.8)', true);
+  ring(); flash('rgba(215,38,61,.8)', true); buzz([200, 100, 200]);
   toast(`<b class="down">營業員小美緊急來電</b>：你的${s.name}${kind}維持率剩 ${Math.round(r * 100)}%，${lv === 2 ? '再跌一點就會被斷頭！' : '快接近 130% 的斷頭線了。'}可以先賣掉一部分或停損。`);
 }
 function marketPulse() {
@@ -2913,7 +2945,7 @@ function subscribe(id) {
 function ipoDraw() {
   for (const id in S.subs || {}) {
     if (S.subs[id] !== S.day) continue; const x = SEASON.ipos.find(x => STOCKS[x.i].id === id); delete S.subs[id]; if (!x) continue;
-    if (Math.random() < IPO_WIN) { const h = S.hold[id] || (S.hold[id] = { q: 0, cost: 0 }); h.cost = (h.cost * h.q + x.price) / (h.q + 1); h.q += 1; toast(`<b class="up">恭喜中籤！</b>${STOCKS[x.i].name} 1 張以承銷價 ${x.price} 元入帳，今天掛牌`); sfx('done'); }
+    if (Math.random() < IPO_WIN) { const h = S.hold[id] || (S.hold[id] = { q: 0, cost: 0 }); h.cost = (h.cost * h.q + x.price) / (h.q + 1); h.q += 1; toast(`<b class="up">恭喜中籤！</b>${STOCKS[x.i].name} 1 張以承銷價 ${x.price} 元入帳，今天掛牌`); sfx('done'); buzz([60, 40, 120]); }
     else { S.cash += x.price * LOT; toast(`${STOCKS[x.i].name}沒抽中，申購款已退回`); }
   }
 }
@@ -3077,7 +3109,7 @@ function labelCells(html, mode) {
 
 /* ---------- 任務提示：可以收合（手機預設收起，只露出第一項） ---------- */
 const GOALS_KEY = 'stock-tycoon-goals-fold';
-function goalsFolded() { try { const v = localStorage.getItem(GOALS_KEY); if (v !== null) return v === '1'; } catch (e) { } return NARROW(); }
+function goalsFolded() { try { const v = localStorage.getItem(GOALS_KEY); if (v !== null) return v === '1'; } catch (e) { } return NARROW() || innerHeight <= 500; }
 function toggleGoals() { const f = !goalsFolded(); try { localStorage.setItem(GOALS_KEY, f ? '1' : '0'); } catch (e) { } }
 function goalsHead(list) { const f = goalsFolded(); return `<button class="gHead" data-gh aria-expanded="${!f}" title="${f ? '展開' : '收起'}任務提示"><b>任務提示</b><span class="gCnt">${list.length}</span><span class="gArr">${f ? '▸' : '▾'}</span></button>`; }
 function goalsPeek(list) { return list[0] ? `<div class="gPeek">${list[0].text().replace(/<[^>]+>/g, '')}</div>` : ''; }
@@ -3089,10 +3121,52 @@ function buildMore() {
   $('tr').appendChild(b);
   const m = document.createElement('div'); m.id = 'moreMenu'; m.className = 'paper hide'; $('hud').appendChild(m);
   const close = () => { m.classList.add('hide'); b.setAttribute('aria-expanded', 'false'); };
-  const items = [['map', '城市地圖', () => toggleMap()], ['snd', '', () => cycleSound()], ['save', '存檔與讀檔', () => openSaves()], ['help', '說明與設定', () => openHelp()]];
-  const render = () => { m.innerHTML = items.map(([k, t]) => `<button data-mm="${k}">${k === 'snd' ? `聲音：${S.music || S.sfx ? '開' : '關'}` : t}</button>`).join(''); m.querySelectorAll('[data-mm]').forEach(x => x.onclick = e => { e.stopPropagation(); const it = items.find(i => i[0] === x.dataset.mm); close(); it[2](); }); };
+  const items = [['map', '城市地圖', () => toggleMap()], ['snd', '', () => cycleSound()], ['save', '存檔與讀檔', () => openSaves()], ['help', '說明與設定', () => openHelp()], ['pow', '', () => setPower(!POWER)], ['full', '', () => toggleFull()]];
+  const label = k => k === 'snd' ? `聲音：${S.music || S.sfx ? '開' : '關'}` : k === 'pow' ? `省電模式：${POWER ? '開' : '關'}` : k === 'full' ? (document.fullscreenElement ? '離開全螢幕' : '全螢幕') : items.find(i => i[0] === k)[1];
+  const render = () => { m.innerHTML = `<div class="mmInfo">今日步數 ${Math.floor(S.stepsDay || 0).toLocaleString('zh-TW')} 步</div>` + items.filter(([k]) => k !== 'full' || document.fullscreenEnabled).map(([k]) => `<button data-mm="${k}">${label(k)}</button>`).join(''); m.querySelectorAll('[data-mm]').forEach(x => x.onclick = e => { e.stopPropagation(); const it = items.find(i => i[0] === x.dataset.mm); close(); it[2](); }); };
   b.onclick = e => { e.stopPropagation(); if (m.classList.contains('hide')) { render(); m.classList.remove('hide'); b.setAttribute('aria-expanded', 'true'); } else close(); };
   addEventListener('pointerdown', e => { if (!m.contains(e.target) && e.target !== b && !b.contains(e.target)) close(); });
+}
+
+/* ---------- 點名字標籤：自動走過去說話 ---------- */
+let AUTO = null;
+function autoGo(t) { AUTO = Object.assign({ best: Infinity, last: performance.now() }, t); }
+function tapTalk(n) {
+  if (GAME.busy || GAME.mode !== 'ground') return;
+  if (angDist(PL.dir, n.dir) < 2.3) return talkTo(n);
+  autoGo({ n, reach: 2.0, done: () => { if (!GAME.busy && n.ch.root.visible) talkTo(n); } }); toast(`走過去找${n.name}（推搖桿可以取消）`);
+}
+function tapEgg(e) {
+  if (GAME.busy || GAME.mode !== 'ground') return;
+  autoGo({ dir: EGG_SPOTS[e.id], reach: 2.3, done: () => { if (!GAME.busy) eggAct(e.id); } });
+}
+// 有玩家自己的輸入就取消；走不動超過 2.5 秒也取消
+function autoInput(manual) {
+  if (!AUTO) return null;
+  if (manual || GAME.busy || GAME.mode !== 'ground') { AUTO = null; return null; }
+  const dir = AUTO.n ? AUTO.n.dir : AUTO.dir, d = angDist(PL.dir, dir), now = performance.now();
+  if (d < AUTO.reach) { const t = AUTO; AUTO = null; setTimeout(() => t.done(), 0); return { x: 0, y: 0, run: false }; }
+  if (d < AUTO.best - 0.25) { AUTO.best = d; AUTO.last = now; } else if (now - AUTO.last > 2500) { AUTO = null; toast('前面被擋住了，用搖桿走過去吧'); return null; }
+  const up = PL.dir, t = tangentize(dir.clone().sub(up), up), rt = new V3().crossVectors(PL.camF, up);
+  return { x: t.dot(rt), y: t.dot(PL.camF), run: d > 6 };
+}
+
+/* ---------- 省電模式（手機預設開）：降低解析度、隔一幀畫一次、遠處的人不畫 ---------- */
+const POWER_KEY = 'stock-tycoon-power';
+let POWER = (() => { try { const v = localStorage.getItem(POWER_KEY); if (v !== null) return v === '1'; } catch (e) { } return IS_TOUCH; })();
+function applyPower() { renderer.setPixelRatio(POWER ? 1 : Math.min(devicePixelRatio || 1, IS_TOUCH ? 1.6 : 2)); if (typeof resize === 'function') resize(); }
+function setPower(on) { POWER = on; try { localStorage.setItem(POWER_KEY, on ? '1' : '0'); } catch (e) { } applyPower(); toast(on ? '省電模式開啟：畫面解析度降低、比較不燙' : '省電模式關閉：畫面比較細緻'); }
+
+/* ---------- 震動回饋（支援的手機才有） ---------- */
+const VIB_KEY = 'stock-tycoon-vib';
+let VIB = (() => { try { const v = localStorage.getItem(VIB_KEY); if (v !== null) return v === '1'; } catch (e) { } return true; })();
+function buzz(p) { if (VIB && IS_TOUCH && navigator.vibrate) try { navigator.vibrate(p); } catch (e) { } }
+function setVib(on) { VIB = on; try { localStorage.setItem(VIB_KEY, on ? '1' : '0'); } catch (e) { } if (on) buzz(60); toast(`震動${on ? '開' : '關'}`); }
+
+/* ---------- 全螢幕 ---------- */
+function toggleFull() {
+  try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen({ navigationUI: 'hide' }); }
+  catch (e) { toast('這個瀏覽器不支援全螢幕，可以改用「加入主畫面」'); }
 }
 /* ---------- 聲音 ---------- */
 const AU = { ctx: null };
@@ -3205,7 +3279,8 @@ function loop() {
   updateCars(dt, GAME.started ? PL.dir : new V3(0, 1, 0));
   updateCamera(dt); updateLighting(); DLG.tick(dt);
   sky.position.copy(camera.position);
-  renderer.render(scene, camera); updateLabels();
+  if (!POWER || (GAME.frame = (GAME.frame || 0) + 1) % 2) renderer.render(scene, camera);
+  updateLabels();
 }
 /* ---------- 雨 ---------- */
 let RAIN = null;
@@ -3274,7 +3349,7 @@ async function boot() {
     buildCity(); buildCars(); buildNPCs(); NPCS.forEach(n => n.ch.root.visible = false);
     PL.ch = new Character(LOOKS.me); scene.add(PL.ch.root); drawPortrait($('pp'), LOOKS.me);
     setPlayerAt(slot('E', 4, 1, 2.3).dir); placeChar(PL.ch, PL.dir, PL.fwd, 0);
-    bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore();
+    applyPower(); bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore();
     $('loadTxt').classList.add('hide'); $('titleBtns').classList.remove('hide'); if (hasSave()) $('bCont').classList.remove('hide');
     $('bStart').onclick = openNewGame; $('bCont').onclick = () => startGame(true); $('bLoad').onclick = () => openSaves();
     loop();

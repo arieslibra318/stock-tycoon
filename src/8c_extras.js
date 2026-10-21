@@ -46,14 +46,14 @@ function ring() { if (!AU.ctx || !S.sfx) return; const t = AU.ctx.currentTime; f
 function celebrate(text, good) {
   toast(`<b class="${good ? 'up' : 'down'}">${text}</b>`);
   if (good) {
-    sfx('done'); flash('rgba(255,196,60,.8)');
+    sfx('done'); flash('rgba(255,196,60,.8)'); buzz(70);
     const crowd = NPCS.filter(n => n.sit && n.road === 'E' && n.ch.root.visible); crowd.forEach(n => n.ch.wave = 2.5);
     if (crowd.length) crowdSay = { t: 3.5, n: crowd[0], txt: '漲停！漲停啦！' };
-  } else { sfx('bad'); flash('rgba(20,150,90,.7)'); }
+  } else { sfx('bad'); flash('rgba(20,150,90,.7)'); buzz([40, 50, 40]); }
 }
 function marginWarn(s, r, kind) {
   const lv = r < 1.36 ? 2 : r < 1.45 ? 1 : 0; if (lv <= (PULSE.warn[s.id] || 0)) return; PULSE.warn[s.id] = lv;
-  ring(); flash('rgba(215,38,61,.8)', true);
+  ring(); flash('rgba(215,38,61,.8)', true); buzz([200, 100, 200]);
   toast(`<b class="down">營業員小美緊急來電</b>：你的${s.name}${kind}維持率剩 ${Math.round(r * 100)}%，${lv === 2 ? '再跌一點就會被斷頭！' : '快接近 130% 的斷頭線了。'}可以先賣掉一部分或停損。`);
 }
 function marketPulse() {
