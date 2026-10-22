@@ -54,7 +54,7 @@ function camOpen(p, h) {
 const TIME = { min: 6 * 60 };
 const PHASE = () => { const h = TIME.min / 60; return h < 9 ? 'pre' : h < 13.5 ? 'open' : h < 18 ? 'post' : 'night'; };
 // 每真實秒前進幾分鐘（不同時段不同速度，讓盤中看得清楚）
-const RATE = { pre: 5, open: 3, post: 6, night: 6 };
+const RATE = { pre: 4, open: 3, post: 3, night: 3 };   // 每真實秒前進幾分鐘；設定裡可以再分開調盤中和逛街的速度
 const fmtTime = () => { const m = Math.floor(TIME.min); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 const money = n => (n < 0 ? '-' : '') + Math.round(Math.abs(n)).toLocaleString('zh-TW');
 const wan = n => { const a = Math.abs(n); const s = a >= 1e8 ? (a / 1e8).toFixed(2) + ' 億' : a >= 1e4 ? (a / 1e4).toFixed(a >= 1e6 ? 0 : 1) + ' 萬' : Math.round(a) + ''; return (n < 0 ? '-' : '') + s; };

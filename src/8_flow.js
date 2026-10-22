@@ -10,7 +10,7 @@ function marginParts(p = prices()) {
   STOCKS.forEach((s, i) => { const m = S.mar[s.id]; if (m) { mv += m.q * LOT * p[i]; loan += m.loan; } const h = S.sht[s.id]; if (h) { sv += h.q * LOT * p[i]; coll += h.margin + h.proceeds; } });
   return { mv, loan, sv, coll, eq: mv - loan + coll - sv };
 }
-const netWorth = () => S.cash + holdValue() + marginParts().eq + S.deposit + subFrozen();
+const netWorth = () => S.cash + holdValue() + marginParts().eq + S.deposit + subFrozen() + lifeValue();
 const rankOf = n => { let r = 0; RANKS.forEach((k, i) => { if (n >= k.min) r = i; }); return r; };
 const pct = x => Math.abs(x) < 5e-5 ? '0.00%' : (x > 0 ? '▲' : '▼') + Math.abs(x * 100).toFixed(2) + '%';
 const cls = x => x > 0.00001 ? 'up' : x < -0.00001 ? 'down' : '';
@@ -19,7 +19,7 @@ const cls = x => x > 0.00001 ? 'up' : x < -0.00001 ? 'down' : '';
 function giveRumor(n) {
   if (S.talked[n.id] === S.day) return null;
   const m = makeRumor(n.rel ? Object.assign(Object.create(n), { rel: relOf(n) }) : n, S.day); S.talked[n.id] = S.day; bondUp(n); if (!m) return null;
-  Object.assign(m, { day: S.day, npc: n.id, npcName: n.name }); S.rumors.push(m);
+  Object.assign(m, { day: S.day, npc: n.id, npcName: n.name }); S.rumors.push(m); if (m.stock) dexSeen(m.stock);
   $('noteBadge').classList.remove('hide'); return m;
 }
 const GREET = {
@@ -75,7 +75,7 @@ const EGG_LIST = [
 ];
 function findEgg(id, label) {
   if (S.eggs[id]) return; S.eggs[id] = 1; sfx('done');
-  const n = Object.keys(S.eggs).length + S.certs.length; toast(`發現彩蛋：${label}（${n}/${EGG_LIST.length + EGG_CERT_POS.length}）`); $('noteBadge').classList.remove('hide');
+  const n = Object.keys(S.eggs).length + S.certs.length; toast(`發現彩蛋：${label}（${n}/${EGG_LIST.length + EGG_CERT_POS.length}）`); if (n >= EGG_LIST.length + EGG_CERT_POS.length) achieve('eggs'); $('noteBadge').classList.remove('hide');
 }
 async function eggAct(id) {
   GAME.busy = true;
@@ -83,13 +83,13 @@ async function eggAct(id) {
     if (id === 'bull') {
       await say(null, '（金色的公牛被摸得閃閃發亮，牛鼻子特別亮，大概大家都摸這裡。）');
       findEgg('bull', '城中金牛');
-      if (S.bullSeason === S.season) { await say(null, '金牛閃了一下光……但今天沒有反應。（每一季只靈驗一次）'); return; }
-      if (S.day >= DAYS) { await say(null, '金牛靜靜地看著你。這一季快結束了，下一季再來吧。'); return; }
+      if (S.bullSeason === S.season) { await say(null, '金牛閃了一下光……但今天沒有反應。（每個月只靈驗一次）'); return; }
+      if (S.day >= DAYS) { await say(null, '金牛靜靜地看著你。這個月快結束了，下個月再來吧。'); return; }
       let d2 = S.day + 1; while (d2 < DAYS && Math.max(...SEASON.ret[d2]) <= 0) d2++;
       const nx = SEASON.ret[d2]; let i = -1; nx.forEach((x, k) => { if (listed(k, d2) && (i < 0 || x > nx[i])) i = k; }); const st = STOCKS[i];
       S.bullSeason = S.season;
       S.rumors.push({ kind: 'tip', stock: st.id, dir: 1, text: `金牛顯靈：${st.name}第 ${d2} 天會漲`, resolve: d2, day: S.day, npc: 'bull', npcName: '城中金牛' }); $('noteBadge').classList.remove('hide');
-      await say(null, `金牛的眼睛亮了一下，你腦中浮現一個名字：「${st.name}」。（記進消息本了，每季只有一次）`);
+      await say(null, `金牛的眼睛亮了一下，你腦中浮現一個名字：「${st.name}」。（記進消息本了，每個月只有一次）`);
     } else {
       await say(null, '（黑熊坐在石台上，脖子掛著一塊小牌子。）');
       await say(null, '牌子上寫著：「漲多了會跌，跌深了會漲；停損，是留在市場裡的門票。」');
@@ -144,8 +144,9 @@ const TALK = {
   },
   temple: async n => {
     await say(n, '來求明牌喔？心誠則靈啦。');
-    const c = await choose(['擲筊求明牌', '只是來拜拜']);
-    if (c === 1) { await say(n, '平安就好，平安就好。'); return; }
+    const c = await choose(['擲筊求明牌', `簽${lottoName()}`, '只是來拜拜']);
+    if (c === 1) { await lottoTalk(n); return; }
+    if (c === 2) { await say(n, '平安就好，平安就好。'); return; }
     if (S.talked.monk === S.day) { await say(n, '一天問一次就好，神明也要休息。'); return; }
     S.talked.monk = S.day; sfx('tick');
     const live = STOCKS.filter((x, k) => listed(k, Math.min(DAYS, S.day + 1))), s = live[Math.random() * live.length | 0], dir = Math.random() < 0.5 ? 1 : -1;
@@ -183,21 +184,21 @@ function headline() {
 }
 
 /* ---------- 看盤下單 ---------- */
-function canTradeHere() { return S.phone || angDist(PL.dir, PLACE_BY.broker.front) < 9; }
+function canTradeHere() { return S.phone || (GAME.mode === 'interior' ? IN.id === 'broker' || (IN.id === 'home' && houseTier() >= 1) : angDist(PL.dir, PLACE_BY.broker.front) < 9); }
 function openTrade(fromBroker) {
   if (GAME.busy && !fromBroker) return;
   if (!fromBroker && !canTradeHere()) { toast('要在證券行（城中證券）附近才能下單；買了大哥大就能隨時下單'); }
   GAME.busy = true; $('trade').classList.remove('hide'); renderTrade();
 }
 let trMode = 'cash', chSel = 'idx', chRange = 'season';
-// 看盤畫面的走勢圖：大盤、個股或自己的資產；本季累積（日線）或今日分時
+// 看盤畫面的走勢圖：大盤、個股或自己的資產；本月累積（日線）或今日分時
 function chartSeries() {
   const p = prices(), i = STOCKS.findIndex(s => s.id === chSel), d0 = S.day - 1;
   const live = PHASE() === 'open' && MK.path, path = MK.path || GAME.dayPath;
   if (chRange === 'today') {
     if (!path || MK.k < 0 && !GAME.dayPath) return { pts: [], base: 0, empty: '9:00 開盤後才有今天的分時走勢' };
     const k = live ? MK.k : TICKS;
-    if (chSel === 'me') return { pts: [], base: 0, empty: '資產走勢請看「本季累積」' };
+    if (chSel === 'me') return { pts: [], base: 0, empty: '資產走勢請看「本月累積」' };
     const pts = chSel === 'idx' ? GAME.idxTicks.slice(0, k + 1) : path[i].slice(0, k + 1);
     return { pts, base: chSel === 'idx' ? SEASON.index[d0] : SEASON.close[d0][i], labels: ['09:00', live ? fmtTime() : '13:30'], total: TICKS + 1 };
   }
@@ -207,7 +208,7 @@ function chartSeries() {
   else { pts = SEASON.close.slice(0, S.day).map(c => c[i]); pts.push(p[i]); }
   const cost = chSel !== 'idx' && chSel !== 'me' ? [S.hold[chSel], S.mar[chSel], S.sht[chSel]].filter(Boolean).map(h => h.cost)[0] : null;
   const evs = chSel === 'me' ? [] : SEASON.events.filter(e => e.day <= S.day).map(e => ({ x: e.day - 1, name: e.def.name }));
-  return { pts, base: pts[0], labels: ['開季', `第 ${S.day} 天`], total: Math.max(pts.length, 11), cost, evs };
+  return { pts, base: pts[0], labels: ['月初', `第 ${S.day} 天`], total: Math.max(pts.length, 11), cost, evs };
 }
 function chartSVG() {
   const c = chartSeries();
@@ -232,11 +233,11 @@ function chartSVG() {
   g += `<text x="${W - R + 4}" y="${yLast}" class="chT" fill="${col}" font-weight="700">${fmt(last)}</text>`;
   g += `<text x="${L}" y="${H - 6}" class="chT">${c.labels[0]}</text><text x="${X(pts.length - 1)}" y="${H - 6}" class="chT" text-anchor="${pts.length / c.total > 0.85 ? 'end' : 'middle'}">${c.labels[1]}</text>`;
   const name = chSel === 'idx' ? '城中加權指數' : chSel === 'me' ? '我的總資產' : SBY[chSel].name;
-  return `<div class="chHead"><b>${name}</b> <span class="${cls(ch)}">${chRange === 'today' ? '今日' : '本季'} ${pct(ch)}</span></div><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${name}走勢圖">${g}</svg>`;
+  return `<div class="chHead"><b>${name}</b> <span class="${cls(ch)}">${chRange === 'today' ? '今日' : '本月'} ${pct(ch)}</span></div><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${name}走勢圖">${g}</svg>`;
 }
 function chartBox() {
   const opts = [['idx', '大盤'], ['me', '我的資產']].concat(STOCKS.filter((s, i) => SEASON.from[i] <= S.day).map(s => [s.id, s.name])).map(([v, t]) => `<option value="${v}" ${chSel === v ? 'selected' : ''}>${t}</option>`).join('');
-  return `<div class="chBox"><div class="chBar"><select id="chSel" aria-label="走勢圖要看哪一個">${opts}</select><span class="mtabs" style="margin:0"><button class="tab ${chRange === 'season' ? 'on' : ''}" data-cr="season">本季累積</button><button class="tab ${chRange === 'today' ? 'on' : ''}" data-cr="today">今日分時</button></span></div>${chartSVG()}</div>`;
+  return `<div class="chBox"><div class="chBar"><select id="chSel" aria-label="走勢圖要看哪一個">${opts}</select><span class="mtabs" style="margin:0"><button class="tab ${chRange === 'season' ? 'on' : ''}" data-cr="season">本月累積</button><button class="tab ${chRange === 'today' ? 'on' : ''}" data-cr="today">今日分時</button></span></div>${chartSVG()}</div>`;
 }
 function renderTrade() {
   if ($('trade').classList.contains('hide')) return;
@@ -331,7 +332,7 @@ function order(id, q, mode = 'cash') {
     }
     if (!t.q) delete S.sht[id];
   }
-  S.tradeDay = S.day; if (mode !== 'cash') S.usedMargin = true;
+  S.tradeDay = S.day; dexSeen(id, true); if (mode !== 'cash') S.usedMargin = true;
   tidy(); sfx('coin'); renderTrade(); refreshHUD(); saveGame();
 }
 // 收盤：下市清算、融資付利息、檢查維持率（低於 130% 先追繳，期限到了才強制平倉）
@@ -360,7 +361,7 @@ function openNotes() {
 }
 function renderNotes() {
   const st = m => m.st === 'ok' ? '<span class="st ok">應驗</span>' : m.st === 'no' ? '<span class="st no">落空</span>' : '<span class="st wait">待驗證</span>';
-  let h = `<div class="tabs" style="margin-bottom:10px"><button class="tab ${noteTab === 'list' ? 'on' : ''}" data-t="list">聽到的消息</button><button class="tab ${noteTab === 'src' ? 'on' : ''}" data-t="src">消息來源戰績</button><button class="tab ${noteTab === 'hist' ? 'on' : ''}" data-t="hist">歷史小百科</button><button class="tab ${noteTab === 'egg' ? 'on' : ''}" data-t="egg">彩蛋</button></div>`;
+  let h = `<div class="tabs" style="margin-bottom:10px"><button class="tab ${noteTab === 'list' ? 'on' : ''}" data-t="list">聽到的消息</button><button class="tab ${noteTab === 'src' ? 'on' : ''}" data-t="src">消息來源戰績</button><button class="tab ${noteTab === 'hist' ? 'on' : ''}" data-t="hist">歷史小百科</button><button class="tab ${noteTab === 'egg' ? 'on' : ''}" data-t="egg">彩蛋</button><button class="tab ${noteTab === 'ach' ? 'on' : ''}" data-t="ach">成就</button><button class="tab ${noteTab === 'dex' ? 'on' : ''}" data-t="dex">公司圖鑑</button></div>`;
   if (noteTab === 'list') {
     if (!S.rumors.length) h += '<p>還沒有消息。去街上找人聊聊吧：證券行前的老張伯、報社記者、銀行襄理、茶藝館……每個人每天會講一則。</p>';
     for (const m of S.rumors.slice().reverse()) h += `<div class="rumor"><span class="d">第 ${m.day} 天<br>${m.npcName}</span><span>${m.text}${m.kind === 'tip' || m.kind === 'sector' ? `<br><small style="color:var(--ink-soft)">驗證日：第 ${m.resolve} 天收盤</small>` : m.st === 'no' && !m.truth ? '<br><small style="color:var(--ink-soft)">這件事後來沒有發生</small>' : ''}</span>${st(m)}</div>`;
@@ -369,6 +370,8 @@ function renderNotes() {
     h += '<table class="q"><tr><th>消息來源</th><th>應驗</th><th>已驗證</th><th>準確率</th><th>交情</th></tr>';
     for (const k in t) h += `<tr><td>${k}</td><td>${t[k][0]}</td><td>${t[k][1]}</td><td>${t[k][1] ? Math.round(t[k][0] / t[k][1] * 100) + '%' : '—'}</td><td>${(x => x && x.rel ? ('♥'.repeat(hearts(x.id)) || '—') : '—')(NPCS.find(x => x.name === k))}</td></tr>`;
     h += '</table><p class="note">每個人的消息準確度不一樣，而且不會告訴你。大致有三種人：很準的人（交情越好越準，最高八、九成）、像丟銅板的人（一直是五成左右）、反指標（大概只有兩成會對，反著做反而有用）。交情靠聊天和請客累積，太久沒去找會慢慢變淡；交情到 ♥♥♥♥ 偶爾會多講一則。多聽幾次，看誰比較準，再決定要不要相信。</p>';
+  } else if (noteTab === 'ach') { h += achHTML();
+  } else if (noteTab === 'dex') { h += dexHTML();
   } else if (noteTab === 'egg') {
     const tot = EGG_LIST.length + EGG_CERT_POS.length, n = Object.keys(S.eggs).length + S.certs.length;
     h += `<div class="sum">已發現 <b>${n}/${tot}</b> 個彩蛋</div>`;
@@ -403,15 +406,17 @@ function openHelp() {
     <h4>6. 天氣與情緒</h4>
     <ul><li>晴天大家心情好，股價稍微偏多；下雨天證券行人少，成交量變小、股價稍微偏弱；遇到颱風會放颱風假、休市一天。影響都很小，大方向還是看消息和事件。</li><li>在設定裡可以改成「台北即時天氣」（要在 GitHub Pages 等一般網頁上才抓得到，Claude 的預覽頁面會擋外部連線）。</li></ul>
     <h4>7. 事件卡與歷史小百科</h4>
-    <p>每一季會從真實歷史改編的事件裡抽 5 張，隨機排列，包括 1987 黑色星期一、1979–1981 聯準會暴力升息、1995–1996 台海飛彈危機、1997 亞洲金融風暴、2023–2024 AI 浪潮等。爆發時會出現「號外」，消息本的「歷史小百科」記錄它改編自哪一段歷史。地下投資公司每一季一定會倒，別把錢放太久。</p>
+    <p>每個月會從真實歷史改編的事件裡抽 5 張，隨機排列，包括 1987 黑色星期一、1979–1981 聯準會暴力升息、1995–1996 台海飛彈危機、1997 亞洲金融風暴、2023–2024 AI 浪潮等。爆發時會出現「號外」，消息本的「歷史小百科」記錄它改編自哪一段歷史。地下投資公司每個月一定會倒，別把錢放太久。</p>
     <h4>8. 身分晉升</h4>
-    <p><b>結局</b>：故事共 ${FINAL_SEASON} 季，第 ${FINAL_SEASON} 季（${yearOf(FINAL_SEASON)} 年）結束時，總資產 ${wan(winNet())} 以上是成功結局、低於本金 ${wan(START_CASH)} 是失敗結局，中間是普通結局。中途當上證券大亨會提早迎來成功結局，總資產跌破 ${BROKE_NET / 1e4} 萬 則提早失敗。結局之後可以繼續自由遊玩。本局共 ${FINAL_SEASON} 季、每季 ${DAYS} 天。</p>
+    <p><b>結局</b>：故事共 ${FINAL_SEASON} 個月，第 ${FINAL_SEASON} 個月（${yearOf(FINAL_SEASON)} 年）結束時，總資產 ${wan(winNet())} 以上是成功結局、低於本金 ${wan(START_CASH)} 是失敗結局，中間是普通結局。中途當上證券大亨會提早迎來成功結局，總資產跌破 ${BROKE_NET / 1e4} 萬 則提早失敗。結局之後可以繼續自由遊玩。本局共 ${FINAL_SEASON} 個月、每個月 ${DAYS} 天。</p>
     <p>${RANKS.map(r => `${r.name}（${wan(r.min)}）`).join(' → ')}。大哥大一支 ${wan(PHONE_PRICE)}，買了以後在哪裡都能下單。</p>
     <h4>9. 操作</h4>
     <p>WASD／方向鍵移動、Shift 快跑、E 說話、K 看盤下單、N 消息本、P 暫停、T 快轉到下一個時段、M 城市地圖、H 指南、Q 暫存、O 存檔與讀檔、拖曳轉視角。遊戲不會自動存檔，記得隨手按 Q 留暫存點。手機用左下搖桿、右下「互動」「看盤」。</p>
     <p class="note">這是原型。公司、人物與行情都是虛構的；重大事件改編自 1980 年代末到 1990 年的台灣與國際股市歷史，經過隨機排列，僅供體驗與學習，不構成任何投資建議。</p></div>`;
   else h += `
-    <p>時間速度：<button class="btn" data-sp="0.6">慢</button> <button class="btn" data-sp="1">標準</button> <button class="btn" data-sp="1.6">快</button>　目前：${S.speed === 0.6 ? '慢' : S.speed === 1.6 ? '快' : '標準'}</p>
+    <p>盤中時間（09:00–13:30）：${SPEEDS.map(([v, t]) => `<button class="btn ${(S.spOpen || 1) === v ? 'pri' : ''}" data-spo="${v}">${t}</button>`).join(' ')}</p>
+    <p>逛街時間（盤前、盤後、晚上）：${SPEEDS.map(([v, t]) => `<button class="btn ${(S.spWalk || 1) === v ? 'pri' : ''}" data-spw="${v}">${t}</button>`).join(' ')}</p>
+    <p class="note">照現在的設定，一天大約 ${dayMinutes()} 分鐘（說話、看盤、看報紙時時間會暫停）。逛完了可以按「快轉」，或回家睡覺直接跳到隔天。</p>
     <p>天氣來源：<button class="btn" id="hpWx">${S.realWx ? '台北即時天氣（開）' : '遊戲模擬天氣'}</button></p>
     <p class="note" style="margin-top:-4px">即時天氣使用 Open-Meteo 的台北天氣，只會在盤前套用到「今天」。抓不到時自動改用模擬天氣。</p>
     <p><button class="btn" id="hpMus">音樂：${S.music ? '開' : '關'}</button> <button class="btn" id="hpSfx">音效：${S.sfx ? '開' : '關'}</button> <button class="btn" id="hpPow">省電模式：${POWER ? '開' : '關'}</button> <button class="btn" id="hpVib">震動：${VIB ? '開' : '關'}</button> <button class="btn" id="hpReset">重新開始新的一年</button></p>
@@ -424,7 +429,8 @@ function openHelp() {
   if (q('hpPow')) q('hpPow').onclick = () => { setPower(!POWER); openHelp2(); };
   if (q('hpVib')) q('hpVib').onclick = () => { setVib(!VIB); openHelp2(); };
   if (q('hpSfx')) q('hpSfx').onclick = () => { setSound('sfx'); openHelp2(); };
-  $('hpBody').querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { S.speed = +b.dataset.sp; saveGame(); openHelp2(); });
+  $('hpBody').querySelectorAll('[data-spo]').forEach(b => b.onclick = () => { S.spOpen = +b.dataset.spo; openHelp2(); });
+  $('hpBody').querySelectorAll('[data-spw]').forEach(b => b.onclick = () => { S.spWalk = +b.dataset.spw; openHelp2(); });
   if (q('hpWx')) q('hpWx').onclick = async () => { S.realWx = !S.realWx; saveGame(); openHelp2(); if (S.realWx) await useRealWeather(true); };
   if (q('hpReset')) q('hpReset').onclick = function () { if (this.dataset.c) { closeModals(); startGame(false); } else { this.dataset.c = 1; this.textContent = '再按一次確定'; this.style.background = 'var(--accent)'; this.style.color = '#fff'; } };
 }
@@ -490,7 +496,7 @@ function updateCerts(dt) {
     if (!GAME.busy && angDist(PL.dir, c.d) < 1.2) {
       S.certs.push(c.i); sfx('done');
       const n = Object.keys(S.eggs).length + S.certs.length, tot = EGG_LIST.length + EGG_CERT_POS.length;
-      if (S.certs.length >= EGG_CERT_POS.length) { S.cash += 100000; toast(`集滿 5 張紙本股票憑證！收藏家用 10 萬元收購了（${n}/${tot}）`); }
+      if (n >= tot) achieve('eggs'); if (S.certs.length >= EGG_CERT_POS.length) { S.cash += 100000; toast(`集滿 5 張紙本股票憑證！收藏家用 10 萬元收購了（${n}/${tot}）`); }
       else toast(`撿到一張泛黃的紙本股票憑證（${S.certs.length}/${EGG_CERT_POS.length}）・彩蛋 ${n}/${tot}`);
       $('noteBadge').classList.remove('hide');
     }
@@ -509,7 +515,7 @@ function slotText(x) {
   if (!x) return '（空的）';
   const m = x.sum || { season: x.s.season, day: x.s.day, time: '', net: null, rank: RANKS[x.s.rank || 0].name };
   const when = x.at ? new Date(x.at).toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-  return `第 ${m.season} 季・第 ${m.day} 天 ${m.time}・${m.rank}${m.net != null ? `・總資產 ${wan(m.net)}` : ''}${when ? `<br>存於 ${when}` : ''}`;
+  return `第 ${m.season} 個月・第 ${m.day} 天 ${m.time}・${m.rank}${m.net != null ? `・總資產 ${wan(m.net)}` : ''}${when ? `<br>存於 ${when}` : ''}`;
 }
 function openSaves() {
   if (GAME.started && GAME.busy && $('saves').classList.contains('hide')) return;
@@ -560,7 +566,7 @@ function renderSaves(msg) {
 
 function quickSave() {
   if (!GAME.started || GAME.busy) return;
-  try { localStorage.setItem(QUICK_KEY, JSON.stringify(snapshotWrap())); sfx('done'); toast(`已暫存：第 ${S.season} 季・第 ${S.day} 天 ${fmtTime()}（按 O 可以回到這裡）`); }
+  try { localStorage.setItem(QUICK_KEY, JSON.stringify(snapshotWrap())); sfx('done'); toast(`已暫存：第 ${S.season} 個月・第 ${S.day} 天 ${fmtTime()}（按 O 可以回到這裡）`); }
   catch (e) { toast('這個瀏覽器不允許儲存，請在存檔畫面改用存檔碼'); }
 }
 
@@ -579,7 +585,7 @@ function showSummary() {
     const d = S.day, ic = SEASON.index[d], ip = SEASON.index[d - 1], ich = ic / ip - 1;
     const [ok, no] = resolveRumors(d);
     const nw = netWorth(), dpl = nw - S.dayStartNet;
-    const moves = STOCKS.map((s, i) => [s, SEASON.ret[d][i], i]).filter(x => listed(x[2], d)).sort((a, b) => b[1] - a[1]);
+    const moves = STOCKS.map((s, i) => [s, SEASON.ret[d][i], i]).filter(x => listed(x[2], d)).sort((a, b) => b[1] - a[1]); dayChecks(d, dpl);
     $('sumTitle').textContent = `第 ${d} 天收盤`;
     $('sumBody').innerHTML = `<canvas id="sumCv" width="700" height="160"></canvas>
       <div class="sum" style="margin-top:10px"><span>加權指數 <b class="${cls(ich)}">${ic.toFixed(2)}（${pct(ich)}）</b></span><span>成交量 <b>${volumeOf(d)} 億</b></span></div>
@@ -611,7 +617,7 @@ async function onPhase(ph) {
     MK.path = genIntraday(S.day); MK.k = -1; GAME.idxTicks = []; sfx('bell'); toast('噹！開盤了，到證券行找小美下單');
     const e = SEASON.events.find(e => e.day === S.day);
     if (e) {
-      if (!S.seen.includes(e.id)) S.seen.push(e.id);
+      if (!S.seen.includes(e.id)) S.seen.push(e.id); if (e.id === 'ponzi') downlineCollapse();
       if (e.id === 'ponzi' && S.deposit > 0) { const lost = S.deposit; S.deposit = 0; S.ponziGone = true; await showExtra(e); toast(`你放在金滿堂的 ${wan(lost)} 元，全部拿不回來了……`); sfx('bad'); }
       else { if (e.id === 'ponzi') S.ponziGone = true; await showExtra(e); }
     }
@@ -620,6 +626,7 @@ async function onPhase(ph) {
   if (ph === 'post' && MK.path) {
     MK.prices = SEASON.close[S.day].slice(); GAME.dayPath = MK.path; MK.path = null; drawBoard();
     GAME.marginMsgs = settleMargin(); GAME.marginMsgs.forEach(m => toast(m)); if (GAME.marginMsgs.length) sfx('bad');
+    lottoDraw(); downlinePay();
     if (GAME.callRing) { GAME.callRing = false; ring(); flash('rgba(215,38,61,.8)', true); buzz([300, 120, 300]); }
     if (S.deposit > 0 && (S.day - S.depDay) % 5 === 4 && !S.ponziGone) { const it = Math.round(S.deposit * 0.01); S.cash += it; toast(`金滿堂配息 ${money(it)} 元`); }
     await showSummary(); GAME.marginMsgs = []; checkRank(); saveGame();
@@ -627,7 +634,7 @@ async function onPhase(ph) {
   if (ph === 'night') toast('天黑了，月見居酒屋開門了。23:00 前記得回雅房休息');
 }
 async function endDay() {
-  if (GAME.ending) return; GAME.ending = true;
+  if (GAME.ending) return; GAME.ending = true; if (GAME.mode === 'interior') exitInterior(true);
   if (MK.path) { MK.prices = SEASON.close[S.day].slice(); GAME.dayPath = MK.path; MK.path = null; await showSummary(); }
   S.netHist = S.netHist || []; if (S.netHist[S.day - 1] == null) S.netHist[S.day - 1] = Math.round(S.dayStartNet); S.netHist[S.day] = Math.round(netWorth());
   GAME.busy = true; const f = $('fade'); f.textContent = `第 ${S.day} 天結束`; f.style.opacity = 1; await wait(900);
@@ -639,26 +646,28 @@ async function endDay() {
   if (S.day === 1) S.netHist = [];
   TIME.min = 6 * 60; lastPhase = 'pre'; MK.prices = null; S.dayStartNet = netWorth();
   f.textContent = `第 ${S.day} 個交易日`; await wait(700); f.style.opacity = 0; f.textContent = '';
-  GAME.busy = false; GAME.ending = false; refreshHUD(); drawBoard(); saveGame(); await dayWeather(); await morningPaper();
+  GAME.busy = false; GAME.ending = false; refreshHUD(); drawBoard(); saveGame(); await dayWeather(); await morningPaper(); await ethicsMorning();
 }
 async function seasonEnd() {
+  const lifeMsgs = lifeSeasonEnd();
   const nw = netWorth();
   await new Promise(res => {
-    $('sumTitle').textContent = '一季結束';
+    $('sumTitle').textContent = '一個月結束';
     $('sumBody').innerHTML = `<p style="font-size:16px;line-height:1.7">${DAYS} 個交易日過去了。你從 ${wan(START_CASH)} 開始，現在總資產 <b class="${cls(nw - START_CASH)}">${money(nw)}</b>，身分是「<b>${RANKS[rankOf(nw)].name}</b>」。</p>
-      <p style="line-height:1.7">同一季大盤 ${pct(SEASON.index[DAYS] / SEASON.index[0] - 1)}，你的資產 ${pct(nw / ((S.netHist || [])[0] || START_CASH) - 1)}。</p>
-      <p style="line-height:1.7">這一季遇到的大事：${S.seen.map(id => EBY[id].name).join('、') || '（沒有）'}。到「消息本 → 歷史小百科」可以看它們改編自哪一段歷史。</p>
-      <p style="line-height:1.7">新的一季會重新洗牌：事件的順序、時間、哪些人消息準，都會不一樣。${S.ended ? '' : S.season + 1 === FINAL_SEASON ? '<b>下一季是最後一季</b>，季末會依總資產迎來結局。' : `還有 ${FINAL_SEASON - S.season} 季迎來結局。`}</p>
-      <div style="display:flex;justify-content:flex-end"><button class="btn pri" id="sumOk">開始新的一季</button></div>`;
+      <p style="line-height:1.7">同一個月大盤 ${pct(SEASON.index[DAYS] / SEASON.index[0] - 1)}，你的資產 ${pct(nw / ((S.netHist || [])[0] || START_CASH) - 1)}。</p>
+      ${lifeMsgs.map(m => `<p style="line-height:1.7">${m}</p>`).join('')}
+      <p style="line-height:1.7">這個月遇到的大事：${S.seen.map(id => EBY[id].name).join('、') || '（沒有）'}。到「消息本 → 歷史小百科」可以看它們改編自哪一段歷史。</p>
+      <p style="line-height:1.7">新的一個月會重新洗牌：事件的順序、時間、哪些人消息準，都會不一樣。${S.ended ? '' : S.season + 1 === FINAL_SEASON ? '<b>下個月是最後一個月</b>，月底會依總資產迎來結局。' : `還有 ${FINAL_SEASON - S.season} 個月迎來結局。`}</p>
+      <div style="display:flex;justify-content:flex-end"><button class="btn pri" id="sumOk">開始新的一個月</button></div>`;
     $('sum').classList.remove('hide'); $('sumOk').onclick = () => { $('sum').classList.add('hide'); res(); };
   });
   const log = (S.log || []).filter(l => l.s !== S.season).concat([seasonEntry()]);
-  const keep = { cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won, eggs: S.eggs, certs: S.certs, bullSeason: S.bullSeason, ended: S.ended, log, rank: S.rank, base: S.base, len: S.len, total: S.total, bond: S.bond, tut: S.tut, bondSeen: S.bondSeen, npcType: S.npcType, steps: S.steps, gone: (S.gone || []).concat(SEASON.delist ? [STOCKS[SEASON.delist.i].id] : []), ipoed: (S.ipoed || []).concat((SEASON.ipos || []).map(x => STOCKS[x.i].id)) };
+  const keep = { ...Object.fromEntries(LIFE_KEEP.map(k => [k, S[k]])), cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won, eggs: S.eggs, certs: S.certs, bullSeason: S.bullSeason, ended: S.ended, log, rank: S.rank, base: S.base, len: S.len, total: S.total, bond: S.bond, tut: S.tut, bondSeen: S.bondSeen, npcType: S.npcType, steps: S.steps, gone: (S.gone || []).concat(SEASON.delist ? [STOCKS[SEASON.delist.i].id] : []), ipoed: (S.ipoed || []).concat((SEASON.ipos || []).map(x => STOCKS[x.i].id)) };
   S = Object.assign(S0(), keep); syncTotal(); if (S.base != null) S.seed = seasonSeed(S.base, S.season); S.dayStartNet = S.cash; genSeason(S.seed);
 }
 function checkRank() {
   const r = rankOf(netWorth());
-  if (r > S.rank) { S.rank = r; sfx('done'); toast(`升級了！你現在是「<b>${RANKS[r].name}</b>」`); if (r === RANKS.length - 1 && !S.won) { S.won = true; setTimeout(() => toast('恭喜成為證券大亨！可以繼續玩，看看能走多遠'), 1500); } }
+  if (r > S.rank) { S.rank = r; achieve('rank' + Math.min(4, r)); sfx('done'); toast(`升級了！你現在是「<b>${RANKS[r].name}</b>」`); if (r === RANKS.length - 1 && !S.won) { S.won = true; setTimeout(() => toast('恭喜成為證券大亨！可以繼續玩，看看能走多遠'), 1500); } }
   if (netWorth() < BROKE_NET * 2 && netWorth() >= BROKE_NET) { toast(`錢快賠光了……總資產跌破 ${BROKE_NET / 1e4} 萬 就會提早結束`); }
   refreshHUD();
 }
@@ -705,7 +714,7 @@ function morningPaper() {
       <p><b>美股昨夜收盤</b>：道瓊 <span class="${cls(SEASON.us[d])}">${pct(SEASON.us[d])}</span>、那斯達克 <span class="${cls(SEASON.nas[d])}">${pct(SEASON.nas[d])}</span></p>
       <p><b>台股昨日</b>：${d > 1 ? `加權指數收 ${SEASON.index[d - 1].toFixed(0)} 點（<span class="${cls(SEASON.index[d - 1] / SEASON.index[d - 2] - 1)}">${pct(SEASON.index[d - 1] / SEASON.index[d - 2] - 1)}</span>）` : '新的一年第一個交易日'}</p>
       <p><b>今日天氣</b>：${W.name} ${SEASON.temp[d]}°C${W.closed ? '，颱風假休市' : ''}</p>
-      ${eraNews(d)}${ev ? `<p><b>焦點新聞</b>：${ev.def.head}</p>` : ''}${listNews(d)}
+      ${eraNews(d)}${ev ? `<p><b>焦點新聞</b>：${ev.def.head}</p>` : ''}${listNews(d)}${drawDays().includes(d) ? `<p><b>社會新聞</b>：今天${lottoName()}開獎，廟口擠滿求明牌的人，工廠請假的比上班的還多。</p>` : ''}
       <p class="ref">8:00 日本、韓國股市開盤，可以先看國際盤的方向；9:00 台股開盤，13:30 收盤。</p>
       <div class="row"><button class="btn pri" id="extOk">看完了</button></div>`;
     $('ext').classList.remove('hide'); sfx('tick');
@@ -716,7 +725,7 @@ function setChip(id, html) { const el = $(id).lastElementChild; if (el.innerHTML
 function refreshHUD() {
   const nw = netWorth(), dpl = nw - S.dayStartNet;
   setChip('chCash', wan(S.cash)); setChip('chNet', `${wan(nw)} <span class="${cls(dpl)}" style="font-size:11px">${dpl >= 0 ? '+' : ''}${(dpl / Math.max(1, S.dayStartNet) * 100).toFixed(1)}%</span>`); setChip('chDay', `${S.day}/${DAYS}`);
-  $('rank').textContent = `${RANKS[S.rank].name}・第 ${S.season}${S.ended ? '' : '/' + FINAL_SEASON} 季（${yearOf(S.season)}）`;
+  $('rank').textContent = `${RANKS[S.rank].name}・第 ${S.season}${S.ended ? '' : '/' + FINAL_SEASON} 個月（${yearOf(S.season)}）`;
 }
 function updateTicker() {
   const p = prices(), ix = idxOf(p), ich = ix / SEASON.index[S.day - 1] - 1, ph = PHASE();
@@ -742,7 +751,7 @@ function updateLabels() {
     const cd = camera.position.clone().normalize();
     for (const p of PLACES) { if (p.front.dot(cd) < 0.2) continue; const s = proj(p.front.clone().multiplyScalar(R + 3)); if (s) lbl(p.name, 'map', s[0], s[1], () => { toggleMap(); }); }
     const me = proj(PL.dir.clone().multiplyScalar(R + 2)); if (me) lbl('你在這裡', 'me', me[0], me[1]);
-  } else if (GAME.mode === 'ground') {
+  } else if (GAME.mode === 'interior') { interiorLabels(proj); } else if (GAME.mode === 'ground') {
     const cf = new V3(); camera.getWorldDirection(cf);
     for (const n of NPCS) {
       if (!n.ch.root.visible || n.role === 'crowd') continue; const d = angDist(PL.dir, n.dir); if (d > 9) continue;
@@ -766,7 +775,7 @@ function updateNPCs(dt) {
   crowdSay.t -= dt;
   if (ph === 'open' && crowdSay.t < -4 && Math.random() < 0.02) { const crowd = NPCS.filter(n => n.sit && n.road === 'E'); crowdSay = { t: 3, n: crowd[Math.random() * crowd.length | 0], txt: ich > 0.03 ? '漲停啦！發了發了！' : ich > 0.005 ? '紅通通，好看！' : ich < -0.03 ? '跌停了……我的買菜錢！' : ich < -0.005 ? '唉唷，又綠了' : '怎麼都不動啦' }; if (ich > 0.01) crowdSay.n.ch.wave = 1.2; }
   for (const n of NPCS) {
-    const d = angDist(PL.dir, n.dir), vis = GAME.mode !== 'title' && (GAME.mode === 'map' ? false : d < (POWER ? 24 : 36));
+    const d = angDist(PL.dir, n.dir), vis = GAME.mode === 'ground' && d < (POWER ? 24 : 36);
     n.ch.root.visible = vis; if (!vis) continue;
     if (n.role === 'ponzi') n.ch.root.visible = !S.ponziGone;
     if (n.night && ph !== 'night') n.ch.root.visible = false;
@@ -796,6 +805,7 @@ function updateNPCs(dt) {
 const CLR = { dayTop: new THREE.Color(0x7fb8d9), dayHor: new THREE.Color(0xf0e2c0), duskTop: new THREE.Color(0x6f6aa8), duskHor: new THREE.Color(0xffb27a), nTop: new THREE.Color(0x0e1530), nHor: new THREE.Color(0x3a2f4a) };
 const _c1 = new THREE.Color(), _c2 = new THREE.Color(), _cw = new THREE.Color();
 function updateLighting() {
+  if (GAME.mode === 'interior') return interiorLighting();
   const h = TIME.min / 60, ang = Math.PI * (h - 5.8) / 13, el = Math.sin(ang);
   const day = GAME.mode === 'title' ? 1 : smooth(-0.1, 0.25, el), dusk = GAME.mode === 'title' ? 0 : Math.exp(-(((el - 0.06) / 0.15) ** 2));
   const mapLike = GAME.mode === 'map' || GAME.mode === 'title';

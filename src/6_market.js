@@ -41,12 +41,12 @@ const STOCKS = [
 const ST_NAME = { 成長: '成長股', 價值: '價值股', 循環: '景氣循環股' };
 const SBY = Object.fromEntries(STOCKS.map(s => [s.id, s]));
 let DAYS = 40; const LIMIT = 0.07, LOT = 1000, FEE = 0.001425, TAX = 0.003, TICKS = 54;   // 09:00–13:30，每 5 分鐘一跳
-// 短篇每季只有一半天數，門檻跟著降低
+// 短篇每個月只有一半天數，門檻跟著降低
 const RANKS_L = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 3e6 }, { name: '中實戶', min: 6e6 }, { name: '大戶', min: 1.5e7 }, { name: '證券大亨', min: 5e7 }];
 const RANKS_S = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 2.5e6 }, { name: '中實戶', min: 5e6 }, { name: '大戶', min: 1e7 }, { name: '證券大亨', min: 3e7 }];
 let RANKS = RANKS_L;
 const START_CASH = 2000000;
-// 每季代表一年，開季指數用前一年底台股加權指數的收盤水準
+// 每個月代表一年，月初指數用前一年底台股加權指數的收盤水準
 const YEAR_OPEN = { 1985: 838, 1986: 835, 1987: 1039, 1988: 2340, 1989: 5119, 1990: 9624, 1991: 4530, 1992: 4600, 1993: 3377, 1994: 6070, 1995: 7124, 1996: 5173 };
 let IDX_BASE = 4500;
 const VOL_K = 1.5;   // 80 年代末個股波動大，漲停跌停是家常便飯（只放大個股，不改大盤）
@@ -136,7 +136,7 @@ const US_DN = ['聯準會官員發表鷹派言論　美股走低', '美債殖利
 const US_FLAT = ['美股漲跌互見　投資人觀望', '美國假期前夕　成交清淡'];
 const EBY = Object.fromEntries(EVENTS.map(e => [e.id, e]));
 
-/* ---------- 一整季的行情（由種子決定，存檔只要存種子） ---------- */
+/* ---------- 一整個月的行情（由種子決定，存檔只要存種子） ---------- */
 let SEASON = null;
 function gauss(r) { let u = 0, v = 0; while (u === 0) u = r(); while (v === 0) v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 function tick(p) { return p < 10 ? 0.01 : p < 50 ? 0.05 : p < 100 ? 0.1 : p < 500 ? 0.5 : 1; }
@@ -145,29 +145,29 @@ function genSeason(seed) {
   const r = mulberry32(seed), SS = typeof S !== 'undefined' && S ? S : null;
   DAYS = (SS && SS.len) || 40; RANKS = DAYS === 20 ? RANKS_S : RANKS_L; const season = (SS && SS.season) || 1;
   const year = (SS && SS.total ? 1984 : 1985) + season; IDX_BASE = YEAR_OPEN[year] || 4500;
-  // 1990 年泡沫破裂；遊戲後半段（季數過半之後）偏空，大約六到七成的日子下跌
+  // 1990 年泡沫破裂；遊戲後半段（月數過半之後）偏空，大約六到七成的日子下跌
   const bubble = year === 1990, late = !!(SS && SS.total && season > SS.total / 2), kb = 40 / DAYS;
   const pool = EVENTS.filter(e => !e.always && !e.policy).map(e => e.id);
   for (let i = pool.length - 1; i > 0; i--) { const j = r() * (i + 1) | 0;[pool[i], pool[j]] = [pool[j], pool[i]]; }
-  // 每季兩個利多、兩個利空，順序隨機
+  // 每個月兩個利多、兩個利空，順序隨機
   const POS = ['finbubble', 'chips', 'land', 'easing', 'ai', 'portjam'];
   const nPos = late ? 1 : 2, pos = pool.filter(id => POS.includes(id)).slice(0, nPos), neg = pool.filter(id => !POS.includes(id)).slice(0, 4 - nPos);
   const deck = pos.concat(neg); for (let i = 3; i > 0; i--) { const j = r() * (i + 1) | 0;[deck[i], deck[j]] = [deck[j], deck[i]]; }
   deck.splice(1 + (r() * 3 | 0), 0, 'ponzi');
   const events = []; let day = 5 + (r() * 3 | 0);
   for (const id of deck) { if (day > DAYS - 3) break; events.push({ id, day, def: EBY[id] }); day += EBY[id].dur + 2 + (r() * 4 | 0); }
-  // 上市名單：已下市的不再出現，之前季上市的新股會留下來
+  // 上市名單：已下市的不再出現，之前月份上市的新股會留下來
   const gone = new Set((SS && SS.gone) || []), ipoed = new Set((SS && SS.ipoed) || []), from = [], to = [];
   STOCKS.forEach((s, i) => { const on = !gone.has(s.id) && (!s.ipo || ipoed.has(s.id)); from[i] = on ? 1 : Infinity; to[i] = on ? DAYS : -1; });
-  // 新股上市：每季 1–2 檔，掛牌前幾天可以在證券行申購抽籤
+  // 新股上市：每個月 1–2 檔，掛牌前幾天可以在證券行申購抽籤
   const ipoPool = STOCKS.map((s, i) => i).filter(i => STOCKS[i].ipo && from[i] === Infinity);
   for (let i = ipoPool.length - 1; i > 0; i--) { const j = r() * (i + 1) | 0;[ipoPool[i], ipoPool[j]] = [ipoPool[j], ipoPool[i]]; }
   const ipos = ipoPool.slice(0, r() < 0.5 ? 2 : 1).map((i, k) => { const day = Math.max(4, Math.round(DAYS * (0.2 + 0.25 * k + 0.2 * r()))); from[i] = day; to[i] = DAYS; return { i, day, price: STOCKS[i].p0 }; });
-  // 經營不善下市：每季大多會有 1 檔，先打入全額交割、連續跌停，最後一天收盤後終止上市
+  // 經營不善下市：每個月大多會有 1 檔，先打入全額交割、連續跌停，最後一天收盤後終止上市
   let delist = null; const weak = STOCKS.map((s, i) => i).filter(i => STOCKS[i].weak && from[i] === 1);
   if (weak.length && r() < 0.85) { const i = weak[r() * weak.length | 0], day = Math.max(9, Math.round(DAYS * (0.5 + 0.35 * r()))); to[i] = day; delist = { i, warn: day - Math.max(3, Math.round(DAYS * 0.12)), day }; }
   const fullSeason = STOCKS.map((s, i) => i).filter(i => from[i] === 1 && to[i] === DAYS);
-  // 主力拉抬：每季三次，拉三天、倒兩天
+  // 主力拉抬：每個月三次，拉三天、倒兩天
   const pumps = [];
   for (let k = 0; k < 3; k++) { for (let t = 0; t < 30; t++) { const d = 4 + (r() * (DAYS - 10) | 0); if (events.some(e => Math.abs(e.day - d) < 4) || pumps.some(p => Math.abs(p.day - d) < 6)) continue; pumps.push({ day: d, stock: STOCKS[fullSeason[r() * fullSeason.length | 0]].id }); break; } }
   // 先算「不含天氣」的原始報酬，再套上天氣（天氣之後可能被即時天氣覆蓋）

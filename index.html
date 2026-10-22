@@ -387,7 +387,7 @@ function camOpen(p, h) {
 const TIME = { min: 6 * 60 };
 const PHASE = () => { const h = TIME.min / 60; return h < 9 ? 'pre' : h < 13.5 ? 'open' : h < 18 ? 'post' : 'night'; };
 // 每真實秒前進幾分鐘（不同時段不同速度，讓盤中看得清楚）
-const RATE = { pre: 5, open: 3, post: 6, night: 6 };
+const RATE = { pre: 4, open: 3, post: 3, night: 3 };   // 每真實秒前進幾分鐘；設定裡可以再分開調盤中和逛街的速度
 const fmtTime = () => { const m = Math.floor(TIME.min); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 const money = n => (n < 0 ? '-' : '') + Math.round(Math.abs(n)).toLocaleString('zh-TW');
 const wan = n => { const a = Math.abs(n); const s = a >= 1e8 ? (a / 1e8).toFixed(2) + ' 億' : a >= 1e4 ? (a / 1e4).toFixed(a >= 1e6 ? 0 : 1) + ' 萬' : Math.round(a) + ''; return (n < 0 ? '-' : '') + s; };
@@ -575,7 +575,10 @@ function mLamp(gl) {
 /* =========================================================
    city：1980 年代台北街景（騎樓透天厝、直立招牌、鐵窗、頂樓加蓋）
    ========================================================= */
-const CITY = new GB(), CITYGL = new GB();
+const CITY = new GB(), CITYGL = new GB(), NEONGB = new GB();
+const NEON_COL = [0xff4fa3, 0x3ff0e0, 0xffe14a, 0x7cff6b, 0xff6a3a];
+const NEON_MAT = new THREE.MeshBasicMaterial({ vertexColors: true });
+const STEAM = [];
 const COLLIDERS = [];
 function matFrom(dir, fwd, h = 0) {
   const right = new V3().crossVectors(dir, fwd), m = new THREE.Matrix4();
@@ -629,6 +632,13 @@ const TILES = [0xe9e1d2, 0xd9c8a9, 0xc9d3c4, 0xe6c9b8, 0xd8d2c0, 0xbfc9cc, 0xe8d
 const SHOP_TXT = ['西藥房', '銀樓', '鐘錶眼鏡', '牛肉麵', '自助餐', '冰果室', '照相館', '書局', '唱片行', '錄影帶出租', '電器行', '五金行', '檳榔', '理髮廳', '牙科診所', '補習班', '旅社', '委託行', '茶行', '布莊', '皮鞋', '呼叫器', '麵包店', '當舖', '機車行', '家具行', '文具', '卡拉OK', '漫畫屋', '小吃部', '水電行', '中藥行', '電動玩具', '服飾店', '美容院', '汽車百貨'];
 const SIGN_COL = [['#c8402f', '#fff3d6'], ['#1f4f9a', '#ffffff'], ['#f2c14e', '#7a1f12'], ['#ffffff', '#c8402f'], ['#1d6b52', '#fff3d6'], ['#2b2622', '#ffb000'], ['#e8789a', '#ffffff'], ['#ffffff', '#1f4f9a']];
 const D = 7, FLH = 2.6, OFF = 3.1;   // 建築深度、樓高、騎樓柱離路中心
+const SCOOTER_COL = [0xd7263d, 0x2b7f86, 0xf4efe4, 0x1f4f9a, 0x5f9e6a, 0x2b2622];
+// 野狼、偉士牌：車頭朝馬路
+function mScooter(gb, x, z, col) {
+  gb.box(0.26, 0.3, 0.84, col, x, 0.34, z); gb.box(0.24, 0.08, 0.42, 0x2b2622, x, 0.53, z - 0.12); gb.box(0.28, 0.44, 0.08, col, x, 0.55, z + 0.36);
+  gb.box(0.5, 0.04, 0.04, 0x333333, x, 0.8, z + 0.34); gb.sph(0.06, 0xfff2b0, x, 0.68, z + 0.42, 1, 1, 0.6, 6);
+  for (const zz of [0.34, -0.32]) gb.cyl(0.15, 0.15, 0.09, 0x222222, x, 0.15, z + zz, 10, 0, 0, Math.PI / 2);
+}
 function mShop(w, fl, o = {}) {
   const gb = new GB(), gl = new GB(), tile = o.tile || TILES[rnd() * TILES.length | 0];
   gb.box(w, FLH, D - 1.5, 0x7d756b, 0, FLH / 2, -0.75);
@@ -637,6 +647,7 @@ function mShop(w, fl, o = {}) {
   gb.box(w, 0.22, 1.5, tile, 0, FLH - 0.11, D / 2 - 0.75);
   for (const s of [-1, 1]) gb.box(0.42, FLH, 0.42, tile, s * (w / 2 - 0.21), FLH / 2, D / 2 - 0.21);
   gb.box(w, 0.06, 1.5, 0xb85c4a, 0, 0.03, D / 2 - 0.75);   // 騎樓地磚
+  if (rnd() < 0.6) { const n = 1 + (rnd() * Math.min(3, w / 1.4) | 0); for (let k = 0; k < n; k++) mScooter(gb, -w / 2 + 0.8 + k * ((w - 1.6) / Math.max(1, n - 1 || 1)), D / 2 - 1.15, SCOOTER_COL[rnd() * SCOOTER_COL.length | 0]); }
   for (let f = 1; f < fl; f++) {
     const y0 = f * FLH;
     gb.box(w, FLH, D, tile, 0, y0 + FLH / 2, 0);
@@ -647,6 +658,7 @@ function mShop(w, fl, o = {}) {
       gl.box(ww, 1.1, 0.04, WINGLOW, x, y0 + 1.35, D / 2 + 0.02);
       if (rnd() < 0.7) { gb.box(ww + 0.16, 1.26, 0.06, 0x3a3f42, x, y0 + 1.35, D / 2 + 0.32); gb.box(ww + 0.16, 0.06, 0.34, 0x3a3f42, x, y0 + 0.72, D / 2 + 0.17); gb.box(ww + 0.16, 0.06, 0.34, 0x3a3f42, x, y0 + 1.98, D / 2 + 0.17); for (let b = 0; b < 4; b++) gb.box(0.03, 1.2, 0.03, 0x3a3f42, x - ww / 2 + (b + 0.5) * ww / 4, y0 + 1.35, D / 2 + 0.33); }
       if (rnd() < 0.35) gb.box(0.7, 0.45, 0.45, 0xe9ecec, x + 0.15, y0 + 0.45, D / 2 + 0.25);
+      if (rnd() < 0.18) { gb.box(ww + 0.4, 0.03, 0.03, 0x888888, x, y0 + 2.15, D / 2 + 0.55); for (let c = 0; c < 3; c++) gb.box(0.26, 0.36, 0.02, [0xffffff, 0x7fb3d6, 0xe8789a, 0xf2c14e, 0x5f9e6a][rnd() * 5 | 0], x - ww / 2 + 0.1 + c * (ww / 2.4), y0 + 1.95, D / 2 + 0.55); }
     }
   }
   const top = fl * FLH;
@@ -663,6 +675,7 @@ function placeBuilding(road, s, side, w, fl, o = {}) {
   // 招牌
   const sc = o.signCol || SIGN_COL[rnd() * SIGN_COL.length | 0];
   if (o.hsign) addSignQuad(m, 0, FLH + 0.42, D / 2 + 0.08, Math.min(w * 0.92, 7.6), Math.min(w * 0.92, 7.6) / 4, 0, signCell(o.hsign, sc[0], sc[1], false, o.hsub));
+  if (o.hsign && rnd() < 0.55) { const sw = Math.min(w * 0.92, 7.6) + 0.14, sh = sw / 4 + 0.14, nc = NEON_COL[rnd() * NEON_COL.length | 0], ng = new GB(), y = FLH + 0.42, z = D / 2 + 0.12; ng.box(sw, 0.05, 0.05, nc, 0, y + sh / 2, z); ng.box(sw, 0.05, 0.05, nc, 0, y - sh / 2, z); ng.box(0.05, sh, 0.05, nc, -sw / 2, y, z); ng.box(0.05, sh, 0.05, nc, sw / 2, y, z); NEONGB.merge(ng, m); }
   if (o.vsign !== false && fl >= 3) verticalSign(m, (rnd() < 0.5 ? -1 : 1) * (w / 2 - 0.3), FLH + 1.75, D / 2 + 0.5, o.vsign || SHOP_TXT[rnd() * SHOP_TXT.length | 0], sc[0], sc[1]);
   for (const sx of [-1, 1]) COLLIDERS.push({ d: localToDir(m, sx * (w / 2 - 0.21), D / 2 - 0.21), r: 0.32 });
   return { m, sl, b };
@@ -811,8 +824,16 @@ function buildCity() {
     const sl = slot(road, s, side, 2.0), gl = new GB(), gb = mLamp(gl); CITY.merge(gb, matFrom(sl.dir, tangentize(roadPoint(road, s + 0.1).sub(roadPoint(road, s)), sl.dir).applyAxisAngle(sl.dir, side * Math.PI / 2), 0)); CITYGL.merge(gl, matFrom(sl.dir, tangentize(roadPoint(road, s + 0.1).sub(roadPoint(road, s)), sl.dir).applyAxisAngle(sl.dir, side * Math.PI / 2), 0));
     COLLIDERS.push({ d: sl.dir, r: 0.25 });
   }
+  // ---- 街道小物：公用電話亭、郵筒、公車站牌 ----
+  for (const [rd, s0, sd] of [['E', -6.5, 1], ['M', 21, -1], ['E', 36, 1], ['M', -16, 1]]) { const sl = slot(rd, s0, sd, 2.25), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(0.72, 2.0, 0.72, 0xe8742b, 0, 1.0, 0); for (const sx of [-1, 1]) gb.box(0.04, 1.2, 0.6, 0xbfe3ef, sx * 0.37, 1.15, 0); gb.box(0.6, 1.2, 0.04, 0xbfe3ef, 0, 1.15, 0.37); gb.box(0.8, 0.1, 0.8, 0x2b2622, 0, 2.05, 0); CITY.merge(gb, m); addSignQuad(m, 0, 1.85, 0.38, 0.5, 0.16, 0, signCell('電話', '#e8742b', '#ffffff', false)); COLLIDERS.push({ d: sl.dir, r: 0.45 }); }
+  for (const [rd, s0, sd] of [['E', -19, -1], ['M', 6, -1]]) { const sl = slot(rd, s0, sd, 2.2), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(0.42, 0.95, 0.38, 0x2e7d4f, -0.25, 0.48, 0); gb.box(0.42, 0.95, 0.38, 0xc8402f, 0.25, 0.48, 0); gb.box(0.95, 0.06, 0.45, 0x2b2622, 0, 0.98, 0); CITY.merge(gb, m); COLLIDERS.push({ d: sl.dir, r: 0.4 }); }
+  for (const [rd, s0, sd] of [['M', 44, 1], ['E', -40, 1], ['E', 58, -1]]) { const sl = slot(rd, s0, sd, 2.05), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.cyl(0.04, 0.04, 2.3, 0x666666, 0, 1.15, 0, 6); gb.box(0.55, 0.42, 0.04, 0x1f4f9a, 0, 2.2, 0.02); CITY.merge(gb, m); addSignQuad(m, 0, 2.2, 0.05, 0.5, 0.16, 0, signCell('公車站', '#1f4f9a', '#ffffff', false)); COLLIDERS.push({ d: sl.dir, r: 0.2 }); }
+  // 冒煙的小吃攤：市場和居酒屋門口
+  for (const [rd, s0, sd, night] of [['E', 26.5, -1, false], ['E', 30, -1, false], ['E', 45, -1, true]]) STEAM.push({ dir: slot(rd, s0, sd, 3.0).dir, night, pts: null });
   // ---- 合併 ----
   const cm = CITY.mesh(true); scene.add(cm); const gm = new THREE.Mesh(CITYGL.geometry(), GLOW); scene.add(gm);
+  if (NEONGB.L.length) scene.add(new THREE.Mesh(NEONGB.geometry(), NEON_MAT));
+  buildSteam();
   const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(SIGNS.pos, 3)); sg.setAttribute('uv', new THREE.Float32BufferAttribute(SIGNS.uv, 2)); sg.computeVertexNormals();
   const at = new THREE.CanvasTexture(ATLAS.c); at.anisotropy = 4; SIGN_MAT.map = at; scene.add(new THREE.Mesh(sg, SIGN_MAT));
 }
@@ -872,6 +893,30 @@ function updateCars(dt, plDir) {
     c.s += c.sp * c.dirn * dt; if (c.s > L / 2) c.s -= L; if (c.s < -L / 2) c.s += L;
     const sl = slot(c.road, c.s, side, 0.9), fwd = tangentize(roadPoint(c.road, c.s + c.dirn * 0.1).sub(roadPoint(c.road, c.s)), sl.dir);
     placeOn(c.g, sl.dir, fwd, 0.04);
+  }
+}
+
+/* ---------- 霓虹燈閃爍、小吃攤冒煙 ---------- */
+function buildSteam() {
+  const tex = canvasTex(64, 64, (g, w, h) => { const gr = g.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+  for (const st of STEAM) {
+    const n = 14, geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    st.pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.55, map: tex, transparent: true, opacity: 0.55, depthWrite: false })); st.age = [...Array(n)].map((_, k) => k / n * 2.4); scene.add(st.pts);
+    const t = tangentize(new V3(0, 1, 0), st.dir); st.t1 = isFinite(t.x) ? t : tangentize(new V3(1, 0, 0), st.dir); st.t2 = new V3().crossVectors(st.dir, st.t1);
+  }
+}
+function updateCityFx(dt) {
+  const h = TIME.min / 60, night = GAME.mode !== 'title' && (h < 6.3 || h > 18.2), t = GAME.t;
+  NEON_MAT.color.setScalar(night ? 0.82 + 0.18 * Math.sin(t * 9) * (Math.sin(t * 1.3) > 0.85 ? 1 : 0.15) : 0.35);
+  for (const st of STEAM) {
+    if (!st.pts) continue; const on = GAME.mode === 'ground' && (st.night ? night : !night && PHASE() !== 'night') && angDist(PL.dir, st.dir) < 22; st.pts.visible = on; if (!on) continue;
+    const a = st.pts.geometry.attributes.position;
+    for (let k = 0; k < st.age.length; k++) {
+      st.age[k] = (st.age[k] + dt) % 2.4; const u = st.age[k] / 2.4, sw = Math.sin(k * 7.1 + t) * 0.18 * u;
+      const p = st.dir.clone().multiplyScalar(R + 1.1 + u * 1.8).addScaledVector(st.t1, sw + (k % 3 - 1) * 0.12).addScaledVector(st.t2, Math.cos(k * 3.3 + t) * 0.12 * u);
+      a.setXYZ(k, p.x, p.y, p.z);
+    }
+    a.needsUpdate = true; st.pts.material.opacity = 0.5;
   }
 }
 /* =========================================================
@@ -1234,12 +1279,12 @@ const STOCKS = [
 const ST_NAME = { 成長: '成長股', 價值: '價值股', 循環: '景氣循環股' };
 const SBY = Object.fromEntries(STOCKS.map(s => [s.id, s]));
 let DAYS = 40; const LIMIT = 0.07, LOT = 1000, FEE = 0.001425, TAX = 0.003, TICKS = 54;   // 09:00–13:30，每 5 分鐘一跳
-// 短篇每季只有一半天數，門檻跟著降低
+// 短篇每個月只有一半天數，門檻跟著降低
 const RANKS_L = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 3e6 }, { name: '中實戶', min: 6e6 }, { name: '大戶', min: 1.5e7 }, { name: '證券大亨', min: 5e7 }];
 const RANKS_S = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 2.5e6 }, { name: '中實戶', min: 5e6 }, { name: '大戶', min: 1e7 }, { name: '證券大亨', min: 3e7 }];
 let RANKS = RANKS_L;
 const START_CASH = 2000000;
-// 每季代表一年，開季指數用前一年底台股加權指數的收盤水準
+// 每個月代表一年，月初指數用前一年底台股加權指數的收盤水準
 const YEAR_OPEN = { 1985: 838, 1986: 835, 1987: 1039, 1988: 2340, 1989: 5119, 1990: 9624, 1991: 4530, 1992: 4600, 1993: 3377, 1994: 6070, 1995: 7124, 1996: 5173 };
 let IDX_BASE = 4500;
 const VOL_K = 1.5;   // 80 年代末個股波動大，漲停跌停是家常便飯（只放大個股，不改大盤）
@@ -1329,7 +1374,7 @@ const US_DN = ['聯準會官員發表鷹派言論　美股走低', '美債殖利
 const US_FLAT = ['美股漲跌互見　投資人觀望', '美國假期前夕　成交清淡'];
 const EBY = Object.fromEntries(EVENTS.map(e => [e.id, e]));
 
-/* ---------- 一整季的行情（由種子決定，存檔只要存種子） ---------- */
+/* ---------- 一整個月的行情（由種子決定，存檔只要存種子） ---------- */
 let SEASON = null;
 function gauss(r) { let u = 0, v = 0; while (u === 0) u = r(); while (v === 0) v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 function tick(p) { return p < 10 ? 0.01 : p < 50 ? 0.05 : p < 100 ? 0.1 : p < 500 ? 0.5 : 1; }
@@ -1338,29 +1383,29 @@ function genSeason(seed) {
   const r = mulberry32(seed), SS = typeof S !== 'undefined' && S ? S : null;
   DAYS = (SS && SS.len) || 40; RANKS = DAYS === 20 ? RANKS_S : RANKS_L; const season = (SS && SS.season) || 1;
   const year = (SS && SS.total ? 1984 : 1985) + season; IDX_BASE = YEAR_OPEN[year] || 4500;
-  // 1990 年泡沫破裂；遊戲後半段（季數過半之後）偏空，大約六到七成的日子下跌
+  // 1990 年泡沫破裂；遊戲後半段（月數過半之後）偏空，大約六到七成的日子下跌
   const bubble = year === 1990, late = !!(SS && SS.total && season > SS.total / 2), kb = 40 / DAYS;
   const pool = EVENTS.filter(e => !e.always && !e.policy).map(e => e.id);
   for (let i = pool.length - 1; i > 0; i--) { const j = r() * (i + 1) | 0;[pool[i], pool[j]] = [pool[j], pool[i]]; }
-  // 每季兩個利多、兩個利空，順序隨機
+  // 每個月兩個利多、兩個利空，順序隨機
   const POS = ['finbubble', 'chips', 'land', 'easing', 'ai', 'portjam'];
   const nPos = late ? 1 : 2, pos = pool.filter(id => POS.includes(id)).slice(0, nPos), neg = pool.filter(id => !POS.includes(id)).slice(0, 4 - nPos);
   const deck = pos.concat(neg); for (let i = 3; i > 0; i--) { const j = r() * (i + 1) | 0;[deck[i], deck[j]] = [deck[j], deck[i]]; }
   deck.splice(1 + (r() * 3 | 0), 0, 'ponzi');
   const events = []; let day = 5 + (r() * 3 | 0);
   for (const id of deck) { if (day > DAYS - 3) break; events.push({ id, day, def: EBY[id] }); day += EBY[id].dur + 2 + (r() * 4 | 0); }
-  // 上市名單：已下市的不再出現，之前季上市的新股會留下來
+  // 上市名單：已下市的不再出現，之前月份上市的新股會留下來
   const gone = new Set((SS && SS.gone) || []), ipoed = new Set((SS && SS.ipoed) || []), from = [], to = [];
   STOCKS.forEach((s, i) => { const on = !gone.has(s.id) && (!s.ipo || ipoed.has(s.id)); from[i] = on ? 1 : Infinity; to[i] = on ? DAYS : -1; });
-  // 新股上市：每季 1–2 檔，掛牌前幾天可以在證券行申購抽籤
+  // 新股上市：每個月 1–2 檔，掛牌前幾天可以在證券行申購抽籤
   const ipoPool = STOCKS.map((s, i) => i).filter(i => STOCKS[i].ipo && from[i] === Infinity);
   for (let i = ipoPool.length - 1; i > 0; i--) { const j = r() * (i + 1) | 0;[ipoPool[i], ipoPool[j]] = [ipoPool[j], ipoPool[i]]; }
   const ipos = ipoPool.slice(0, r() < 0.5 ? 2 : 1).map((i, k) => { const day = Math.max(4, Math.round(DAYS * (0.2 + 0.25 * k + 0.2 * r()))); from[i] = day; to[i] = DAYS; return { i, day, price: STOCKS[i].p0 }; });
-  // 經營不善下市：每季大多會有 1 檔，先打入全額交割、連續跌停，最後一天收盤後終止上市
+  // 經營不善下市：每個月大多會有 1 檔，先打入全額交割、連續跌停，最後一天收盤後終止上市
   let delist = null; const weak = STOCKS.map((s, i) => i).filter(i => STOCKS[i].weak && from[i] === 1);
   if (weak.length && r() < 0.85) { const i = weak[r() * weak.length | 0], day = Math.max(9, Math.round(DAYS * (0.5 + 0.35 * r()))); to[i] = day; delist = { i, warn: day - Math.max(3, Math.round(DAYS * 0.12)), day }; }
   const fullSeason = STOCKS.map((s, i) => i).filter(i => from[i] === 1 && to[i] === DAYS);
-  // 主力拉抬：每季三次，拉三天、倒兩天
+  // 主力拉抬：每個月三次，拉三天、倒兩天
   const pumps = [];
   for (let k = 0; k < 3; k++) { for (let t = 0; t < 30; t++) { const d = 4 + (r() * (DAYS - 10) | 0); if (events.some(e => Math.abs(e.day - d) < 4) || pumps.some(p => Math.abs(p.day - d) < 6)) continue; pumps.push({ day: d, stock: STOCKS[fullSeason[r() * fullSeason.length | 0]].id }); break; } }
   // 先算「不含天氣」的原始報酬，再套上天氣（天氣之後可能被即時天氣覆蓋）
@@ -1561,7 +1606,7 @@ const LOOKS = {
 };
 // role：消息來源類型；rel：可信度（玩家看不到，只能從戰績推敲）
 const NPCS = [
-  { id: 'broker', name: '營業員小美', look: 'broker', road: 'E', s: 11, side: 1, off: 3.7, role: 'broker', rel: 0.5 },
+  { id: 'broker', name: '營業員小美', look: 'broker', road: 'E', s: 11, side: 1, off: 3.7, role: 'broker', rel: 0.5, appear: () => false },
   { id: 'oldhand', name: '老張伯', look: 'oldhand', road: 'E', s: 8.4, side: 1, off: 2.75, role: 'oldhand', rel: 0.62, sit: true },
   { id: 'aunt1', name: '王媽媽', look: 'auntie1', road: 'E', s: 11.4, side: 1, off: 2.75, role: 'auntie', rel: 0.36, sit: true, day: true },
   { id: 'aunt2', name: '林阿姨', look: 'auntie2', road: 'E', s: 12.9, side: 1, off: 2.75, role: 'auntie', rel: 0.4, sit: true, day: true },
@@ -1575,8 +1620,8 @@ const NPCS = [
   { id: 'builder', name: '陳董', look: 'builder', road: 'E', s: -46, side: -1, off: 2.6, role: 'builder', rel: 0.7, sectors: ['營建', '紡織'] },
   { id: 'boss', name: '阿財哥', look: 'boss', road: 'E', s: 28, side: 1, off: 2.6, role: 'boss' },
   { id: 'vendor', name: '菜販阿珠', look: 'vendor', road: 'E', s: 28, side: -1, off: 2.6, role: 'auntie', rel: 0.32, day: true },
-  { id: 'whale', name: '大戶阿忠', look: 'whale', road: 'E', s: 44.4, side: -1, off: 3.7, role: 'whale', rel: 0.72, night: true },
-  { id: 'mama', name: '居酒屋老闆娘', look: 'mama', road: 'E', s: 47.6, side: -1, off: 3.7, role: 'mama', rel: 0.6, night: true },
+  { id: 'whale', name: '大戶阿忠', look: 'whale', road: 'E', s: 44.4, side: -1, off: 3.7, role: 'whale', rel: 0.72, night: true, appear: () => false },
+  { id: 'mama', name: '居酒屋老闆娘', look: 'mama', road: 'E', s: 47.6, side: -1, off: 3.7, role: 'mama', rel: 0.6, night: true, appear: () => false },
   { id: 'monk', name: '廟公', look: 'monk', road: 'M', s: 13, side: 1, off: 2.8, role: 'temple' },
   { id: 'taxi', name: '運將阿輝', look: 'taxi', road: 'M', s: 30, side: -1, off: 2.6, role: 'taxi', rel: 0.45 },
   { id: 'phone', name: '通訊行小姐', look: 'phone', road: 'E', s: -62, side: 1, off: 2.6, role: 'phone' },
@@ -1666,6 +1711,7 @@ function groundCam(out) {
   out.look.copy(base).addScaledVector(up, 1.3).addScaledVector(PL.camF, 1.2); out.up.copy(up);
 }
 function updateCamera(dt) {
+  if (GAME.mode === 'interior') return interiorCamera(dt);
   const k = 1 - Math.exp(-dt * 7);
   if (GAME.mode === 'title') { const a = GAME.t * 0.07; const c = new V3(Math.sin(a), 0.35, Math.cos(a)).normalize(); camera.position.copy(c).multiplyScalar(R * 2.9); camera.up.set(0, 1, 0); camera.lookAt(0, R * 0.55, 0); return; }
   const tgt = GAME.mode === 'map' ? 1 : 0; CAM.blend += (tgt - CAM.blend) * (1 - Math.exp(-dt * 3.2)); if (Math.abs(tgt - CAM.blend) < 0.002) CAM.blend = tgt;
@@ -1676,15 +1722,15 @@ function updateCamera(dt) {
   camera.lookAt(CAM.look);
 }
 function toggleMap() {
-  if (GAME.busy) return;
+  if (GAME.busy || GAME.mode === 'interior') return;
   if (GAME.mode === 'map') { GAME.mode = 'ground'; return; }
   GAME.mode = 'map'; CAM.mapPos.copy(PL.dir); CAM.mapUp.copy(tangentize(new V3(0, 1, 0), PL.dir)); if (!isFinite(CAM.mapUp.x)) CAM.mapUp.set(0, 0, 1);
 }
 function mapDrag(dx, dy) { const right = new V3().crossVectors(CAM.mapUp, CAM.mapPos).normalize(); CAM.mapPos.applyAxisAngle(CAM.mapUp, -dx * 0.006); CAM.mapPos.applyAxisAngle(right, dy * 0.006); CAM.mapUp.applyAxisAngle(right, dy * 0.006); tangentize(CAM.mapUp, CAM.mapPos.normalize()); }
 
 /* ---------- 輸入 ---------- */
-function anyModal() { return ['trade', 'notes', 'help', 'sum', 'ext', 'saves', 'ending'].some(id => !$(id).classList.contains('hide')); }
-function closeModals() { ['trade', 'notes', 'help', 'saves'].forEach(id => $(id).classList.add('hide')); GAME.busy = false; }
+function anyModal() { return ['trade', 'notes', 'help', 'sum', 'ext', 'saves', 'ending', 'life'].some(id => !$(id).classList.contains('hide')); }
+function closeModals() { ['trade', 'notes', 'help', 'saves', 'life'].forEach(id => $(id).classList.add('hide')); GAME.busy = false; }
 function bindInput() {
   addEventListener('keydown', e => {
     if (GAME.mode === 'title') return;
@@ -1735,12 +1781,12 @@ function findNear() {
   for (const e of EGGS) if (EGG_SPOTS[e.id] && angDist(PL.dir, EGG_SPOTS[e.id]) < 2.6) return Object.assign({ egg: true }, e);
   let best = null, bd = 2.4;
   for (const n of NPCS) { if (!n.ch.root.visible || n.role === 'crowd') continue; const d = angDist(PL.dir, n.dir); if (d < bd) { bd = d; best = n; } }
-  return best;
+  return doorNear(best);
 }
-function interact() { if (GAME.busy || !NEAR) return; if (NEAR.egg) return eggAct(NEAR.id); talkTo(NEAR); }
+function interact() { if (GAME.busy || !NEAR) return; if (NEAR.act) return NEAR.act(); if (NEAR.egg) return eggAct(NEAR.id); talkTo(NEAR); }
 async function talkTo(n) {
   GAME.busy = true; n.facing = true; sfx('blip');
-  try { await (TALK[n.role] || TALK.rumor)(n); }
+  try { if (!(await lifeHook(n))) await (TALK[n.role] || TALK.rumor)(n); }
   finally { DLG.hide(); n.facing = false; GAME.busy = false; saveGame(); refreshHUD(); }
 }
 function toast(html) { const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = html; $('toasts').appendChild(el); while ($('toasts').children.length > (innerWidth <= 640 || innerHeight <= 500 ? 2 : 3)) $('toasts').firstChild.remove(); setTimeout(() => el.remove(), 3300); }
@@ -1799,7 +1845,7 @@ function marginParts(p = prices()) {
   STOCKS.forEach((s, i) => { const m = S.mar[s.id]; if (m) { mv += m.q * LOT * p[i]; loan += m.loan; } const h = S.sht[s.id]; if (h) { sv += h.q * LOT * p[i]; coll += h.margin + h.proceeds; } });
   return { mv, loan, sv, coll, eq: mv - loan + coll - sv };
 }
-const netWorth = () => S.cash + holdValue() + marginParts().eq + S.deposit + subFrozen();
+const netWorth = () => S.cash + holdValue() + marginParts().eq + S.deposit + subFrozen() + lifeValue();
 const rankOf = n => { let r = 0; RANKS.forEach((k, i) => { if (n >= k.min) r = i; }); return r; };
 const pct = x => Math.abs(x) < 5e-5 ? '0.00%' : (x > 0 ? '▲' : '▼') + Math.abs(x * 100).toFixed(2) + '%';
 const cls = x => x > 0.00001 ? 'up' : x < -0.00001 ? 'down' : '';
@@ -1808,7 +1854,7 @@ const cls = x => x > 0.00001 ? 'up' : x < -0.00001 ? 'down' : '';
 function giveRumor(n) {
   if (S.talked[n.id] === S.day) return null;
   const m = makeRumor(n.rel ? Object.assign(Object.create(n), { rel: relOf(n) }) : n, S.day); S.talked[n.id] = S.day; bondUp(n); if (!m) return null;
-  Object.assign(m, { day: S.day, npc: n.id, npcName: n.name }); S.rumors.push(m);
+  Object.assign(m, { day: S.day, npc: n.id, npcName: n.name }); S.rumors.push(m); if (m.stock) dexSeen(m.stock);
   $('noteBadge').classList.remove('hide'); return m;
 }
 const GREET = {
@@ -1864,7 +1910,7 @@ const EGG_LIST = [
 ];
 function findEgg(id, label) {
   if (S.eggs[id]) return; S.eggs[id] = 1; sfx('done');
-  const n = Object.keys(S.eggs).length + S.certs.length; toast(`發現彩蛋：${label}（${n}/${EGG_LIST.length + EGG_CERT_POS.length}）`); $('noteBadge').classList.remove('hide');
+  const n = Object.keys(S.eggs).length + S.certs.length; toast(`發現彩蛋：${label}（${n}/${EGG_LIST.length + EGG_CERT_POS.length}）`); if (n >= EGG_LIST.length + EGG_CERT_POS.length) achieve('eggs'); $('noteBadge').classList.remove('hide');
 }
 async function eggAct(id) {
   GAME.busy = true;
@@ -1872,13 +1918,13 @@ async function eggAct(id) {
     if (id === 'bull') {
       await say(null, '（金色的公牛被摸得閃閃發亮，牛鼻子特別亮，大概大家都摸這裡。）');
       findEgg('bull', '城中金牛');
-      if (S.bullSeason === S.season) { await say(null, '金牛閃了一下光……但今天沒有反應。（每一季只靈驗一次）'); return; }
-      if (S.day >= DAYS) { await say(null, '金牛靜靜地看著你。這一季快結束了，下一季再來吧。'); return; }
+      if (S.bullSeason === S.season) { await say(null, '金牛閃了一下光……但今天沒有反應。（每個月只靈驗一次）'); return; }
+      if (S.day >= DAYS) { await say(null, '金牛靜靜地看著你。這個月快結束了，下個月再來吧。'); return; }
       let d2 = S.day + 1; while (d2 < DAYS && Math.max(...SEASON.ret[d2]) <= 0) d2++;
       const nx = SEASON.ret[d2]; let i = -1; nx.forEach((x, k) => { if (listed(k, d2) && (i < 0 || x > nx[i])) i = k; }); const st = STOCKS[i];
       S.bullSeason = S.season;
       S.rumors.push({ kind: 'tip', stock: st.id, dir: 1, text: `金牛顯靈：${st.name}第 ${d2} 天會漲`, resolve: d2, day: S.day, npc: 'bull', npcName: '城中金牛' }); $('noteBadge').classList.remove('hide');
-      await say(null, `金牛的眼睛亮了一下，你腦中浮現一個名字：「${st.name}」。（記進消息本了，每季只有一次）`);
+      await say(null, `金牛的眼睛亮了一下，你腦中浮現一個名字：「${st.name}」。（記進消息本了，每個月只有一次）`);
     } else {
       await say(null, '（黑熊坐在石台上，脖子掛著一塊小牌子。）');
       await say(null, '牌子上寫著：「漲多了會跌，跌深了會漲；停損，是留在市場裡的門票。」');
@@ -1933,8 +1979,9 @@ const TALK = {
   },
   temple: async n => {
     await say(n, '來求明牌喔？心誠則靈啦。');
-    const c = await choose(['擲筊求明牌', '只是來拜拜']);
-    if (c === 1) { await say(n, '平安就好，平安就好。'); return; }
+    const c = await choose(['擲筊求明牌', `簽${lottoName()}`, '只是來拜拜']);
+    if (c === 1) { await lottoTalk(n); return; }
+    if (c === 2) { await say(n, '平安就好，平安就好。'); return; }
     if (S.talked.monk === S.day) { await say(n, '一天問一次就好，神明也要休息。'); return; }
     S.talked.monk = S.day; sfx('tick');
     const live = STOCKS.filter((x, k) => listed(k, Math.min(DAYS, S.day + 1))), s = live[Math.random() * live.length | 0], dir = Math.random() < 0.5 ? 1 : -1;
@@ -1972,21 +2019,21 @@ function headline() {
 }
 
 /* ---------- 看盤下單 ---------- */
-function canTradeHere() { return S.phone || angDist(PL.dir, PLACE_BY.broker.front) < 9; }
+function canTradeHere() { return S.phone || (GAME.mode === 'interior' ? IN.id === 'broker' || (IN.id === 'home' && houseTier() >= 1) : angDist(PL.dir, PLACE_BY.broker.front) < 9); }
 function openTrade(fromBroker) {
   if (GAME.busy && !fromBroker) return;
   if (!fromBroker && !canTradeHere()) { toast('要在證券行（城中證券）附近才能下單；買了大哥大就能隨時下單'); }
   GAME.busy = true; $('trade').classList.remove('hide'); renderTrade();
 }
 let trMode = 'cash', chSel = 'idx', chRange = 'season';
-// 看盤畫面的走勢圖：大盤、個股或自己的資產；本季累積（日線）或今日分時
+// 看盤畫面的走勢圖：大盤、個股或自己的資產；本月累積（日線）或今日分時
 function chartSeries() {
   const p = prices(), i = STOCKS.findIndex(s => s.id === chSel), d0 = S.day - 1;
   const live = PHASE() === 'open' && MK.path, path = MK.path || GAME.dayPath;
   if (chRange === 'today') {
     if (!path || MK.k < 0 && !GAME.dayPath) return { pts: [], base: 0, empty: '9:00 開盤後才有今天的分時走勢' };
     const k = live ? MK.k : TICKS;
-    if (chSel === 'me') return { pts: [], base: 0, empty: '資產走勢請看「本季累積」' };
+    if (chSel === 'me') return { pts: [], base: 0, empty: '資產走勢請看「本月累積」' };
     const pts = chSel === 'idx' ? GAME.idxTicks.slice(0, k + 1) : path[i].slice(0, k + 1);
     return { pts, base: chSel === 'idx' ? SEASON.index[d0] : SEASON.close[d0][i], labels: ['09:00', live ? fmtTime() : '13:30'], total: TICKS + 1 };
   }
@@ -1996,7 +2043,7 @@ function chartSeries() {
   else { pts = SEASON.close.slice(0, S.day).map(c => c[i]); pts.push(p[i]); }
   const cost = chSel !== 'idx' && chSel !== 'me' ? [S.hold[chSel], S.mar[chSel], S.sht[chSel]].filter(Boolean).map(h => h.cost)[0] : null;
   const evs = chSel === 'me' ? [] : SEASON.events.filter(e => e.day <= S.day).map(e => ({ x: e.day - 1, name: e.def.name }));
-  return { pts, base: pts[0], labels: ['開季', `第 ${S.day} 天`], total: Math.max(pts.length, 11), cost, evs };
+  return { pts, base: pts[0], labels: ['月初', `第 ${S.day} 天`], total: Math.max(pts.length, 11), cost, evs };
 }
 function chartSVG() {
   const c = chartSeries();
@@ -2021,11 +2068,11 @@ function chartSVG() {
   g += `<text x="${W - R + 4}" y="${yLast}" class="chT" fill="${col}" font-weight="700">${fmt(last)}</text>`;
   g += `<text x="${L}" y="${H - 6}" class="chT">${c.labels[0]}</text><text x="${X(pts.length - 1)}" y="${H - 6}" class="chT" text-anchor="${pts.length / c.total > 0.85 ? 'end' : 'middle'}">${c.labels[1]}</text>`;
   const name = chSel === 'idx' ? '城中加權指數' : chSel === 'me' ? '我的總資產' : SBY[chSel].name;
-  return `<div class="chHead"><b>${name}</b> <span class="${cls(ch)}">${chRange === 'today' ? '今日' : '本季'} ${pct(ch)}</span></div><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${name}走勢圖">${g}</svg>`;
+  return `<div class="chHead"><b>${name}</b> <span class="${cls(ch)}">${chRange === 'today' ? '今日' : '本月'} ${pct(ch)}</span></div><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${name}走勢圖">${g}</svg>`;
 }
 function chartBox() {
   const opts = [['idx', '大盤'], ['me', '我的資產']].concat(STOCKS.filter((s, i) => SEASON.from[i] <= S.day).map(s => [s.id, s.name])).map(([v, t]) => `<option value="${v}" ${chSel === v ? 'selected' : ''}>${t}</option>`).join('');
-  return `<div class="chBox"><div class="chBar"><select id="chSel" aria-label="走勢圖要看哪一個">${opts}</select><span class="mtabs" style="margin:0"><button class="tab ${chRange === 'season' ? 'on' : ''}" data-cr="season">本季累積</button><button class="tab ${chRange === 'today' ? 'on' : ''}" data-cr="today">今日分時</button></span></div>${chartSVG()}</div>`;
+  return `<div class="chBox"><div class="chBar"><select id="chSel" aria-label="走勢圖要看哪一個">${opts}</select><span class="mtabs" style="margin:0"><button class="tab ${chRange === 'season' ? 'on' : ''}" data-cr="season">本月累積</button><button class="tab ${chRange === 'today' ? 'on' : ''}" data-cr="today">今日分時</button></span></div>${chartSVG()}</div>`;
 }
 function renderTrade() {
   if ($('trade').classList.contains('hide')) return;
@@ -2120,7 +2167,7 @@ function order(id, q, mode = 'cash') {
     }
     if (!t.q) delete S.sht[id];
   }
-  S.tradeDay = S.day; if (mode !== 'cash') S.usedMargin = true;
+  S.tradeDay = S.day; dexSeen(id, true); if (mode !== 'cash') S.usedMargin = true;
   tidy(); sfx('coin'); renderTrade(); refreshHUD(); saveGame();
 }
 // 收盤：下市清算、融資付利息、檢查維持率（低於 130% 先追繳，期限到了才強制平倉）
@@ -2149,7 +2196,7 @@ function openNotes() {
 }
 function renderNotes() {
   const st = m => m.st === 'ok' ? '<span class="st ok">應驗</span>' : m.st === 'no' ? '<span class="st no">落空</span>' : '<span class="st wait">待驗證</span>';
-  let h = `<div class="tabs" style="margin-bottom:10px"><button class="tab ${noteTab === 'list' ? 'on' : ''}" data-t="list">聽到的消息</button><button class="tab ${noteTab === 'src' ? 'on' : ''}" data-t="src">消息來源戰績</button><button class="tab ${noteTab === 'hist' ? 'on' : ''}" data-t="hist">歷史小百科</button><button class="tab ${noteTab === 'egg' ? 'on' : ''}" data-t="egg">彩蛋</button></div>`;
+  let h = `<div class="tabs" style="margin-bottom:10px"><button class="tab ${noteTab === 'list' ? 'on' : ''}" data-t="list">聽到的消息</button><button class="tab ${noteTab === 'src' ? 'on' : ''}" data-t="src">消息來源戰績</button><button class="tab ${noteTab === 'hist' ? 'on' : ''}" data-t="hist">歷史小百科</button><button class="tab ${noteTab === 'egg' ? 'on' : ''}" data-t="egg">彩蛋</button><button class="tab ${noteTab === 'ach' ? 'on' : ''}" data-t="ach">成就</button><button class="tab ${noteTab === 'dex' ? 'on' : ''}" data-t="dex">公司圖鑑</button></div>`;
   if (noteTab === 'list') {
     if (!S.rumors.length) h += '<p>還沒有消息。去街上找人聊聊吧：證券行前的老張伯、報社記者、銀行襄理、茶藝館……每個人每天會講一則。</p>';
     for (const m of S.rumors.slice().reverse()) h += `<div class="rumor"><span class="d">第 ${m.day} 天<br>${m.npcName}</span><span>${m.text}${m.kind === 'tip' || m.kind === 'sector' ? `<br><small style="color:var(--ink-soft)">驗證日：第 ${m.resolve} 天收盤</small>` : m.st === 'no' && !m.truth ? '<br><small style="color:var(--ink-soft)">這件事後來沒有發生</small>' : ''}</span>${st(m)}</div>`;
@@ -2158,6 +2205,8 @@ function renderNotes() {
     h += '<table class="q"><tr><th>消息來源</th><th>應驗</th><th>已驗證</th><th>準確率</th><th>交情</th></tr>';
     for (const k in t) h += `<tr><td>${k}</td><td>${t[k][0]}</td><td>${t[k][1]}</td><td>${t[k][1] ? Math.round(t[k][0] / t[k][1] * 100) + '%' : '—'}</td><td>${(x => x && x.rel ? ('♥'.repeat(hearts(x.id)) || '—') : '—')(NPCS.find(x => x.name === k))}</td></tr>`;
     h += '</table><p class="note">每個人的消息準確度不一樣，而且不會告訴你。大致有三種人：很準的人（交情越好越準，最高八、九成）、像丟銅板的人（一直是五成左右）、反指標（大概只有兩成會對，反著做反而有用）。交情靠聊天和請客累積，太久沒去找會慢慢變淡；交情到 ♥♥♥♥ 偶爾會多講一則。多聽幾次，看誰比較準，再決定要不要相信。</p>';
+  } else if (noteTab === 'ach') { h += achHTML();
+  } else if (noteTab === 'dex') { h += dexHTML();
   } else if (noteTab === 'egg') {
     const tot = EGG_LIST.length + EGG_CERT_POS.length, n = Object.keys(S.eggs).length + S.certs.length;
     h += `<div class="sum">已發現 <b>${n}/${tot}</b> 個彩蛋</div>`;
@@ -2192,15 +2241,17 @@ function openHelp() {
     <h4>6. 天氣與情緒</h4>
     <ul><li>晴天大家心情好，股價稍微偏多；下雨天證券行人少，成交量變小、股價稍微偏弱；遇到颱風會放颱風假、休市一天。影響都很小，大方向還是看消息和事件。</li><li>在設定裡可以改成「台北即時天氣」（要在 GitHub Pages 等一般網頁上才抓得到，Claude 的預覽頁面會擋外部連線）。</li></ul>
     <h4>7. 事件卡與歷史小百科</h4>
-    <p>每一季會從真實歷史改編的事件裡抽 5 張，隨機排列，包括 1987 黑色星期一、1979–1981 聯準會暴力升息、1995–1996 台海飛彈危機、1997 亞洲金融風暴、2023–2024 AI 浪潮等。爆發時會出現「號外」，消息本的「歷史小百科」記錄它改編自哪一段歷史。地下投資公司每一季一定會倒，別把錢放太久。</p>
+    <p>每個月會從真實歷史改編的事件裡抽 5 張，隨機排列，包括 1987 黑色星期一、1979–1981 聯準會暴力升息、1995–1996 台海飛彈危機、1997 亞洲金融風暴、2023–2024 AI 浪潮等。爆發時會出現「號外」，消息本的「歷史小百科」記錄它改編自哪一段歷史。地下投資公司每個月一定會倒，別把錢放太久。</p>
     <h4>8. 身分晉升</h4>
-    <p><b>結局</b>：故事共 ${FINAL_SEASON} 季，第 ${FINAL_SEASON} 季（${yearOf(FINAL_SEASON)} 年）結束時，總資產 ${wan(winNet())} 以上是成功結局、低於本金 ${wan(START_CASH)} 是失敗結局，中間是普通結局。中途當上證券大亨會提早迎來成功結局，總資產跌破 ${BROKE_NET / 1e4} 萬 則提早失敗。結局之後可以繼續自由遊玩。本局共 ${FINAL_SEASON} 季、每季 ${DAYS} 天。</p>
+    <p><b>結局</b>：故事共 ${FINAL_SEASON} 個月，第 ${FINAL_SEASON} 個月（${yearOf(FINAL_SEASON)} 年）結束時，總資產 ${wan(winNet())} 以上是成功結局、低於本金 ${wan(START_CASH)} 是失敗結局，中間是普通結局。中途當上證券大亨會提早迎來成功結局，總資產跌破 ${BROKE_NET / 1e4} 萬 則提早失敗。結局之後可以繼續自由遊玩。本局共 ${FINAL_SEASON} 個月、每個月 ${DAYS} 天。</p>
     <p>${RANKS.map(r => `${r.name}（${wan(r.min)}）`).join(' → ')}。大哥大一支 ${wan(PHONE_PRICE)}，買了以後在哪裡都能下單。</p>
     <h4>9. 操作</h4>
     <p>WASD／方向鍵移動、Shift 快跑、E 說話、K 看盤下單、N 消息本、P 暫停、T 快轉到下一個時段、M 城市地圖、H 指南、Q 暫存、O 存檔與讀檔、拖曳轉視角。遊戲不會自動存檔，記得隨手按 Q 留暫存點。手機用左下搖桿、右下「互動」「看盤」。</p>
     <p class="note">這是原型。公司、人物與行情都是虛構的；重大事件改編自 1980 年代末到 1990 年的台灣與國際股市歷史，經過隨機排列，僅供體驗與學習，不構成任何投資建議。</p></div>`;
   else h += `
-    <p>時間速度：<button class="btn" data-sp="0.6">慢</button> <button class="btn" data-sp="1">標準</button> <button class="btn" data-sp="1.6">快</button>　目前：${S.speed === 0.6 ? '慢' : S.speed === 1.6 ? '快' : '標準'}</p>
+    <p>盤中時間（09:00–13:30）：${SPEEDS.map(([v, t]) => `<button class="btn ${(S.spOpen || 1) === v ? 'pri' : ''}" data-spo="${v}">${t}</button>`).join(' ')}</p>
+    <p>逛街時間（盤前、盤後、晚上）：${SPEEDS.map(([v, t]) => `<button class="btn ${(S.spWalk || 1) === v ? 'pri' : ''}" data-spw="${v}">${t}</button>`).join(' ')}</p>
+    <p class="note">照現在的設定，一天大約 ${dayMinutes()} 分鐘（說話、看盤、看報紙時時間會暫停）。逛完了可以按「快轉」，或回家睡覺直接跳到隔天。</p>
     <p>天氣來源：<button class="btn" id="hpWx">${S.realWx ? '台北即時天氣（開）' : '遊戲模擬天氣'}</button></p>
     <p class="note" style="margin-top:-4px">即時天氣使用 Open-Meteo 的台北天氣，只會在盤前套用到「今天」。抓不到時自動改用模擬天氣。</p>
     <p><button class="btn" id="hpMus">音樂：${S.music ? '開' : '關'}</button> <button class="btn" id="hpSfx">音效：${S.sfx ? '開' : '關'}</button> <button class="btn" id="hpPow">省電模式：${POWER ? '開' : '關'}</button> <button class="btn" id="hpVib">震動：${VIB ? '開' : '關'}</button> <button class="btn" id="hpReset">重新開始新的一年</button></p>
@@ -2213,7 +2264,8 @@ function openHelp() {
   if (q('hpPow')) q('hpPow').onclick = () => { setPower(!POWER); openHelp2(); };
   if (q('hpVib')) q('hpVib').onclick = () => { setVib(!VIB); openHelp2(); };
   if (q('hpSfx')) q('hpSfx').onclick = () => { setSound('sfx'); openHelp2(); };
-  $('hpBody').querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { S.speed = +b.dataset.sp; saveGame(); openHelp2(); });
+  $('hpBody').querySelectorAll('[data-spo]').forEach(b => b.onclick = () => { S.spOpen = +b.dataset.spo; openHelp2(); });
+  $('hpBody').querySelectorAll('[data-spw]').forEach(b => b.onclick = () => { S.spWalk = +b.dataset.spw; openHelp2(); });
   if (q('hpWx')) q('hpWx').onclick = async () => { S.realWx = !S.realWx; saveGame(); openHelp2(); if (S.realWx) await useRealWeather(true); };
   if (q('hpReset')) q('hpReset').onclick = function () { if (this.dataset.c) { closeModals(); startGame(false); } else { this.dataset.c = 1; this.textContent = '再按一次確定'; this.style.background = 'var(--accent)'; this.style.color = '#fff'; } };
 }
@@ -2279,7 +2331,7 @@ function updateCerts(dt) {
     if (!GAME.busy && angDist(PL.dir, c.d) < 1.2) {
       S.certs.push(c.i); sfx('done');
       const n = Object.keys(S.eggs).length + S.certs.length, tot = EGG_LIST.length + EGG_CERT_POS.length;
-      if (S.certs.length >= EGG_CERT_POS.length) { S.cash += 100000; toast(`集滿 5 張紙本股票憑證！收藏家用 10 萬元收購了（${n}/${tot}）`); }
+      if (n >= tot) achieve('eggs'); if (S.certs.length >= EGG_CERT_POS.length) { S.cash += 100000; toast(`集滿 5 張紙本股票憑證！收藏家用 10 萬元收購了（${n}/${tot}）`); }
       else toast(`撿到一張泛黃的紙本股票憑證（${S.certs.length}/${EGG_CERT_POS.length}）・彩蛋 ${n}/${tot}`);
       $('noteBadge').classList.remove('hide');
     }
@@ -2298,7 +2350,7 @@ function slotText(x) {
   if (!x) return '（空的）';
   const m = x.sum || { season: x.s.season, day: x.s.day, time: '', net: null, rank: RANKS[x.s.rank || 0].name };
   const when = x.at ? new Date(x.at).toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-  return `第 ${m.season} 季・第 ${m.day} 天 ${m.time}・${m.rank}${m.net != null ? `・總資產 ${wan(m.net)}` : ''}${when ? `<br>存於 ${when}` : ''}`;
+  return `第 ${m.season} 個月・第 ${m.day} 天 ${m.time}・${m.rank}${m.net != null ? `・總資產 ${wan(m.net)}` : ''}${when ? `<br>存於 ${when}` : ''}`;
 }
 function openSaves() {
   if (GAME.started && GAME.busy && $('saves').classList.contains('hide')) return;
@@ -2349,7 +2401,7 @@ function renderSaves(msg) {
 
 function quickSave() {
   if (!GAME.started || GAME.busy) return;
-  try { localStorage.setItem(QUICK_KEY, JSON.stringify(snapshotWrap())); sfx('done'); toast(`已暫存：第 ${S.season} 季・第 ${S.day} 天 ${fmtTime()}（按 O 可以回到這裡）`); }
+  try { localStorage.setItem(QUICK_KEY, JSON.stringify(snapshotWrap())); sfx('done'); toast(`已暫存：第 ${S.season} 個月・第 ${S.day} 天 ${fmtTime()}（按 O 可以回到這裡）`); }
   catch (e) { toast('這個瀏覽器不允許儲存，請在存檔畫面改用存檔碼'); }
 }
 
@@ -2368,7 +2420,7 @@ function showSummary() {
     const d = S.day, ic = SEASON.index[d], ip = SEASON.index[d - 1], ich = ic / ip - 1;
     const [ok, no] = resolveRumors(d);
     const nw = netWorth(), dpl = nw - S.dayStartNet;
-    const moves = STOCKS.map((s, i) => [s, SEASON.ret[d][i], i]).filter(x => listed(x[2], d)).sort((a, b) => b[1] - a[1]);
+    const moves = STOCKS.map((s, i) => [s, SEASON.ret[d][i], i]).filter(x => listed(x[2], d)).sort((a, b) => b[1] - a[1]); dayChecks(d, dpl);
     $('sumTitle').textContent = `第 ${d} 天收盤`;
     $('sumBody').innerHTML = `<canvas id="sumCv" width="700" height="160"></canvas>
       <div class="sum" style="margin-top:10px"><span>加權指數 <b class="${cls(ich)}">${ic.toFixed(2)}（${pct(ich)}）</b></span><span>成交量 <b>${volumeOf(d)} 億</b></span></div>
@@ -2400,7 +2452,7 @@ async function onPhase(ph) {
     MK.path = genIntraday(S.day); MK.k = -1; GAME.idxTicks = []; sfx('bell'); toast('噹！開盤了，到證券行找小美下單');
     const e = SEASON.events.find(e => e.day === S.day);
     if (e) {
-      if (!S.seen.includes(e.id)) S.seen.push(e.id);
+      if (!S.seen.includes(e.id)) S.seen.push(e.id); if (e.id === 'ponzi') downlineCollapse();
       if (e.id === 'ponzi' && S.deposit > 0) { const lost = S.deposit; S.deposit = 0; S.ponziGone = true; await showExtra(e); toast(`你放在金滿堂的 ${wan(lost)} 元，全部拿不回來了……`); sfx('bad'); }
       else { if (e.id === 'ponzi') S.ponziGone = true; await showExtra(e); }
     }
@@ -2409,6 +2461,7 @@ async function onPhase(ph) {
   if (ph === 'post' && MK.path) {
     MK.prices = SEASON.close[S.day].slice(); GAME.dayPath = MK.path; MK.path = null; drawBoard();
     GAME.marginMsgs = settleMargin(); GAME.marginMsgs.forEach(m => toast(m)); if (GAME.marginMsgs.length) sfx('bad');
+    lottoDraw(); downlinePay();
     if (GAME.callRing) { GAME.callRing = false; ring(); flash('rgba(215,38,61,.8)', true); buzz([300, 120, 300]); }
     if (S.deposit > 0 && (S.day - S.depDay) % 5 === 4 && !S.ponziGone) { const it = Math.round(S.deposit * 0.01); S.cash += it; toast(`金滿堂配息 ${money(it)} 元`); }
     await showSummary(); GAME.marginMsgs = []; checkRank(); saveGame();
@@ -2416,7 +2469,7 @@ async function onPhase(ph) {
   if (ph === 'night') toast('天黑了，月見居酒屋開門了。23:00 前記得回雅房休息');
 }
 async function endDay() {
-  if (GAME.ending) return; GAME.ending = true;
+  if (GAME.ending) return; GAME.ending = true; if (GAME.mode === 'interior') exitInterior(true);
   if (MK.path) { MK.prices = SEASON.close[S.day].slice(); GAME.dayPath = MK.path; MK.path = null; await showSummary(); }
   S.netHist = S.netHist || []; if (S.netHist[S.day - 1] == null) S.netHist[S.day - 1] = Math.round(S.dayStartNet); S.netHist[S.day] = Math.round(netWorth());
   GAME.busy = true; const f = $('fade'); f.textContent = `第 ${S.day} 天結束`; f.style.opacity = 1; await wait(900);
@@ -2428,26 +2481,28 @@ async function endDay() {
   if (S.day === 1) S.netHist = [];
   TIME.min = 6 * 60; lastPhase = 'pre'; MK.prices = null; S.dayStartNet = netWorth();
   f.textContent = `第 ${S.day} 個交易日`; await wait(700); f.style.opacity = 0; f.textContent = '';
-  GAME.busy = false; GAME.ending = false; refreshHUD(); drawBoard(); saveGame(); await dayWeather(); await morningPaper();
+  GAME.busy = false; GAME.ending = false; refreshHUD(); drawBoard(); saveGame(); await dayWeather(); await morningPaper(); await ethicsMorning();
 }
 async function seasonEnd() {
+  const lifeMsgs = lifeSeasonEnd();
   const nw = netWorth();
   await new Promise(res => {
-    $('sumTitle').textContent = '一季結束';
+    $('sumTitle').textContent = '一個月結束';
     $('sumBody').innerHTML = `<p style="font-size:16px;line-height:1.7">${DAYS} 個交易日過去了。你從 ${wan(START_CASH)} 開始，現在總資產 <b class="${cls(nw - START_CASH)}">${money(nw)}</b>，身分是「<b>${RANKS[rankOf(nw)].name}</b>」。</p>
-      <p style="line-height:1.7">同一季大盤 ${pct(SEASON.index[DAYS] / SEASON.index[0] - 1)}，你的資產 ${pct(nw / ((S.netHist || [])[0] || START_CASH) - 1)}。</p>
-      <p style="line-height:1.7">這一季遇到的大事：${S.seen.map(id => EBY[id].name).join('、') || '（沒有）'}。到「消息本 → 歷史小百科」可以看它們改編自哪一段歷史。</p>
-      <p style="line-height:1.7">新的一季會重新洗牌：事件的順序、時間、哪些人消息準，都會不一樣。${S.ended ? '' : S.season + 1 === FINAL_SEASON ? '<b>下一季是最後一季</b>，季末會依總資產迎來結局。' : `還有 ${FINAL_SEASON - S.season} 季迎來結局。`}</p>
-      <div style="display:flex;justify-content:flex-end"><button class="btn pri" id="sumOk">開始新的一季</button></div>`;
+      <p style="line-height:1.7">同一個月大盤 ${pct(SEASON.index[DAYS] / SEASON.index[0] - 1)}，你的資產 ${pct(nw / ((S.netHist || [])[0] || START_CASH) - 1)}。</p>
+      ${lifeMsgs.map(m => `<p style="line-height:1.7">${m}</p>`).join('')}
+      <p style="line-height:1.7">這個月遇到的大事：${S.seen.map(id => EBY[id].name).join('、') || '（沒有）'}。到「消息本 → 歷史小百科」可以看它們改編自哪一段歷史。</p>
+      <p style="line-height:1.7">新的一個月會重新洗牌：事件的順序、時間、哪些人消息準，都會不一樣。${S.ended ? '' : S.season + 1 === FINAL_SEASON ? '<b>下個月是最後一個月</b>，月底會依總資產迎來結局。' : `還有 ${FINAL_SEASON - S.season} 個月迎來結局。`}</p>
+      <div style="display:flex;justify-content:flex-end"><button class="btn pri" id="sumOk">開始新的一個月</button></div>`;
     $('sum').classList.remove('hide'); $('sumOk').onclick = () => { $('sum').classList.add('hide'); res(); };
   });
   const log = (S.log || []).filter(l => l.s !== S.season).concat([seasonEntry()]);
-  const keep = { cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won, eggs: S.eggs, certs: S.certs, bullSeason: S.bullSeason, ended: S.ended, log, rank: S.rank, base: S.base, len: S.len, total: S.total, bond: S.bond, tut: S.tut, bondSeen: S.bondSeen, npcType: S.npcType, steps: S.steps, gone: (S.gone || []).concat(SEASON.delist ? [STOCKS[SEASON.delist.i].id] : []), ipoed: (S.ipoed || []).concat((SEASON.ipos || []).map(x => STOCKS[x.i].id)) };
+  const keep = { ...Object.fromEntries(LIFE_KEEP.map(k => [k, S[k]])), cash: S.cash + holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).eq, speed: S.speed, phone: S.phone, seen: S.seen, music: S.music, sfx: S.sfx, season: S.season + 1, won: S.won, eggs: S.eggs, certs: S.certs, bullSeason: S.bullSeason, ended: S.ended, log, rank: S.rank, base: S.base, len: S.len, total: S.total, bond: S.bond, tut: S.tut, bondSeen: S.bondSeen, npcType: S.npcType, steps: S.steps, gone: (S.gone || []).concat(SEASON.delist ? [STOCKS[SEASON.delist.i].id] : []), ipoed: (S.ipoed || []).concat((SEASON.ipos || []).map(x => STOCKS[x.i].id)) };
   S = Object.assign(S0(), keep); syncTotal(); if (S.base != null) S.seed = seasonSeed(S.base, S.season); S.dayStartNet = S.cash; genSeason(S.seed);
 }
 function checkRank() {
   const r = rankOf(netWorth());
-  if (r > S.rank) { S.rank = r; sfx('done'); toast(`升級了！你現在是「<b>${RANKS[r].name}</b>」`); if (r === RANKS.length - 1 && !S.won) { S.won = true; setTimeout(() => toast('恭喜成為證券大亨！可以繼續玩，看看能走多遠'), 1500); } }
+  if (r > S.rank) { S.rank = r; achieve('rank' + Math.min(4, r)); sfx('done'); toast(`升級了！你現在是「<b>${RANKS[r].name}</b>」`); if (r === RANKS.length - 1 && !S.won) { S.won = true; setTimeout(() => toast('恭喜成為證券大亨！可以繼續玩，看看能走多遠'), 1500); } }
   if (netWorth() < BROKE_NET * 2 && netWorth() >= BROKE_NET) { toast(`錢快賠光了……總資產跌破 ${BROKE_NET / 1e4} 萬 就會提早結束`); }
   refreshHUD();
 }
@@ -2494,7 +2549,7 @@ function morningPaper() {
       <p><b>美股昨夜收盤</b>：道瓊 <span class="${cls(SEASON.us[d])}">${pct(SEASON.us[d])}</span>、那斯達克 <span class="${cls(SEASON.nas[d])}">${pct(SEASON.nas[d])}</span></p>
       <p><b>台股昨日</b>：${d > 1 ? `加權指數收 ${SEASON.index[d - 1].toFixed(0)} 點（<span class="${cls(SEASON.index[d - 1] / SEASON.index[d - 2] - 1)}">${pct(SEASON.index[d - 1] / SEASON.index[d - 2] - 1)}</span>）` : '新的一年第一個交易日'}</p>
       <p><b>今日天氣</b>：${W.name} ${SEASON.temp[d]}°C${W.closed ? '，颱風假休市' : ''}</p>
-      ${eraNews(d)}${ev ? `<p><b>焦點新聞</b>：${ev.def.head}</p>` : ''}${listNews(d)}
+      ${eraNews(d)}${ev ? `<p><b>焦點新聞</b>：${ev.def.head}</p>` : ''}${listNews(d)}${drawDays().includes(d) ? `<p><b>社會新聞</b>：今天${lottoName()}開獎，廟口擠滿求明牌的人，工廠請假的比上班的還多。</p>` : ''}
       <p class="ref">8:00 日本、韓國股市開盤，可以先看國際盤的方向；9:00 台股開盤，13:30 收盤。</p>
       <div class="row"><button class="btn pri" id="extOk">看完了</button></div>`;
     $('ext').classList.remove('hide'); sfx('tick');
@@ -2505,7 +2560,7 @@ function setChip(id, html) { const el = $(id).lastElementChild; if (el.innerHTML
 function refreshHUD() {
   const nw = netWorth(), dpl = nw - S.dayStartNet;
   setChip('chCash', wan(S.cash)); setChip('chNet', `${wan(nw)} <span class="${cls(dpl)}" style="font-size:11px">${dpl >= 0 ? '+' : ''}${(dpl / Math.max(1, S.dayStartNet) * 100).toFixed(1)}%</span>`); setChip('chDay', `${S.day}/${DAYS}`);
-  $('rank').textContent = `${RANKS[S.rank].name}・第 ${S.season}${S.ended ? '' : '/' + FINAL_SEASON} 季（${yearOf(S.season)}）`;
+  $('rank').textContent = `${RANKS[S.rank].name}・第 ${S.season}${S.ended ? '' : '/' + FINAL_SEASON} 個月（${yearOf(S.season)}）`;
 }
 function updateTicker() {
   const p = prices(), ix = idxOf(p), ich = ix / SEASON.index[S.day - 1] - 1, ph = PHASE();
@@ -2531,7 +2586,7 @@ function updateLabels() {
     const cd = camera.position.clone().normalize();
     for (const p of PLACES) { if (p.front.dot(cd) < 0.2) continue; const s = proj(p.front.clone().multiplyScalar(R + 3)); if (s) lbl(p.name, 'map', s[0], s[1], () => { toggleMap(); }); }
     const me = proj(PL.dir.clone().multiplyScalar(R + 2)); if (me) lbl('你在這裡', 'me', me[0], me[1]);
-  } else if (GAME.mode === 'ground') {
+  } else if (GAME.mode === 'interior') { interiorLabels(proj); } else if (GAME.mode === 'ground') {
     const cf = new V3(); camera.getWorldDirection(cf);
     for (const n of NPCS) {
       if (!n.ch.root.visible || n.role === 'crowd') continue; const d = angDist(PL.dir, n.dir); if (d > 9) continue;
@@ -2555,7 +2610,7 @@ function updateNPCs(dt) {
   crowdSay.t -= dt;
   if (ph === 'open' && crowdSay.t < -4 && Math.random() < 0.02) { const crowd = NPCS.filter(n => n.sit && n.road === 'E'); crowdSay = { t: 3, n: crowd[Math.random() * crowd.length | 0], txt: ich > 0.03 ? '漲停啦！發了發了！' : ich > 0.005 ? '紅通通，好看！' : ich < -0.03 ? '跌停了……我的買菜錢！' : ich < -0.005 ? '唉唷，又綠了' : '怎麼都不動啦' }; if (ich > 0.01) crowdSay.n.ch.wave = 1.2; }
   for (const n of NPCS) {
-    const d = angDist(PL.dir, n.dir), vis = GAME.mode !== 'title' && (GAME.mode === 'map' ? false : d < (POWER ? 24 : 36));
+    const d = angDist(PL.dir, n.dir), vis = GAME.mode === 'ground' && d < (POWER ? 24 : 36);
     n.ch.root.visible = vis; if (!vis) continue;
     if (n.role === 'ponzi') n.ch.root.visible = !S.ponziGone;
     if (n.night && ph !== 'night') n.ch.root.visible = false;
@@ -2585,6 +2640,7 @@ function updateNPCs(dt) {
 const CLR = { dayTop: new THREE.Color(0x7fb8d9), dayHor: new THREE.Color(0xf0e2c0), duskTop: new THREE.Color(0x6f6aa8), duskHor: new THREE.Color(0xffb27a), nTop: new THREE.Color(0x0e1530), nHor: new THREE.Color(0x3a2f4a) };
 const _c1 = new THREE.Color(), _c2 = new THREE.Color(), _cw = new THREE.Color();
 function updateLighting() {
+  if (GAME.mode === 'interior') return interiorLighting();
   const h = TIME.min / 60, ang = Math.PI * (h - 5.8) / 13, el = Math.sin(ang);
   const day = GAME.mode === 'title' ? 1 : smooth(-0.1, 0.25, el), dusk = GAME.mode === 'title' ? 0 : Math.exp(-(((el - 0.06) / 0.15) ** 2));
   const mapLike = GAME.mode === 'map' || GAME.mode === 'title';
@@ -2605,11 +2661,11 @@ function updateLighting() {
   SIGN_MAT.color.setScalar(lerp(1.25, 0.92, day));
 }
 /* =========================================================
-   結局：最後一季（6 季局是 1990 年泡沫破裂、12 季局是 1996 年）結束時依總資產分成成功／普通／失敗；
+   結局：最後一個月（6 個月局是 1990 年泡沫破裂、12 個月局是 1996 年）結束時依總資產分成成功／普通／失敗；
    中途成為證券大亨直接成功，總資產跌破 30 萬直接失敗
    ========================================================= */
 let FINAL_SEASON = 5; const BROKE_NET = 3e5, WIN_BY_LEN = { 40: 1e7, 20: 4e6 }, WIN_BY_TOTAL = { 6: 5e6, 12: 1e7 };
-// 新的局：每季 20 天、可選 6 季或 12 季；舊存檔沿用原本的 5 季設定
+// 新的局：每個月 20 天、可選 6 個月或 12 個月；舊存檔沿用原本的 5 個月設定
 const syncTotal = () => { FINAL_SEASON = S.total || 5; };
 const winNet = () => S.total ? WIN_BY_TOTAL[S.total] || 1e7 : WIN_BY_LEN[S.len || 40] || 1e7;
 const endingKind = nw => nw >= winNet() ? 'win' : nw < START_CASH ? 'fail' : 'normal';
@@ -2631,7 +2687,7 @@ const ENDINGS = {
   tycoon: {
     tag: '成功結局', title: '證券大亨誕生', get paper() { return ['城中日報・號外', `從跑單小弟到證券大亨　身價破${wan(RANKS[RANKS.length - 1].min).replace(' ', '')}`]; },
     lines: () => [
-      `第 ${S.season} 季第 ${Math.min(S.day, DAYS)} 天，你的總資產突破 ${wan(RANKS[RANKS.length - 1].min)}，證券行的報價看板好像為你停了三秒。`,
+      `第 ${S.season} 個月第 ${Math.min(S.day, DAYS)} 天，你的總資產突破 ${wan(RANKS[RANKS.length - 1].min)}，證券行的報價看板好像為你停了三秒。`,
       '記者小周連夜寫稿，大戶阿忠在居酒屋舉杯：「後生可畏！」',
       '可是你心裡清楚，運氣和實力一樣重要，下一次不一定這麼幸運。',
       '你捐了一筆錢給城中公園，換上新的長椅，讓下棋的阿伯坐得舒服一點。',
@@ -2664,7 +2720,7 @@ const ENDINGS = {
   broke: {
     tag: '失敗結局', title: '斷頭的那一天', paper: ['城中日報', '融資斷頭潮　散戶血本無歸'],
     lines: () => [
-      `第 ${S.season} 季第 ${Math.min(S.day, DAYS)} 天，你的總資產跌破三十萬。`,
+      `第 ${S.season} 個月第 ${Math.min(S.day, DAYS)} 天，你的總資產跌破三十萬。`,
       '營業員小美打了三通電話，你都不敢接。',
       S.phone ? '你把大哥大賣回通訊行，退掉雅房，提著行李走向車站。' : '你退掉雅房，提著行李走向車站。',
       '房東太太追出來，塞給你一包肉粽：「年輕人，留得青山在。」',
@@ -2753,8 +2809,8 @@ function playEnding(kind) {
     <div class="endLines">${E.lines().map(l => `<p>${l}</p>`).join('')}</div><div class="endQuote">${E.quote}</div></div>
     <div class="endStats"><h3 style="margin:0 0 8px">${E.tag}・${E.title}</h3>
       <div class="sum" style="margin-bottom:8px"><span>最終總資產 <b class="${cls(nw - START_CASH)}">${money(nw)}</b></span><span>本金的 <b>${(nw / START_CASH).toFixed(1)}</b> 倍</span><span>身分 <b>${RANKS[rankOf(nw)].name}</b></span><span>彩蛋 <b>${eggN}/${eggT}</b></span></div>
-      <table class="q"><tr><th style="text-align:left">季</th><th>你的資產</th><th>同期大盤</th></tr>${log.map(l => `<tr><td style="text-align:left">第 ${l.s} 季</td><td class="${cls(l.me)}">${pct(l.me)}</td><td class="${cls(l.idx)}">${pct(l.idx)}</td></tr>`).join('')}</table>
-      <p class="note">${kind === 'win' || kind === 'tycoon' ? '恭喜！' : kind === 'normal' ? '守住本金就贏過很多人了。' : '下一次，試試少用融資、多聽準的人說話。'}結局只看第 ${FINAL_SEASON} 季（${yearOf(FINAL_SEASON)} 年）結束時的總資產：${wan(winNet())} 以上是成功、低於本金是失敗，中間是普通；中途當上證券大亨或資產跌破 ${BROKE_NET / 1e4} 萬 會提早迎來結局。</p>
+      <table class="q"><tr><th style="text-align:left">月份</th><th>你的資產</th><th>同期大盤</th></tr>${log.map(l => `<tr><td style="text-align:left">第 ${l.s} 個月</td><td class="${cls(l.me)}">${pct(l.me)}</td><td class="${cls(l.idx)}">${pct(l.idx)}</td></tr>`).join('')}</table>
+      <p class="note">${kind === 'win' || kind === 'tycoon' ? '恭喜！' : kind === 'normal' ? '守住本金就贏過很多人了。' : '下一次，試試少用融資、多聽準的人說話。'}結局只看第 ${FINAL_SEASON} 個月（${yearOf(FINAL_SEASON)} 年）結束時的總資產：${wan(winNet())} 以上是成功、低於本金是失敗，中間是普通；中途當上證券大亨或資產跌破 ${BROKE_NET / 1e4} 萬 會提早迎來結局。</p>
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="endAgain">重新開始新的人生</button><button class="btn pri" id="endGo">繼續自由遊玩</button></div></div>
     <button class="endSkip" id="endSkip">跳過 ▸</button>`;
   root.className = 'end-' + scene; root.classList.remove('hide');
@@ -2783,15 +2839,15 @@ function playEnding(kind) {
 const yearOf = s => (S && S.total ? 1984 : 1985) + s;
 
 /* ---------- 開新局：選遊戲長度 ---------- */
-// 每季的種子由這一局的 base 推出來，換季時行情重新洗牌
+// 每個月的種子由這一局的 base 推出來，換月時行情重新洗牌
 const seasonSeed = (base, s) => ((Math.imul(base ^ 0x5bd1e995, 2654435761) >>> 0) + s * 104729) % 2000000000;
 const NEWOPT = { total: 6 };
 function openNewGame() { $('titleBtns').classList.add('hide'); $('newBox').classList.remove('hide'); renderNewGame(); }
 function renderNewGame() {
   const T = NEWOPT.total;
   $('newBox').innerHTML = `<h3>開始新的一年</h3>
-    <div class="nbRow"><span>遊戲長度</span><button class="tab ${T === 6 ? 'on' : ''}" data-total="6">6 季（1985–1990）</button><button class="tab ${T === 12 ? 'on' : ''}" data-total="12">12 季（1985–1996）</button></div>
-    <p class="nbNote">每季 20 個交易日、代表一年。6 季在 1990 年泡沫破裂時結束；12 季會再經歷崩盤後的起伏，一直走到 1996 年。遊戲後半段行情偏空，大約六到七成的日子在跌。</p>
+    <div class="nbRow"><span>遊戲長度</span><button class="tab ${T === 6 ? 'on' : ''}" data-total="6">6 個月（1985–1990）</button><button class="tab ${T === 12 ? 'on' : ''}" data-total="12">12 個月（1985–1996）</button></div>
+    <p class="nbNote">每個月 20 個交易日，代表那一年最熱鬧的一個月：6 個月從 1985 年走到 1990 年泡沫破裂；12 個月會再經歷崩盤後的起伏，一直走到 1996 年。遊戲後半段行情偏空，大約六到七成的日子在跌。</p>
     <div class="nbRow" style="justify-content:flex-end;margin-bottom:0"><button class="btn" id="nbBack">返回</button><button class="btn pri" id="nbGo">開始</button></div>`;
   const q = s => $('newBox').querySelector(s);
   $('newBox').querySelectorAll('[data-total]').forEach(b => b.onclick = () => { NEWOPT.total = +b.dataset.total; renderNewGame(); });
@@ -2825,7 +2881,7 @@ function ring() { if (!AU.ctx || !S.sfx) return; const t = AU.ctx.currentTime; f
 function celebrate(text, good) {
   toast(`<b class="${good ? 'up' : 'down'}">${text}</b>`);
   if (good) {
-    sfx('done'); flash('rgba(255,196,60,.8)'); buzz(70);
+    sfx('done'); flash('rgba(255,196,60,.8)'); buzz(70); achieve('limitup');
     const crowd = NPCS.filter(n => n.sit && n.road === 'E' && n.ch.root.visible); crowd.forEach(n => n.ch.wave = 2.5);
     if (crowd.length) crowdSay = { t: 3.5, n: crowd[0], txt: '漲停！漲停啦！' };
   } else { sfx('bad'); flash('rgba(20,150,90,.7)'); buzz([40, 50, 40]); }
@@ -2888,7 +2944,7 @@ function bondUp(n, k = 1) {
 /* ---------- 新手教學（第一天） ---------- */
 const TUT = [
   { text: '教學 1/4：到證券行門口找老張伯聊天，聽一則明牌', at: 'broker', done: () => S.rumors.length > 0 },
-  { text: () => PHASE() === 'pre' ? '教學 2/4：9 點開盤後，到證券行找小美（或按 K）照明牌買 1 張' : '教學 2/4：到證券行找小美（或按 K），照明牌買 1 張股票', at: 'broker', done: () => S.tradeDay === S.day || Object.keys(S.hold).length + Object.keys(S.mar).length + Object.keys(S.sht).length > 0 },
+  { text: () => PHASE() === 'pre' ? '教學 2/4：9 點開盤後，走進城中證券（在門口按互動），到櫃檯找小美照明牌買 1 張（或按 K）' : '教學 2/4：走進城中證券（在門口按互動），到櫃檯找小美照明牌買 1 張（或按 K）', at: 'broker', done: () => S.tradeDay === S.day || Object.keys(S.hold).length + Object.keys(S.mar).length + Object.keys(S.sht).length > 0 },
   { text: '教學 3/4：等 13:30 收盤，看看今天的成績（按 T 可以快轉）', done: () => PHASE() === 'post' || PHASE() === 'night' || S.day > 1 },
   { text: '教學 4/4：按 N 打開消息本，看看明牌有沒有應驗', done: () => !!S.tutN },
 ];
@@ -2902,7 +2958,7 @@ const TUT_GOAL = {
 };
 GOALS.unshift(TUT_GOAL);
 
-/* ---------- 年代新聞：最後一季的泡沫 ---------- */
+/* ---------- 年代新聞：最後一個月的泡沫 ---------- */
 function eraNews(d) {
   if (yearOf(S.season) !== 1990 || S.ended) return '';
   const a = Math.round(DAYS * 0.3), b = Math.round(DAYS * 0.45), c = Math.round(DAYS * 0.55);
@@ -2945,7 +3001,7 @@ function subscribe(id) {
 function ipoDraw() {
   for (const id in S.subs || {}) {
     if (S.subs[id] !== S.day) continue; const x = SEASON.ipos.find(x => STOCKS[x.i].id === id); delete S.subs[id]; if (!x) continue;
-    if (Math.random() < IPO_WIN) { const h = S.hold[id] || (S.hold[id] = { q: 0, cost: 0 }); h.cost = (h.cost * h.q + x.price) / (h.q + 1); h.q += 1; toast(`<b class="up">恭喜中籤！</b>${STOCKS[x.i].name} 1 張以承銷價 ${x.price} 元入帳，今天掛牌`); sfx('done'); buzz([60, 40, 120]); }
+    if (Math.random() < IPO_WIN) { const h = S.hold[id] || (S.hold[id] = { q: 0, cost: 0 }); h.cost = (h.cost * h.q + x.price) / (h.q + 1); h.q += 1; toast(`<b class="up">恭喜中籤！</b>${STOCKS[x.i].name} 1 張以承銷價 ${x.price} 元入帳，今天掛牌`); sfx('done'); buzz([60, 40, 120]); achieve('ipo'); }
     else { S.cash += x.price * LOT; toast(`${STOCKS[x.i].name}沒抽中，申購款已退回`); }
   }
 }
@@ -2975,7 +3031,7 @@ function payCall(key) {
   const c = S.calls[key]; if (!c) return; const need = Math.ceil(callNeed(c));
   if (S.cash < need) { toast('現金不夠補繳，可以先賣掉一些股票'); sfx('bad'); return; }
   S.cash -= need; if (c.kind === 'mar') S.mar[c.id].loan -= need; else S.sht[c.id].margin += need;
-  delete S.calls[key]; sfx('coin'); toast(`已補繳 ${money(need)} 元，追繳解除`); renderTrade(); refreshHUD();
+  delete S.calls[key]; sfx('coin'); achieve('saved'); toast(`已補繳 ${money(need)} 元，追繳解除`); renderTrade(); refreshHUD();
 }
 function checkCall(s, kind, r, msgs, liquidate) {
   S.calls = S.calls || {}; const key = s.id + ':' + kind, c = S.calls[key], nm = kind === 'mar' ? '融資' : '融券', act = kind === 'mar' ? '斷頭賣出' : '回補';
@@ -3029,7 +3085,7 @@ Object.assign(TALK, {
   analyst: async n => {
     await say(n, '我是城中證券研究部的陳博士。今天幫你看一個族群的三天走勢。');
     const m = sectorCall(n);
-    if (!m) { await say(n, S.talked[n.id] === S.day ? '報告今天已經給你了，記得對照消息本。' : '季底了，盤勢不明朗，我建議多看少做。'); return; }
+    if (!m) { await say(n, S.talked[n.id] === S.day ? '報告今天已經給你了，記得對照消息本。' : '月底了，盤勢不明朗，我建議多看少做。'); return; }
     await say(n, m.text); toast('記進消息本了（三天後驗證）'); sfx('tick');
   },
   guru: async n => { await rumorTalk(n, '各位鄉親！跟著明燈老師，保證賺大錢！今天的飆股是——'); },
@@ -3047,6 +3103,7 @@ Object.assign(TALK, {
   driver: async n => {
     await say(n, '（壓低聲音）我是幫長官開車的。車上聽到的事，不要說是我講的。');
     if (S.talked[n.id] === S.day) { await say(n, '今天就這樣，我要去接長官了。'); return; }
+    if ((S.driverBan || 0) > S.day) { await say(n, '最近風聲很緊，先別來找我。'); return; }
     S.talked[n.id] = S.day; bondUp(n);
     const d = S.day, dl = SEASON.delist, pe = SEASON.policy.find(x => x.day > d && x.day - d <= 4), ip = (SEASON.ipos || []).find(x => x.day > d && x.day - d <= 6);
     let m = null;
@@ -3054,7 +3111,8 @@ Object.assign(TALK, {
     else if (pe) m = { kind: 'event', ev: pe.id, text: POLICY_HINT[pe.id], truth: true, resolve: pe.day };
     else if (ip) m = { kind: 'event', ev: null, evName: '新股', text: `${STOCKS[ip.i].name}要上市了，承銷價很便宜，記得去證券行抽籤。`, truth: true, resolve: ip.day };
     if (!m) { await say(n, '最近長官都在開會，沒聽到什麼特別的。'); return; }
-    Object.assign(m, { day: d, npc: n.id, npcName: n.name }); S.rumors.push(m); $('noteBadge').classList.remove('hide');
+    Object.assign(m, { day: d, npc: n.id, npcName: n.name }); S.rumors.push(m); $('noteBadge').classList.remove('hide'); driverHeat();
+    if (S.heat >= 3) await say(n, '……不過最近好像有人在查，你自己小心點。');
     await say(n, m.text); toast('記進消息本了'); sfx('tick');
   },
 });
@@ -3090,7 +3148,7 @@ function countSteps(dt) {
     const d = angDist(stepLast, PL.dir);
     if (d > 0.0005 && d < 2) {
       const st = d * STEP_PER_UNIT; S.stepsDay = (S.stepsDay || 0) + st; S.steps = (S.steps || 0) + st;
-      const key = S.season * 100 + S.day; if (S.stepsDay >= 10000 && S.stepGoal !== key) { S.stepGoal = key; toast('今天走了一萬步！日行萬步，身體健康'); sfx('done'); }
+      const key = S.season * 100 + S.day; if (S.stepsDay >= 10000 && S.stepGoal !== key) { S.stepGoal = key; toast('今天走了一萬步！日行萬步，身體健康'); sfx('done'); achieve('walker'); }
     }
   }
   stepLast = PL.dir.clone();
@@ -3167,6 +3225,490 @@ function setVib(on) { VIB = on; try { localStorage.setItem(VIB_KEY, on ? '1' : '
 function toggleFull() {
   try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen({ navigationUI: 'hide' }); }
   catch (e) { toast('這個瀏覽器不支援全螢幕，可以改用「加入主畫面」'); }
+}
+/* =========================================================
+   interior：走到門口進入室內（證券行大廳、住處、居酒屋、銀行）
+   室內場景放在星球上方遠處，用固定斜上方的鏡頭看；平面移動、簡單碰撞
+   ========================================================= */
+const IN_O = new V3(0, 400, 0);
+const IN = { id: null, groups: {}, keys: {}, x: 0, z: 0, fx: 0, fz: -1, speed: 0, people: [], spots: [], obs: [], room: null, goal: null, cheerT: 0 };
+
+function txtTex(lines, w, h, bg, fg, size) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+  g.fillStyle = bg; g.fillRect(0, 0, w, h); g.strokeStyle = fg; g.lineWidth = 6; g.strokeRect(6, 6, w - 12, h - 12);
+  g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
+  lines.forEach((t, i) => { g.font = `900 ${i ? size * 0.55 : size}px ${SIGN_FONT}`; g.fillText(t, w / 2, h / 2 + (i - (lines.length - 1) / 2) * size * 1.05); });
+  const tex = new THREE.CanvasTexture(c); tex.anisotropy = 4; return tex;
+}
+function sign(group, lines, x, y, z, w, h, bg, fg, ry = 0) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: txtTex(lines, 512, Math.round(512 * h / w), bg, fg, 120) }));
+  m.position.set(x, y, z); m.rotation.y = ry; group.add(m); return m;
+}
+// 地板、三面牆、正面矮牆（中間是門），外面一圈深色地面
+function shell(gb, w, d, floor, wall) {
+  gb.box(60, 0.1, 60, 0x2b2622, 0, -0.3, 0);
+  gb.box(w, 0.2, d, floor, 0, -0.1, 0);
+  for (let i = -w / 2 + 1; i < w / 2; i += 2) gb.box(0.04, 0.01, d, 0x000000, i, 0.005, 0);
+  gb.box(w + 0.6, 4.2, 0.3, wall, 0, 2.1, -d / 2 - 0.15);
+  for (const s of [-1, 1]) gb.box(0.3, 4.2, d + 0.6, wall, s * (w / 2 + 0.15), 2.1, 0);
+  const seg = (w - 1.8) / 2; for (const s of [-1, 1]) gb.box(seg, 0.7, 0.25, wall, s * (0.9 + seg / 2), 0.35, d / 2 + 0.12);
+  gb.box(1.6, 0.03, 0.9, 0x8a3a2e, 0, 0.02, d / 2 - 0.4);
+}
+function chair(gb, x, z, col, ry = 0) { gb.box(0.5, 0.08, 0.5, col, x, 0.45, z, ry); gb.box(0.5, 0.5, 0.08, col, x - Math.sin(ry) * 0.22, 0.72, z + Math.cos(ry) * 0.22, ry); for (const [a, b] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]]) gb.box(0.05, 0.45, 0.05, 0x555555, x + a, 0.22, z + b); }
+function addPerson(room, o) { room.people.push(o); }
+
+/* ---------- 房間定義 ---------- */
+const ROOMS = {
+  broker: {
+    name: '城中證券', w: 12, d: 9, place: 'broker',
+    closed: () => PHASE() === 'night' ? '證券行已經打烊了（6:00–18:00 營業）' : null,
+    build(g, room) {
+      const gb = new GB(), gl = new GB(); shell(gb, room.w, room.d, 0xd9d2c3, 0xe9e1d2);
+      // 報價大看板（和門口的看板同一張畫布）
+      const bm = new THREE.Mesh(new THREE.PlaneGeometry(8.2, 3.2), new THREE.MeshBasicMaterial({ map: BOARD.tex })); bm.position.set(0, 2.3, -room.d / 2 + 0.13); g.add(bm);
+      gb.box(8.6, 3.5, 0.15, 0x2b2622, 0, 2.3, -room.d / 2 + 0.02);
+      // 一排排塑膠椅
+      const cols = [0xd7263d, 0x2b7f86, 0xf2c14e];
+      for (let r = 0; r < 3; r++) for (const x of [-4.2, -3.2, -2.2, -1.2, 1.2, 2.2, 3.2]) chair(gb, x, -1.6 + r * 1.5, cols[(r + (x > 0)) % 3], Math.PI);
+      for (let r = 0; r < 3; r++) room.obs.push({ x: -2.7, z: -1.6 + r * 1.5, w: 3.6, d: 0.6 }, { x: 2.2, z: -1.6 + r * 1.5, w: 2.6, d: 0.6 });
+      // 營業員櫃檯
+      gb.box(1.0, 1.1, 3.6, 0x8f6b48, 4.9, 0.55, -1.2); gb.box(1.1, 0.06, 3.7, 0xf4efe4, 4.9, 1.12, -1.2); room.obs.push({ x: 4.9, z: -1.2, w: 1.2, d: 3.8 });
+      for (let k = 0; k < 3; k++) gb.box(0.35, 0.25, 0.3, 0x2b2622, 4.9, 1.28, -2.4 + k * 1.2);
+      // 大戶室的門
+      gb.box(1.1, 2.5, 0.1, 0x6b4a3a, -5.2, 1.25, -room.d / 2 + 0.06); gb.cyl(0.06, 0.06, 0.05, 0xf2c14e, -4.8, 1.25, -room.d / 2 + 0.12, 8, Math.PI / 2);
+      for (const x of [-4.5, 4.5]) gl.box(1.6, 0.08, 0.6, 0xfff6d0, x, 4.1, 0);
+      g.add(gb.mesh(true)); g.add(new THREE.Mesh(gl.geometry(), GLOW));
+      sign(g, ['城中證券', '營業大廳'], -room.w / 2 + 0.02, 3.1, 0.5, 3.2, 0.6, '#c8402f', '#ffe8a8', Math.PI / 2);
+      sign(g, ['大戶室'], -5.2, 2.75, -room.d / 2 + 0.13, 1.0, 0.32, '#2b2622', '#ffd27a');
+      sign(g, ['營業櫃檯'], 4.9, 2.2, 0.75, 1.4, 0.4, '#1f4f9a', '#ffffff', -Math.PI / 2);
+      // 坐著盯盤的人（裝飾，會跟著行情歡呼或嘆氣）
+      const looks = ['auntie1', 'auntie2', 'auntie3', 'oldhand', 'chess', 'ped4', 'ped2', 'landlady', 'kiosk'];
+      [[-4.2, 0], [-2.2, 0], [1.2, 0], [3.2, 0], [-3.2, 1], [2.2, 1], [-1.2, 2], [1.2, 2], [3.2, 2]].forEach(([x, r], k) => addPerson(room, { look: looks[k], x, z: -1.6 + r * 1.5 - 0.05, face: Math.PI, sit: true, crowd: true }));
+      addPerson(room, { npc: 'broker', x: 5.55, z: -1.2, face: -Math.PI / 2 });
+      room.spots.push({ x: 4.15, z: -1.2, r: 1.2, verb: '和營業員小美說話（下單）', label: '營業櫃檯', act: () => talkTo(NPC_BY.broker) });
+      room.spots.push({ x: 0, z: -3.6, r: 1.3, verb: '看報價看板', label: '報價看板', act: () => openTrade(true) });
+      room.spots.push({ x: -5.1, z: -3.7, r: 1.0, verb: '進大戶室', label: '大戶室', act: vipRoom });
+    },
+  },
+  home: {
+    name: '住處', place: 'home', get w() { return [6, 8, 10, 13][houseTier()]; }, get d() { return [5, 6, 7, 9][houseTier()]; },
+    key: () => houseTier(),
+    build(g, room) {
+      const t = houseTier(), w = room.w, d = room.d, gb = new GB(), gl = new GB();
+      shell(gb, w, d, [0xb99b74, 0xc9b28c, 0xd6c3a0, 0xe9e1d2][t], [0xd8cdb4, 0xe6dcc8, 0xf0e8d6, 0xf6f1e6][t]);
+      // 床、書桌、牆上的戰績板
+      gb.box(1.6, 0.45, 2.2, 0x6b4a3a, -w / 2 + 1.1, 0.22, -d / 2 + 1.3); gb.box(1.5, 0.15, 2.1, 0xf4efe4, -w / 2 + 1.1, 0.52, -d / 2 + 1.3); gb.box(1.5, 0.18, 0.5, 0x7fb3d6, -w / 2 + 1.1, 0.66, -d / 2 + 0.45);
+      room.obs.push({ x: -w / 2 + 1.1, z: -d / 2 + 1.3, w: 1.8, d: 2.4 });
+      gb.box(1.4, 0.75, 0.7, 0x8f6b48, w / 2 - 1.1, 0.38, -d / 2 + 0.55); gb.box(0.35, 0.3, 0.3, 0x2b2622, w / 2 - 1.3, 0.9, -d / 2 + 0.5); room.obs.push({ x: w / 2 - 1.1, z: -d / 2 + 0.55, w: 1.6, d: 0.9 });
+      gb.box(1.6, 1.0, 0.06, 0x2b2622, 0, 2.2, -d / 2 + 0.03); gb.box(1.45, 0.85, 0.07, 0xf3e7cc, 0, 2.2, -d / 2 + 0.04);
+      if (t >= 1) { gb.box(0.25, 0.12, 0.2, 0xd7263d, w / 2 - 0.8, 0.82, -d / 2 + 0.55); }                                   // 家用電話
+      if (t >= 2) { gb.box(2.2, 0.5, 0.9, 0x5a3b2a, 0, 0.25, 0.6); gb.box(2.2, 0.5, 0.2, 0x5a3b2a, 0, 0.6, 1.0); room.obs.push({ x: 0, z: 0.7, w: 2.4, d: 1.1 }); } // 沙發
+      if (t >= 3) { gb.box(1.6, 1.1, 0.6, 0x111111, -w / 2 + 1.2, 0.55, d / 2 - 1.6); room.obs.push({ x: -w / 2 + 1.2, z: d / 2 - 1.6, w: 1.8, d: 0.8 }); gl.sph(0.5, 0xfff2b0, 0, 3.6, 0, 1.4, 0.6, 1.4, 8); gb.cyl(0.03, 0.03, 0.6, 0xc8a02f, 0, 3.95, 0); } // 鋼琴、水晶燈
+      for (let k = 0; k < [1, 1, 2, 3][t]; k++) gb.box(1.2, 1.2, 0.05, 0x9fd6e8, -w / 2 + 2.8 + k * 2.4, 2.2, -d / 2 + 0.03);  // 窗
+      g.add(gb.mesh(true)); g.add(new THREE.Mesh(gl.geometry(), GLOW));
+      sign(g, ['我的戰績', '成就・公司圖鑑'], 0, 2.2, -d / 2 + 0.12, 1.4, 0.8, '#f3e7cc', '#2b2622');
+      room.spots.push({ x: -w / 2 + 1.1, z: -d / 2 + 2.8, r: 1.2, verb: '睡覺（跳到明天）', label: '床', act: sleepNow });
+      room.spots.push({ x: w / 2 - 1.1, z: -d / 2 + 1.4, r: 1.1, verb: t >= 1 ? '打電話給營業員（下單）' : '存檔與讀檔', label: t >= 1 ? '電話・書桌' : '書桌', act: () => t >= 1 ? homeDesk() : openSaves() });
+      room.spots.push({ x: 0, z: -d / 2 + 1.2, r: 1.1, verb: '看成就與公司圖鑑', label: '戰績板', act: () => { noteTab = 'ach'; openNotes(); } });
+      room.spots.push({ x: w / 2 - 1.0, z: d / 2 - 1.3, r: 1.1, verb: '看房屋廣告（換房子）', label: '房屋廣告', act: () => openLife('house') });
+      if (t >= 3) room.spots.push({ x: 0, z: -0.6, r: 1.3, verb: '辦一場派對', label: '派對', act: throwParty });
+    },
+    onEnter: () => neighborChat(),
+  },
+  izakaya: {
+    name: '月見居酒屋', w: 9, d: 7, place: 'izakaya',
+    closed: () => PHASE() !== 'night' ? '居酒屋還在準備中，晚上 6 點才開門' : null,
+    build(g, room) {
+      const gb = new GB(), gl = new GB(); shell(gb, room.w, room.d, 0x6b4a3a, 0x8f6b48);
+      gb.box(6, 1.05, 0.8, 0x5a3b2a, 0, 0.52, -1.8); gb.box(6.2, 0.06, 0.95, 0xc9a26b, 0, 1.08, -1.8); room.obs.push({ x: 0, z: -1.8, w: 6.2, d: 1.0 });
+      for (let k = 0; k < 6; k++) { gb.cyl(0.22, 0.22, 0.08, 0xd7263d, -2.5 + k, 0.7, -1.0, 10); gb.cyl(0.04, 0.04, 0.7, 0x333333, -2.5 + k, 0.35, -1.0, 6); }
+      for (let k = 0; k < 8; k++) gb.box(0.18, 0.5, 0.18, [0x2b7f86, 0xf4efe4, 0x5f9e6a][k % 3], -3 + k * 0.85, 1.6, -room.d / 2 + 0.25);
+      gb.box(1.4, 0.75, 1.4, 0x5a3b2a, 2.6, 0.38, 1.6); room.obs.push({ x: 2.6, z: 1.6, w: 1.6, d: 1.6 });
+      for (const x of [-3, -1, 1, 3]) gl.sph(0.28, 0xff4a2a, x, 3.2, 0, 1, 1.3, 1, 8);
+      g.add(gb.mesh(true)); g.add(new THREE.Mesh(gl.geometry(), GLOW));
+      sign(g, ['月見'], 0, 3.0, -room.d / 2 + 0.05, 1.6, 0.6, '#2b2622', '#ffd27a');
+      addPerson(room, { npc: 'mama', x: 0, z: -2.7, face: 0 });
+      addPerson(room, { npc: 'whale', x: 2.6, z: 2.5, face: Math.PI, sit: true });
+      addPerson(room, { look: 'ped2', x: -1.5, z: -1.0, face: Math.PI, sit: true, crowd: true }); addPerson(room, { look: 'builder', x: -2.5, z: -1.0, face: Math.PI, sit: true, crowd: true });
+    },
+  },
+  bank: {
+    name: '寶島銀行', w: 11, d: 8, place: 'bank',
+    closed: () => TIME.min < 9 * 60 || TIME.min >= 15.5 * 60 ? '銀行營業時間是 9:00–15:30' : null,
+    build(g, room) {
+      const gb = new GB(), gl = new GB(); shell(gb, room.w, room.d, 0xc9c6bf, 0xe8e4da);
+      gb.box(8, 1.15, 0.8, 0x6b6a66, 0, 0.58, -2.2); gb.box(8.2, 0.06, 0.95, 0xe8e4da, 0, 1.18, -2.2); room.obs.push({ x: 0, z: -2.2, w: 8.4, d: 1.0 });
+      for (let k = 0; k < 4; k++) gb.box(0.05, 0.9, 0.9, 0x9fd6e8, -3 + k * 2, 1.65, -2.2);
+      for (const x of [-4, 4]) { gb.cyl(0.35, 0.4, 4, 0xf4efe4, x, 2, 1.5, 12); room.obs.push({ x, z: 1.5, w: 0.8, d: 0.8 }); }
+      gb.box(1.6, 0.5, 0.5, 0x5a3b2a, 0, 0.25, 1.2); room.obs.push({ x: 0, z: 1.2, w: 1.7, d: 0.6 });
+      for (const x of [-3, 3]) gl.box(2, 0.08, 0.6, 0xfff6d0, x, 4.1, 0);
+      g.add(gb.mesh(true)); g.add(new THREE.Mesh(gl.geometry(), GLOW));
+      sign(g, ['寶島銀行'], 0, 3.4, -room.d / 2 + 0.05, 2.6, 0.55, '#1f4f9a', '#ffffff');
+      sign(g, ['定存・黃金・房貸'], 0, 2.4, -room.d / 2 + 0.05, 2.6, 0.4, '#f4efe4', '#1f4f9a');
+      [-3, -1, 1, 3].forEach((x, k) => addPerson(room, { look: k % 2 ? 'phone' : 'banker', x, z: -2.95, face: 0, teller: true }));
+      room.spots.push({ x: -1, z: -1.4, r: 1.6, verb: '辦理定存、黃金、房貸', label: '服務櫃檯', act: () => openLife('bank') });
+    },
+  },
+};
+
+/* ---------- 進出 ---------- */
+function roomDoorDir(id) { const p = PLACE_BY[ROOMS[id].place]; return p && slot(p.road, p.s, p.side, 3.9).dir; }
+function doorNear(best) {
+  if (GAME.mode !== 'ground') return best;
+  const bd = best ? angDist(PL.dir, best.dir) : 99;
+  for (const id in ROOMS) { const d = roomDoorDir(id); if (!d) continue; const dd = angDist(PL.dir, d); if (dd < 1.25 && dd < bd) return { door: id, verb: `進入${ROOMS[id].place === 'home' ? HOUSES[houseTier()].place : ROOMS[id].name}`, act: () => enterInterior(id) }; }
+  return best;
+}
+function buildRoom(id) {
+  const R0 = ROOMS[id], key = R0.key ? R0.key() : 0, old = IN.groups[id];
+  if (old && old.userData.key === key) return old;
+  if (old) { scene.remove(old); old.userData.people.forEach(p => p.ch && scene.remove(p.ch.root)); }
+  const g = new THREE.Group(); g.position.copy(IN_O); g.userData.key = key;
+  const room = { w: R0.w, d: R0.d, people: [], spots: [], obs: [] }; R0.build(g, room);
+  for (const p of room.people) {
+    const L = Object.assign({}, p.npc ? LOOKS[NPC_BY[p.npc].look] : LOOKS[p.look]); delete L.hold;
+    p.ch = new Character(L); if (p.sit) p.ch.mode = 'sit'; g.add(p.ch.root); p.ch.root.position.set(p.x, 0, p.z); p.ch.root.rotation.y = p.face;
+  }
+  g.userData.room = room; g.userData.people = room.people; scene.add(g); IN.groups[id] = g; return g;
+}
+async function enterInterior(id) {
+  const R0 = ROOMS[id]; if (!R0 || GAME.busy) return; const why = R0.closed && R0.closed(); if (why) { toast(why); return; }
+  GAME.busy = true; $('fade').style.opacity = 1; await wait(320);
+  const g = buildRoom(id); for (const k in IN.groups) IN.groups[k].visible = k === id;
+  const room = g.userData.room; Object.assign(IN, { id, room, people: room.people, spots: room.spots, obs: room.obs, x: 0, z: room.d / 2 - 0.9, fx: 0, fz: -1, speed: 0, goal: null });
+  GAME.mode = 'interior'; interiorCamera(1, true); refreshNear();
+  $('fade').style.opacity = 0; GAME.busy = false; sfx('blip'); if (R0.onEnter) R0.onEnter();
+}
+function exitInterior(quick) {
+  if (GAME.mode !== 'interior') return; const id = IN.id, d = roomDoorDir(id), p = PLACE_BY[ROOMS[id].place];
+  if (IN.groups[id]) IN.groups[id].visible = false; IN.id = null; GAME.mode = 'ground';
+  if (d && p) { const out = slot(p.road, p.s, p.side, 2.6).dir; setPlayerAt(out, slot(p.road, p.s, p.side, 0).dir); groundCam(_cg); camera.position.copy(_cg.pos); CAM.look.copy(_cg.look); camera.up.copy(_cg.up); }
+  if (!quick) sfx('blip');
+}
+const refreshNear = () => { NEAR = interiorNear(); };
+
+/* ---------- 室內每一幀 ---------- */
+function interiorNear() {
+  if (GAME.mode !== 'interior' || GAME.busy) return null; let best = null, bd = 9;
+  for (const s of IN.spots) { const d = Math.hypot(IN.x - s.x, IN.z - s.z); if (d < s.r && d < bd) { bd = d; best = s; } }
+  for (const p of IN.people) { if (!p.npc || !p.ch.root.visible) continue; const d = Math.hypot(IN.x - p.x, IN.z - p.z); if (d < 1.5 && d < bd) { const n = NPC_BY[p.npc]; bd = d; best = { verb: `和${n.name}說話`, act: () => talkTo(n) }; } }
+  if (Math.abs(IN.x) < 0.9 && IN.z > IN.room.d / 2 - 1.1 && !best) best = { verb: '離開', act: () => exitInterior() };
+  return best;
+}
+function interiorUpdate(dt) {
+  let inp = GAME.busy ? { x: 0, y: 0, run: false } : moveInput();
+  if (IN.goal && !GAME.busy) { if (Math.hypot(inp.x, inp.y) > 0.05) IN.goal = null; else { const dx = IN.goal.x - IN.x, dz = IN.goal.z - IN.z, d = Math.hypot(dx, dz); if (d < 1.0) { const g = IN.goal; IN.goal = null; setTimeout(g.done, 0); } else inp = { x: dx / d, y: -dz / d, run: false }; } }
+  const mag = Math.min(1, Math.hypot(inp.x, inp.y)), tgt = mag > 0.05 ? (inp.run ? 5 : 3.2) * mag : 0;
+  IN.speed = lerp(IN.speed, tgt, 1 - Math.exp(-dt * 10));
+  if (mag > 0.05) { const fx = inp.x / Math.max(mag, 1e-6), fz = -inp.y / Math.max(mag, 1e-6), k = 1 - Math.exp(-dt * 12); IN.fx += (fx - IN.fx) * k; IN.fz += (fz - IN.fz) * k; const l = Math.hypot(IN.fx, IN.fz) || 1; IN.fx /= l; IN.fz /= l; }
+  if (IN.speed > 0.05) {
+    const r = IN.room; let nx = IN.x + IN.fx * IN.speed * dt, nz = IN.z + IN.fz * IN.speed * dt;
+    if (nz > r.d / 2 - 0.15 && Math.abs(nx) < 0.9) { exitInterior(); return; }
+    nx = clamp(nx, -r.w / 2 + 0.35, r.w / 2 - 0.35); nz = clamp(nz, -r.d / 2 + 0.35, r.d / 2 - 0.3);
+    for (const o of IN.obs) { const hx = o.w / 2 + 0.3, hz = o.d / 2 + 0.3, ox = nx - o.x, oz = nz - o.z; if (Math.abs(ox) < hx && Math.abs(oz) < hz) { if (hx - Math.abs(ox) < hz - Math.abs(oz)) nx = o.x + Math.sign(ox || 1) * hx; else nz = o.z + Math.sign(oz || 1) * hz; } }
+    IN.x = nx; IN.z = nz;
+  }
+  PL.ch.root.position.set(IN_O.x + IN.x, IN_O.y, IN_O.z + IN.z); PL.ch.root.rotation.set(0, Math.atan2(IN.fx, IN.fz), 0); PL.ch.root.scale.setScalar(1);
+  PL.ch.speed = IN.speed / 5; PL.ch.update(dt, GAME.t);
+  // 盯盤的人跟著行情反應
+  IN.cheerT -= dt; const mood = marketMood();
+  for (const p of IN.people) {
+    if (p.npc) { const n = NPC_BY[p.npc]; p.ch.root.visible = !(n.night && PHASE() !== 'night'); p.ch.say(DLG.active && DLG.who === n); }
+    if (p.crowd && IN.cheerT < 0 && PHASE() === 'open' && Math.random() < 0.3) { if (mood > 0.015) p.ch.wave = 1.8; }
+    p.ch.update(dt, GAME.t);
+  }
+  if (IN.cheerT < 0) { IN.cheerT = 4; if (IN.id === 'broker' && PHASE() === 'open') { const c = IN.people.filter(p => p.crowd); const p = c[Math.random() * c.length | 0]; if (p) IN.bubble = { p, t: 3, txt: mood > 0.02 ? '漲停啦！發了發了！' : mood > 0.004 ? '紅通通，好看！' : mood < -0.02 ? '跌停了……我的買菜錢！' : mood < -0.004 ? '唉，又綠了。' : '今天怎麼這麼悶？' }; } }
+  if (IN.bubble) IN.bubble.t -= dt;
+}
+function interiorCamera(dt, snap) {
+  // 鏡頭在房間前上方，往裡面看；人往後走時鏡頭跟著往後，後牆的看板一直在畫面上方
+  const r = IN.room, zc = clamp(IN.z, -r.d / 2 + 2, r.d / 2), tp = new V3(IN_O.x + IN.x * 0.45, IN_O.y + 6.2 + r.d * 0.24, IN_O.z + zc + 8 + r.d * 0.5), tl = new V3(IN_O.x + IN.x * 0.6, IN_O.y + 1.6, IN_O.z + zc - 3);
+  if (snap) { camera.position.copy(tp); CAM.look.copy(tl); } else { camera.position.lerp(tp, 1 - Math.exp(-dt * 6)); CAM.look.lerp(tl, 1 - Math.exp(-dt * 8)); }
+  camera.up.set(0, 1, 0); camera.lookAt(CAM.look);
+}
+function interiorLighting() {
+  sun.position.set(IN_O.x + 4, IN_O.y + 12, IN_O.z + 7); sun.target.position.copy(IN_O); sun.intensity = 0.7; sun.color.setHex(0xfff1d8);
+  hemi.position.set(0, 1, 0); hemi.intensity = 0.6;
+}
+function interiorLabels(proj) {
+  const lab = (pos, text, cls2, click) => { const p = proj(pos); if (p) lbl(text, cls2, p[0], p[1], click); };
+  for (const p of IN.people) {
+    if (!p.npc || !p.ch.root.visible) continue; const n = NPC_BY[p.npc], fresh = n.rel && S.talked[n.id] !== S.day;
+    lab(new V3(IN_O.x + p.x, IN_O.y + (p.sit ? 1.7 : 2.1), IN_O.z + p.z), (fresh ? '● ' : '') + n.name + (n.rel && hearts(n.id) ? ' ' + '♥'.repeat(hearts(n.id)) : ''), fresh ? 'q tap' : 'tap', () => goTo(p.x, p.z + (p.face === 0 ? 1.1 : 0), () => talkTo(n)));
+  }
+  for (const s of IN.spots) if (Math.hypot(IN.x - s.x, IN.z - s.z) < 5) lab(new V3(IN_O.x + s.x, IN_O.y + 1.4, IN_O.z + s.z), s.label, 'goal tap', () => goTo(s.x, s.z, s.act));
+  if (IN.bubble && IN.bubble.t > 0) lab(new V3(IN_O.x + IN.bubble.p.x, IN_O.y + 1.9, IN_O.z + IN.bubble.p.z), IN.bubble.txt, 'q');
+  lab(new V3(IN_O.x, IN_O.y + 0.9, IN_O.z + IN.room.d / 2 - 0.2), '出口', 'tap', () => goTo(0, IN.room.d / 2 - 0.5, () => exitInterior()));
+}
+function goTo(x, z, done) { if (GAME.busy) return; if (Math.hypot(IN.x - x, IN.z - z) < 1.1) return done(); IN.goal = { x, z, done }; }
+
+/* ---------- 房間裡的動作 ---------- */
+async function vipRoom() {
+  if (S.rank < 3) { toast('大戶室：總資產 1,000 萬以上（大戶）才能進去喝茶'); sfx('bad'); return; }
+  GAME.busy = true;
+  try {
+    const w = NPC_BY.whale;
+    await say(null, '（大戶室裡有沙發、冷氣和泡好的老人茶，阿忠正翹著腳看報價。）');
+    if (S.talked['vip'] === S.day) { await say(w, '今天聊夠了，晚上居酒屋見。'); return; }
+    S.talked['vip'] = S.day; await rumorTalk(w, '喔，你也上來了！大戶室的消息比樓下準多了，聽好——');
+    achieve('vip');
+  } finally { DLG.hide(); GAME.busy = false; }
+}
+async function sleepNow() {
+  if (PHASE() === 'pre' || PHASE() === 'open') { toast('還沒收盤，先去證券行看看吧'); return; }
+  GAME.busy = true; await say(null, '（你躺上床，很快就睡著了。）'); DLG.hide(); GAME.busy = false; await endDay();
+}
+function homeDesk() { openTrade(true); }
+/* =========================================================
+   life：時間速度、住宅與生活開銷、定存／黃金／預售屋、大家樂、道德抉擇、成就與公司圖鑑
+   ========================================================= */
+
+/* ---------- 時間速度：盤中、逛街（盤前、盤後、晚上）分開調 ---------- */
+const SPEEDS = [[0.6, '慢'], [1, '標準'], [1.6, '快']];
+const phaseRate = () => { const ph = PHASE(); return RATE[ph] * (ph === 'open' ? (S.spOpen || 1) : (S.spWalk || 1)); };
+const speedName = v => (SPEEDS.find(x => x[0] === v) || [0, '標準'])[1];
+const dayMinutes = () => { const o = S.spOpen || 1, w = S.spWalk || 1; return ((180 / (RATE.pre * w)) + (270 / (RATE.open * o)) + (270 / (RATE.post * w)) + (300 / (RATE.night * w))) / 60 | 0 || 1; };
+
+/* ---------- 住宅 ---------- */
+const HOUSES = [
+  { name: '雅房', place: '阿德的雅房', price: 0, cost: 30000, perk: '頂樓加蓋的小房間，一張床、一張書桌。' },
+  { name: '公寓', place: '阿德的公寓', price: 1.5e6, cost: 60000, perk: '兩房一廳，裝了家用電話：在家裡也能打給營業員下單。' },
+  { name: '透天厝', place: '阿德的透天厝', price: 4e6, cost: 100000, perk: '鄰居都是做生意的老闆：每隔幾天晚上回家，會聽到一則很準的消息。' },
+  { name: '豪宅', place: '阿德的豪宅', price: 1.2e7, cost: 250000, perk: '景觀豪宅：每個月可以辦一次派對，邀大戶、陳董、林襄理來家裡，每人透露一則準消息。' },
+];
+// 台北房價大約的走勢（1985 年＝1）：1987–1989 年飆漲近三倍，1990 年後持平微跌
+const HOUSE_IDX = { 1985: 1, 1986: 1.05, 1987: 1.35, 1988: 1.95, 1989: 2.7, 1990: 2.8, 1991: 2.6, 1992: 2.55, 1993: 2.5, 1994: 2.5, 1995: 2.45, 1996: 2.4, 1997: 2.35 };
+// 一年期定存利率（參考當年水準，簡化）
+const DEP_RATE = { 1985: 0.0675, 1986: 0.055, 1987: 0.05, 1988: 0.05, 1989: 0.095, 1990: 0.0975, 1991: 0.085, 1992: 0.0775, 1993: 0.075, 1994: 0.0725, 1995: 0.07, 1996: 0.0625 };
+// 金價（新台幣／台兩，參考當年國際金價與匯率，簡化）
+const GOLD_Y = { 1985: 15400, 1986: 15900, 1987: 17300, 1988: 15500, 1989: 13500, 1990: 12400, 1991: 11700, 1992: 10900, 1993: 11500, 1994: 12400, 1995: 12400, 1996: 12300 };
+const houseTier = () => (S.house && S.house.tier) || 0;
+const depRate = () => DEP_RATE[yearOf(S.season)] || 0.06;
+function houseIdx() { const y = yearOf(S.season), a = HOUSE_IDX[y] || 2.4, b = HOUSE_IDX[y + 1] || a; return a + (b - a) * clamp((Math.min(S.day, DAYS) - 1) / Math.max(1, DAYS - 1), 0, 1); }
+const houseValue = () => HOUSES[houseTier()].price * houseIdx();
+function goldSeries() {
+  if (SEASON.goldP) return SEASON.goldP;
+  const r = mulberry32((SEASON.seed * 13 + 5) >>> 0), y = yearOf(S.season), p = [GOLD_Y[y] || 12000], drift = Math.log((GOLD_Y[y + 1] || p[0]) / p[0]) / DAYS;
+  for (let d = 1; d <= DAYS; d++) {
+    let x = drift + gauss(r) * 0.007;
+    for (const e of SEASON.events) { const k = d - e.day; if (k >= 0 && k < 2 && ['crash', 'strait', 'gulf', 'war', 'pandemic', 'asia97'].includes(e.id)) x += 0.012; }
+    p.push(Math.round(p[d - 1] * (1 + x)));
+  }
+  return (SEASON.goldP = p);
+}
+const goldPrice = () => goldSeries()[Math.min(DAYS, curDay() - 1 + (PHASE() === 'post' || PHASE() === 'night' ? 1 : 0))];
+// 預售屋紅單：每張先付 30 萬訂金，跟著一戶 300 萬（1985 年價）的房子漲跌
+const PRE_DEP = 3e5, PRE_FULL = 3e6;
+const preValue = () => { const p = S.pre; if (!p || !p.units) return 0; return Math.max(0, p.units * (PRE_DEP + PRE_FULL * (houseIdx() - p.idx))); };
+function lifeValue() { const h = S.house || {}; return (S.fixed || 0) + (S.gold || 0) * goldPrice() + houseValue() - (h.loan || 0) + preValue(); }
+
+/* ---------- 生活與資產的面板 ---------- */
+let LIFE_TAB = 'bank';
+function ensureLifeModal() {
+  if ($('life')) return;
+  const m = document.createElement('div'); m.id = 'life'; m.className = 'modal hide';
+  m.innerHTML = '<div class="box paper"><div class="bh"><h3 id="lfTitle">生活與資產</h3><button class="x" aria-label="關閉">×</button></div><div class="bb" id="lfBody"></div></div>';
+  $('app').appendChild(m); m.querySelector('.x').onclick = closeModals;
+}
+function openLife(tab) { ensureLifeModal(); if (GAME.busy && $('life').classList.contains('hide')) return; LIFE_TAB = tab || LIFE_TAB; GAME.busy = true; $('life').classList.remove('hide'); renderLife(); }
+function renderLife(msg) {
+  const tabs = [['bank', '定存・黃金'], ['house', '住宅・預售屋']], h = S.house || {}, gp = goldPrice();
+  let o = `<div class="tabs" style="margin-bottom:10px">${tabs.map(([k, t]) => `<button class="tab ${LIFE_TAB === k ? 'on' : ''}" data-lt="${k}">${t}</button>`).join('')}</div>`;
+  if (msg) o += `<div class="sum">${msg}</div>`;
+  o += `<div class="sum"><span>現金 <b>${money(S.cash)}</b></span><span>定存 <b>${money(S.fixed || 0)}</b></span><span>黃金 <b>${(S.gold || 0)} 兩</b></span><span>房產淨值 <b>${money(houseValue() - (h.loan || 0))}</b></span><span>預售屋 <b>${money(preValue())}</b></span></div>`;
+  if (LIFE_TAB === 'bank') {
+    o += `<h4>一年期定存　年利率 ${(depRate() * 100).toFixed(2)}%</h4><p class="note" style="margin-top:0">一個月代表一年，月底依利率發利息，隨時可以解約領回。</p>
+      <p>${[[1e5, '存 10 萬'], [1e6, '存 100 萬'], ['all', '現金全部存']].map(([v, t]) => `<button class="btn" data-fx="${v}">${t}</button>`).join(' ')}　${(S.fixed || 0) ? '<button class="btn" data-fx="out">全部解約</button>' : ''}</p>
+      <h4>黃金　今日牌價 ${money(gp)} 元／台兩</h4><p class="note" style="margin-top:0">戰爭、股災、疫情時金價常會上漲，可以拿來避險；買賣各收 1% 手續費。${S.gold ? `你的平均成本 ${money(S.goldCost || 0)} 元。` : ''}</p>
+      <p>${[[1, '買 1 兩'], [10, '買 10 兩'], [50, '買 50 兩']].map(([v, t]) => `<button class="btn" data-gb="${v}">${t}</button>`).join(' ')}　${S.gold ? '<button class="btn" data-gs="1">全部賣出</button>' : ''}</p>`;
+  } else {
+    const t = houseTier(), idx = houseIdx();
+    o += `<h4>你現在住：${HOUSES[t].name}</h4><p class="note" style="margin-top:0">${HOUSES[t].perk}每個月生活開銷約 ${wan(HOUSES[t].cost)}${h.loan ? `，房貸 ${wan(h.loan)}（月底付利息約 ${wan(h.loan * (depRate() + 0.02))}）` : ''}。今年房價指數 ${idx.toFixed(2)}（1985 年＝1）。</p>`;
+    o += HOUSES.map((x, k) => k === 0 || k === t ? '' : `<div class="slot"><div><b>${x.name}　${wan(x.price * idx)}</b><small>${x.perk}每個月開銷約 ${wan(x.cost)}。</small></div><div class="acts"><button class="btn" data-hb="${k}" data-pay="cash">現金買</button><button class="btn pri" data-hb="${k}" data-pay="loan">貸款買（自備 3 成）</button></div></div>`).join('');
+    if (t > 0) o += `<p><button class="btn" data-hs="1">賣掉${HOUSES[t].name}，搬回雅房（可拿回約 ${wan(houseValue() * 0.96 - (h.loan || 0))}）</button></p>`;
+    o += `<h4>預售屋紅單</h4><p class="note" style="margin-top:0">每張先付 ${wan(PRE_DEP)} 訂金，綁一戶 ${wan(PRE_FULL)}（1985 年價）的房子：房價漲，紅單就跟著漲好幾倍；房價跌，訂金可能賠光。可以隨時轉賣（手續費 3%）。</p>
+      <p><button class="btn" data-pb="1">買 1 張（${wan(PRE_DEP)}）</button> ${S.pre && S.pre.units ? `<button class="btn" data-ps="1">全部轉賣（約 ${wan(preValue() * 0.97)}）</button>　持有 ${S.pre.units} 張` : ''}</p>`;
+  }
+  $('lfBody').innerHTML = o; $('lfTitle').textContent = LIFE_TAB === 'bank' ? '寶島銀行・定存與黃金' : '住宅與預售屋';
+  const q = s => $('lfBody').querySelectorAll(s);
+  q('[data-lt]').forEach(b => b.onclick = () => { LIFE_TAB = b.dataset.lt; renderLife(); });
+  q('[data-fx]').forEach(b => b.onclick = () => lifeAct('fx', b.dataset.fx)); q('[data-gb]').forEach(b => b.onclick = () => lifeAct('gb', +b.dataset.gb)); q('[data-gs]').forEach(b => b.onclick = () => lifeAct('gs'));
+  q('[data-hb]').forEach(b => b.onclick = () => lifeAct('hb', +b.dataset.hb, b.dataset.pay)); q('[data-hs]').forEach(b => b.onclick = () => lifeAct('hs'));
+  q('[data-pb]').forEach(b => b.onclick = () => lifeAct('pb')); q('[data-ps]').forEach(b => b.onclick = () => lifeAct('ps'));
+}
+function lifeAct(k, v, pay) {
+  const no = m => { sfx('bad'); renderLife(m); }, ok = m => { sfx('coin'); refreshHUD(); renderLife(m); };
+  if (k === 'fx') { if (v === 'out') { S.cash += S.fixed || 0; const a = S.fixed; S.fixed = 0; return ok(`解約定存，領回 ${money(a)} 元`); } const a = v === 'all' ? Math.floor(S.cash) : +v; if (a <= 0 || S.cash < a) return no('現金不夠'); S.cash -= a; S.fixed = (S.fixed || 0) + a; return ok(`存入定存 ${money(a)} 元`); }
+  if (k === 'gb') { const cost = v * goldPrice() * 1.01; if (S.cash < cost) return no('現金不夠'); S.goldCost = ((S.goldCost || 0) * (S.gold || 0) + goldPrice() * v) / ((S.gold || 0) + v); S.gold = (S.gold || 0) + v; S.cash -= cost; return ok(`買進黃金 ${v} 兩`); }
+  if (k === 'gs') { const g = S.gold || 0, get = g * goldPrice() * 0.99; if (goldPrice() >= (S.goldCost || 0) * 1.1) achieve('gold'); S.cash += get; S.gold = 0; S.goldCost = 0; return ok(`賣出黃金 ${g} 兩，拿回 ${money(get)} 元`); }
+  if (k === 'hb') {
+    const price = HOUSES[v].price * houseIdx(), h = S.house || (S.house = { tier: 0, loan: 0 }), back = houseValue() * 0.96 - (h.loan || 0);
+    const need = pay === 'loan' ? price * 0.32 : price * 1.02;
+    if (S.cash + Math.max(0, back) < need) return no(`現金不夠：${pay === 'loan' ? '自備款加手續費' : '房價加手續費'}要 ${wan(need)}`);
+    S.cash += back; S.cash -= need; h.loan = pay === 'loan' ? price * 0.7 : 0; h.tier = v; achieve('home'); if (v === 3) achieve('mansion');
+    PLACE_BY.home.name = HOUSES[v].place; return ok(`恭喜搬進${HOUSES[v].name}！${HOUSES[v].perk}`);
+  }
+  if (k === 'hs') { const h = S.house; const back = houseValue() * 0.96 - (h.loan || 0); S.cash += back; h.tier = 0; h.loan = 0; PLACE_BY.home.name = HOUSES[0].place; return ok(`房子賣掉了，拿回 ${money(back)} 元，搬回雅房`); }
+  if (k === 'pb') { if (S.cash < PRE_DEP) return no('現金不夠'); const p = S.pre || (S.pre = { units: 0, idx: houseIdx() }); p.idx = (p.idx * p.units + houseIdx()) / (p.units + 1); p.units++; S.cash -= PRE_DEP; return ok('買進預售屋紅單 1 張'); }
+  if (k === 'ps') { const get = preValue() * 0.97; S.cash += get; S.pre = null; return ok(`紅單全部轉賣，拿回 ${money(get)} 元`); }
+}
+// 住處的好處
+async function neighborChat() {
+  if (houseTier() < 2 || PHASE() !== 'night' || S.day % 3 || S.talked.neighbor === S.day) return;
+  S.talked.neighbor = S.day; const n = { id: 'neighbor', idx: 77, role: 'boss', rel: 0.85, name: '鄰居林老闆', look: 'boss' };
+  GAME.busy = true; try { const m = makeRumor(n, S.day); if (!m) return; Object.assign(m, { day: S.day, npc: 'neighbor', npcName: n.name }); S.rumors.push(m); $('noteBadge').classList.remove('hide'); await say(n, '阿德，剛好遇到你！跟你說，' + m.text); toast('記進消息本了'); } finally { DLG.hide(); GAME.busy = false; }
+}
+async function throwParty() {
+  if (PHASE() !== 'night') { toast('派對要晚上辦比較有氣氛'); return; }
+  if (S.partySeason === S.season) { toast('這個月已經辦過派對了'); return; }
+  if (S.cash < 2e5) { toast('辦一場派對要 20 萬'); return; }
+  S.cash -= 2e5; S.partySeason = S.season; GAME.busy = true;
+  try {
+    await say(null, '（香檳、卡拉 OK、滿桌的菜。大戶阿忠、陳董和林襄理都來了。）');
+    for (const id of ['whale', 'builder', 'banker']) {
+      const n = NPC_BY[id], m = makeRumor(Object.assign(Object.create(n), { rel: 0.88, idx: n.idx + 90 }), S.day); bondUp(n, 2);
+      if (m) { Object.assign(m, { day: S.day, npc: n.id, npcName: n.name }); S.rumors.push(m); await say(n, m.text); }
+    }
+    $('noteBadge').classList.remove('hide'); achieve('party'); toast('派對結束，消息都記進消息本了');
+  } finally { DLG.hide(); GAME.busy = false; refreshHUD(); }
+}
+
+/* ---------- 大家樂（1988 年愛國獎券停售後改簽六合彩） ---------- */
+const LOTTO_ODDS = 70;
+const lottoName = () => yearOf(S.season) <= 1987 ? '大家樂' : '六合彩';
+const drawDays = () => { const a = []; for (let d = 10; d <= DAYS; d += 10) a.push(d); return a; };
+const nextDraw = () => drawDays().find(d => d > S.day || (d === S.day && (PHASE() === 'pre' || PHASE() === 'open')));
+const winNum = d => mulberry32((SEASON.seed * 91 + d * 7) >>> 0)() * 100 | 0;
+async function lottoTalk(n) {
+  const nm = lottoName(), nd = nextDraw();
+  if (!nd) { await say(n, `這個月的${nm}已經開完了，下個月再來。`); return; }
+  await say(n, `${nm}喔？猜開獎號碼的末兩碼，猜中賠 ${LOTTO_ODDS} 倍，第 ${nd} 天收盤後開獎。不過十個簽九個槓龜，少簽一點啦。`);
+  const c = await choose(['簽 1,000 元', '簽 1 萬', '簽 10 萬', '算了']); if (c === 3) return;
+  const amt = [1000, 1e4, 1e5][c]; if (S.cash < amt) { await say(n, '錢不夠就別簽了。'); return; }
+  const c2 = await choose(['請廟公幫我挑號碼', '用今天的日期當號碼', '隨便選一個']);
+  const num = c2 === 1 ? (S.season * 7 + S.day * 3) % 100 : Math.random() * 100 | 0;
+  S.cash -= amt; (S.lotto = S.lotto || []).push({ num, amt, day: nd, nm }); sfx('coin');
+  await say(n, `好，${String(num).padStart(2, '0')} 號，簽 ${wan(amt)}。第 ${nd} 天收盤後開獎，土地公保佑。`);
+}
+function lottoDraw() {
+  const msgs = []; S.lotto = (S.lotto || []).filter(t => {
+    if (t.day !== S.day) return true; const w = winNum(t.day);
+    if (t.num === w) { const got = t.amt * LOTTO_ODDS; S.cash += got; msgs.push(`<b class="up">${t.nm}中了！</b>開出 ${String(w).padStart(2, '0')}，你簽的 ${String(t.num).padStart(2, '0')} 號贏得 ${money(got)} 元`); achieve('lotto'); buzz([80, 60, 160]); }
+    else msgs.push(`${t.nm}開出 ${String(w).padStart(2, '0')}，你簽的 ${String(t.num).padStart(2, '0')} 號槓龜了`);
+    return false;
+  });
+  msgs.forEach(m => toast(m));
+}
+
+/* ---------- 道德抉擇：內線、代客操作、老鼠會 ---------- */
+async function lifeHook(n) {
+  if (n.id === 'aunt1' && !S.managed && S.offerAunt !== S.season && S.day >= 3 && S.day <= DAYS - 5 && Math.random() < 0.6) {
+    S.offerAunt = S.season;
+    await say(n, '阿德，阿姨看你最近股票做得很好……我這 50 萬交給你幫我操作好不好？賺了分你兩成！');
+    const c = await choose(['好，交給我（月底結算）', '這樣不好，代客操作是違法的']);
+    if (c === 0) { S.managed = { amt: 5e5, start: netWorth(), season: S.season }; S.heat = (S.heat || 0) + 1; await say(n, '太好了！月底再跟你算喔，可別讓阿姨賠錢。'); }
+    else { bondUp(n, 1); achieve('honest'); await say(n, '唉唷，你這孩子真老實。好啦，那阿姨自己來。'); }
+    return true;
+  }
+  if (n.id === 'ponzi' && !S.ponziGone && !S.downline && S.offerPonzi !== S.season && S.day >= 2) {
+    S.offerPonzi = S.season;
+    await say(n, '少年仔，你人面這麼廣，要不要當我們金滿堂的下線？拉人進來就有業績獎金，每天至少兩萬！');
+    const c = await choose(['好啊，賺錢誰不要', '不要，這聽起來是老鼠會']);
+    if (c === 0) { S.downline = { got: 0 }; await say(n, '爽快！從今天收盤開始，每天發你業績獎金。'); }
+    else { achieve('noponzi'); await say(n, '嘖，膽子這麼小，怎麼賺大錢？'); }
+    return false;
+  }
+  return false;
+}
+function driverHeat() { S.heat = (S.heat || 0) + 1; S.driverUsed = (S.driverUsed || 0) + 1; }
+async function ethicsMorning() {
+  if ((S.heat || 0) >= 2 && Math.random() < 0.05 * S.heat) {
+    const fine = Math.round(Math.min(Math.max(1e5, netWorth() * 0.04 * S.heat), Math.max(0, S.cash)));
+    GAME.busy = true;
+    try { await say(null, '（一大早，兩個穿西裝的人在雅房門口等你。）'); await say(null, `「調查局的。你最近的交易，時間點都抓得太準了。」你被約談了一整天，最後被罰了 ${money(fine)} 元。`); }
+    finally { DLG.hide(); GAME.busy = false; }
+    S.cash -= fine; S.heat = 0; S.driverBan = S.day + 5; sfx('bad'); buzz([300, 100, 300]);
+  }
+}
+function downlinePay() { if (S.downline && !S.ponziGone) { S.cash += 2e4; S.downline.got += 2e4; toast('金滿堂下線業績獎金 2 萬入帳'); } }
+function downlineCollapse() {
+  if (!S.downline) return; const fine = Math.min(S.downline.got * 2, Math.max(0, S.cash)); S.cash -= fine;
+  for (const n of NPCS) if (n.rel && S.bond && S.bond[n.id]) S.bond[n.id] = Math.max(0, S.bond[n.id] - 2);
+  S.heat = (S.heat || 0) + 2; S.downline = null; toast(`金滿堂倒了，檢調查到你是下線：罰款 ${money(fine)} 元，街坊對你的信任也打了折扣`); sfx('bad'); buzz([300, 100, 300]);
+}
+
+/* ---------- 月底：生活開銷、利息、代客操作結算 ---------- */
+function lifeSeasonEnd() {
+  const msgs = [], t = houseTier(), h = S.house || {};
+  const cost = HOUSES[t].cost, loanInt = (h.loan || 0) * (depRate() + 0.02), dep = (S.fixed || 0) * depRate();
+  S.cash -= cost + loanInt; S.fixed = (S.fixed || 0) + dep;
+  msgs.push(`生活開銷（${HOUSES[t].name}）${money(cost)} 元${loanInt ? `、房貸利息 ${money(loanInt)} 元` : ''}${dep ? `；定存利息 +${money(dep)} 元（已滾入定存）` : ''}。`);
+  if (S.managed && S.managed.season === S.season) {
+    const r = netWorth() / S.managed.start - 1, pl = S.managed.amt * r, a = NPC_BY.aunt1;
+    if (pl >= 0) { const fee = pl * 0.2; S.cash += fee; bondUp(a, 3); achieve('managed'); msgs.push(`幫王媽媽代客操作賺了 ${money(pl)} 元，她分你兩成 ${money(fee)} 元，逢人就誇你。`); }
+    else { S.bond = S.bond || {}; S.bond.aunt1 = 0; for (const id of ['aunt2', 'aunt3', 'vendor']) S.bond[id] = Math.max(0, (S.bond[id] || 0) - 2); msgs.push(`幫王媽媽操作賠了 ${money(-pl)} 元，她氣到不跟你說話，還跟菜市場的姊妹們講你的壞話。`); }
+    S.managed = null;
+  }
+  if (!S.driverUsed && !(S.heat || 0)) achieve('clean');
+  if (yearOf(S.season) === 1990) { const exp = holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).mv; if (exp < netWorth() * 0.1 && netWorth() >= (S.netHist || [])[0]) achieve('bubble'); }
+  if ((S.fixed || 0) >= 1e6) achieve('saver');
+  return msgs;
+}
+const LIFE_KEEP = ['house', 'fixed', 'gold', 'goldCost', 'pre', 'heat', 'downline', 'ach', 'dex', 'spOpen', 'spWalk', 'partySeason'];
+
+/* ---------- 成就 ---------- */
+const ACH = [
+  ['profit', '開張大吉', '第一次單日獲利'], ['limitup', '漲停板！', '持股鎖上漲停'], ['bounce', '接住落下的刀', '持有前一天跌停的股票，隔天反彈 3% 以上'],
+  ['short', '空頭高手', '融券部位帳面獲利超過 10%'], ['ipo', '新股中籤', '抽中新股'], ['saved', '化險為夷', '收到追繳令後補繳成功'],
+  ['rank1', '散戶', '升上散戶'], ['rank2', '中實戶', '升上中實戶'], ['rank3', '大戶', '升上大戶'], ['rank4', '證券大亨', '成為證券大亨'],
+  ['vip', '大戶室的常客', '進證券行的大戶室喝茶'], ['home', '有殼一族', '買下第一間房子'], ['mansion', '豪宅主人', '住進豪宅'], ['party', '派對之王', '在豪宅辦派對'],
+  ['saver', '穩健派', '月底定存超過 100 萬'], ['gold', '黃金避險', '黃金賺 10% 以上賣出'], ['lotto', '土地公保佑', '大家樂（六合彩）中獎'],
+  ['honest', '老實人', '拒絕代客操作'], ['noponzi', '不貪心', '拒絕當金滿堂的下線'], ['managed', '代操有功', '代客操作讓王媽媽賺錢'], ['clean', '清白人生', '整個月沒有用過內線消息'],
+  ['bubble', '躲過泡沫破裂', '1990 年那個月，月底持股不到資產一成而且沒有虧損'], ['walker', '日行萬步', '一天走滿一萬步'], ['bestie', '麻吉', '和某個人的交情到滿點'], ['eggs', '城市探險家', '找齊 10 個彩蛋'],
+];
+function achieve(id) {
+  S.ach = S.ach || {}; if (S.ach[id]) return; S.ach[id] = `${S.season}-${S.day}`;
+  const a = ACH.find(x => x[0] === id); if (!a) return; setTimeout(() => { toast(`<b>成就解鎖</b>：${a[1]}`); sfx('done'); }, 600);
+}
+function achHTML() {
+  const got = Object.keys(S.ach || {}).length;
+  return `<div class="sum">已解鎖 <b>${got}/${ACH.length}</b> 個成就</div>` + ACH.map(([id, n, d]) => { const ok = (S.ach || {})[id]; return `<div class="rumor" style="grid-template-columns:1fr auto"><span><b>${ok ? n : '？？？'}</b><br><small style="color:var(--ink-soft)">${d}</small></span>${ok ? `<span class="st ok">第 ${ok.split('-')[0]} 個月</span>` : '<span class="st wait">未解鎖</span>'}</div>`; }).join('');
+}
+
+/* ---------- 公司圖鑑 ---------- */
+const PROFILE = {
+  fin: '老牌金控，股本最大，金融股狂潮時是龍頭。', bnk: '城中路上的老銀行，散戶最愛的高股息股。', ins: '做產險起家，颱風、大災難時常被拿出來講。',
+  tel: '公營改民營的電信公司，股價最穩，像定存。', gas: '北城的瓦斯公司，業績穩定、波動很小。', food: '泡麵、罐頭都做，景氣不好時反而撐得住。',
+  sug: '老糖廠轉型，地很多，常被當成資產股。', milk: '小乳品廠，財務體質不好，傳言多。', tex: '大稻埕老紡織廠，工廠用地比本業還值錢。',
+  gar: '代工成衣廠，訂單一直被東南亞搶走。', pla: '塑化龍頭，跟著油價和景氣大起大落。', chm: '港都的化工廠，產品報價一漲股價就飆。',
+  stl: '南港的鋼鐵廠，景氣循環的代表。', cem: '水泥廠，公共建設和房市熱的時候最好。', shp: '貨櫃航運，運價一動就漲停跌停。',
+  sea: '散裝航運，體質比較弱，是投機客的最愛。', con: '營建大廠，預售屋賣得好壞決定一切。', est: '東區新興建商，擴張很快、借錢很多。',
+  dept: '西門町的百貨公司，週年慶和觀光客決定業績。', ele: '新竹科學園區的電子廠，接單消息一來就飆。', pcb: '做電路板的板橋工廠，跟著電子業景氣走。',
+  mot: '中和的小電機廠，傳產轉型不太順利。', fab: '晶圓代工，技術領先，外資和法人最愛。', pkg: '竹科的封裝測試廠，跟著晶圓廠接單。',
+  srv: '做伺服器的電腦公司，AI 浪潮的主角。', net: '內湖的網通設備廠，成長快、股價也跳得兇。', bio: '新藥研發公司，有夢最美，消息面最多。',
+  med: '北投的老藥廠，學名藥為主，經營保守。', ipo1: '新上市的電腦公司，主打伺服器組裝。', ipo2: '竹北的光電新貴，做面板零件。',
+  ipo3: '汐止的半導體設計公司，掛牌前就很熱門。', ipo4: '林口的生醫公司，帶著新藥題材上市。', ipo5: '新成立的航空貨運公司。', ipo6: '專投科技新創的創投公司。',
+};
+function dexSeen(id, traded) { S.dex = S.dex || {}; const e = S.dex[id] || (S.dex[id] = { t: 0 }); if (traded) e.t++; }
+function dexHTML() {
+  const seen = Object.keys(S.dex || {}).length; let h = `<div class="sum">已認識 <b>${seen}/${STOCKS.length}</b> 家公司（聽過明牌或買賣過就會收錄）</div>`;
+  const secs = [...new Set(STOCKS.map(s => s.sector))];
+  for (const sec of secs) {
+    h += `<h4 style="margin:10px 0 4px">${sec}</h4>`;
+    for (const s of STOCKS.filter(x => x.sector === sec)) { const e = (S.dex || {})[s.id], gone = (S.gone || []).includes(s.id); h += `<div class="rumor" style="grid-template-columns:1fr auto"><span><b>${e ? s.name : '？？？'}</b>${e ? `<br><small style="color:var(--ink-soft)">${ST_NAME[s.st]}・${PROFILE[s.id] || ''}</small>` : ''}</span><span class="st ${gone ? 'no' : e ? 'ok' : 'wait'}">${gone ? '已下市' : e ? `交易 ${e.t} 次` : '未收錄'}</span></div>`; }
+  }
+  return h;
+}
+
+/* ---------- 每日檢查 ---------- */
+function dayChecks(d, dpl) {
+  if (dpl > 0) achieve('profit');
+  STOCKS.forEach((s, i) => {
+    const long = ((S.hold[s.id] || {}).q || 0) + ((S.mar[s.id] || {}).q || 0);
+    if (long && d > 1) { const [, dn] = limits(SEASON.close[d - 2][i], d - 1); if (SEASON.close[d - 1][i] <= dn && SEASON.ret[d][i] >= 0.03) achieve('bounce'); }
+    const t = S.sht[s.id]; if (t && (t.cost - SEASON.close[d][i]) / t.cost >= 0.1) achieve('short');
+  });
+  if (NPCS.some(n => n.rel && hearts(n.id) >= 5)) achieve('bestie');
 }
 /* ---------- 聲音 ---------- */
 const AU = { ctx: null };
@@ -3252,7 +3794,7 @@ function musicLoop() {
 }
 function updatePrompt() {
   const p = $('prompt');
-  if (!NEAR || GAME.mode !== 'ground' || GAME.busy) { if (!p.classList.contains('hide')) p.classList.add('hide'); return; }
+  if (!NEAR || (GAME.mode !== 'ground' && GAME.mode !== 'interior') || GAME.busy) { if (!p.classList.contains('hide')) p.classList.add('hide'); return; }
   const t = NEAR.verb || `和${NEAR.name}說話`; if ($('promptT').textContent !== t) $('promptT').textContent = t;
   p.querySelector('kbd').classList.toggle('hide', IS_TOUCH); p.classList.remove('hide');
 }
@@ -3262,7 +3804,7 @@ function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05); GAME.t += dt; SKY_U.uTime.value = GAME.t;
   if (GAME.started) {
-    if (!GAME.busy && !GAME.paused) TIME.min += dt * RATE[PHASE()] * (S.speed || 1);
+    if (!GAME.busy && !GAME.paused) TIME.min += dt * phaseRate();
     const ph = PHASE();
     if (ph !== lastPhase) { lastPhase = ph; onPhase(ph); }
     if (ph === 'open' && MK.path) { const k = clamp(Math.floor((TIME.min - 540) / 5), 0, TICKS); if (k !== MK.k) { MK.k = k; MK.prices = MK.path.map(p => p[k]); GAME.idxTicks.push(idxOf(MK.prices)); drawBoard(); renderTrade(); marketPulse(); if (k % 3 === 0) sfx('tick2'); } }
@@ -3270,13 +3812,13 @@ function loop() {
     if (PHASE() === 'pre' && TIME.min >= 480 && GAME.jkDay !== `${S.season}-${S.day}`) { GAME.jkDay = `${S.season}-${S.day}`; toast(`08:00 日韓開盤：日經 ${pct(SEASON.jp[S.day])}・韓股 ${pct(SEASON.kr[S.day])}`); sfx('tick'); renderTrade(); }
     updateGoals(dt); updateRain(dt); updateCerts(dt); updateStreet(dt); drawMini(dt); countSteps(dt);
     GAME.boardT = (GAME.boardT || 0) - dt; if (GAME.boardT < 0) { GAME.boardT = 5; drawBoard(); }
-    movePlayer(dt); placeChar(PL.ch, PL.dir, PL.fwd, 0); PL.ch.speed = PL.speed / 5; PL.ch.update(dt, GAME.t);
-    updateNPCs(dt); NEAR = findNear(); updatePrompt(); updateTicker(); updateMarquee(dt);
-    const tHide = !IS_TOUCH || GAME.busy || GAME.mode !== 'ground'; if (tHide !== GAME.tHide) { GAME.tHide = tHide; $('touch').classList.toggle('hide', tHide); }
+    if (GAME.mode === 'interior') interiorUpdate(dt); else { movePlayer(dt); placeChar(PL.ch, PL.dir, PL.fwd, 0); PL.ch.speed = PL.speed / 5; PL.ch.update(dt, GAME.t); }
+    updateNPCs(dt); NEAR = GAME.mode === 'interior' ? interiorNear() : findNear(); updatePrompt(); updateTicker(); updateMarquee(dt);
+    const tHide = !IS_TOUCH || GAME.busy || (GAME.mode !== 'ground' && GAME.mode !== 'interior'); if (tHide !== GAME.tHide) { GAME.tHide = tHide; $('touch').classList.toggle('hide', tHide); }
     $('marquee').classList.toggle('hide', PHASE() !== 'open'); $('hint').classList.toggle('hide', PHASE() === 'open' || GAME.mode !== 'ground');
     hudT -= dt; if (hudT < 0) { hudT = 0.5; refreshHUD(); }
   }
-  updateCars(dt, GAME.started ? PL.dir : new V3(0, 1, 0));
+  updateCars(dt, GAME.started ? PL.dir : new V3(0, 1, 0)); updateCityFx(dt);
   updateCamera(dt); updateLighting(); DLG.tick(dt);
   sky.position.copy(camera.position);
   if (!POWER || (GAME.frame = (GAME.frame || 0) + 1) % 2) renderer.render(scene, camera);
@@ -3326,7 +3868,8 @@ async function startGame(cont, state, opts) {
   $('fade').style.opacity = 1; await wait(600);
   if (state) { S = Object.assign(S0(), JSON.parse(JSON.stringify(state))); TIME.min = S.min || 360; cont = true; }
   else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; const o = opts || { len: prevTotal ? 20 : prevLen, total: prevTotal, base: Math.random() * 2000000000 | 0 }; S.len = o.len; S.total = o.total; S.base = o.base; S.seed = seasonSeed(o.base, 1); S.tut = 0; }
-  const hadPref = loadSoundPref(); syncTotal(); assignTypes(); genSeason(S.seed); applyWeatherOverrides();
+  const hadPref = loadSoundPref(); syncTotal(); assignTypes(); genSeason(S.seed);
+  for (const k in IN.groups) IN.groups[k].visible = false; IN.id = null; PLACE_BY.home.name = HOUSES[houseTier()].place; applyWeatherOverrides();
   lastPhase = PHASE(); MK.prices = null; MK.path = null;
   if (lastPhase === 'open') { MK.path = genIntraday(S.day); MK.k = -1; }
   if (lastPhase === 'post' || lastPhase === 'night') MK.prices = SEASON.close[S.day].slice();
@@ -3338,7 +3881,7 @@ async function startGame(cont, state, opts) {
   $('fade').style.opacity = 0; canvas.focus();
   if (cont) { GAME.mpDay = TIME.min > 365 ? `${S.season}-${S.day}` : null; GAME.jkDay = TIME.min >= 480 ? `${S.season}-${S.day}` : null; }
   if (!hadPref) setTimeout(() => toast('聲音預設是關的，想聽音樂和音效，按右上角的喇叭'), 1500);
-  if (!cont) setTimeout(intro, 700); else toast(`${state ? '讀取存檔完成' : '歡迎回來'}：第 ${S.season} 季・第 ${S.day} 個交易日 ${fmtTime()}`);
+  if (!cont) setTimeout(intro, 700); else toast(`${state ? '讀取存檔完成' : '歡迎回來'}：第 ${S.season} 個月・第 ${S.day} 個交易日 ${fmtTime()}`);
   setTimeout(async () => { await dayWeather(); await morningPaper(); }, cont ? 1500 : 11000);
 }
 async function boot() {
@@ -3349,7 +3892,7 @@ async function boot() {
     buildCity(); buildCars(); buildNPCs(); NPCS.forEach(n => n.ch.root.visible = false);
     PL.ch = new Character(LOOKS.me); scene.add(PL.ch.root); drawPortrait($('pp'), LOOKS.me);
     setPlayerAt(slot('E', 4, 1, 2.3).dir); placeChar(PL.ch, PL.dir, PL.fwd, 0);
-    applyPower(); bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore();
+    applyPower(); bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore(); ensureLifeModal();
     $('loadTxt').classList.add('hide'); $('titleBtns').classList.remove('hide'); if (hasSave()) $('bCont').classList.remove('hide');
     $('bStart').onclick = openNewGame; $('bCont').onclick = () => startGame(true); $('bLoad').onclick = () => openSaves();
     loop();

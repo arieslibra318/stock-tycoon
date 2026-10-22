@@ -1,7 +1,10 @@
 /* =========================================================
    city：1980 年代台北街景（騎樓透天厝、直立招牌、鐵窗、頂樓加蓋）
    ========================================================= */
-const CITY = new GB(), CITYGL = new GB();
+const CITY = new GB(), CITYGL = new GB(), NEONGB = new GB();
+const NEON_COL = [0xff4fa3, 0x3ff0e0, 0xffe14a, 0x7cff6b, 0xff6a3a];
+const NEON_MAT = new THREE.MeshBasicMaterial({ vertexColors: true });
+const STEAM = [];
 const COLLIDERS = [];
 function matFrom(dir, fwd, h = 0) {
   const right = new V3().crossVectors(dir, fwd), m = new THREE.Matrix4();
@@ -55,6 +58,13 @@ const TILES = [0xe9e1d2, 0xd9c8a9, 0xc9d3c4, 0xe6c9b8, 0xd8d2c0, 0xbfc9cc, 0xe8d
 const SHOP_TXT = ['西藥房', '銀樓', '鐘錶眼鏡', '牛肉麵', '自助餐', '冰果室', '照相館', '書局', '唱片行', '錄影帶出租', '電器行', '五金行', '檳榔', '理髮廳', '牙科診所', '補習班', '旅社', '委託行', '茶行', '布莊', '皮鞋', '呼叫器', '麵包店', '當舖', '機車行', '家具行', '文具', '卡拉OK', '漫畫屋', '小吃部', '水電行', '中藥行', '電動玩具', '服飾店', '美容院', '汽車百貨'];
 const SIGN_COL = [['#c8402f', '#fff3d6'], ['#1f4f9a', '#ffffff'], ['#f2c14e', '#7a1f12'], ['#ffffff', '#c8402f'], ['#1d6b52', '#fff3d6'], ['#2b2622', '#ffb000'], ['#e8789a', '#ffffff'], ['#ffffff', '#1f4f9a']];
 const D = 7, FLH = 2.6, OFF = 3.1;   // 建築深度、樓高、騎樓柱離路中心
+const SCOOTER_COL = [0xd7263d, 0x2b7f86, 0xf4efe4, 0x1f4f9a, 0x5f9e6a, 0x2b2622];
+// 野狼、偉士牌：車頭朝馬路
+function mScooter(gb, x, z, col) {
+  gb.box(0.26, 0.3, 0.84, col, x, 0.34, z); gb.box(0.24, 0.08, 0.42, 0x2b2622, x, 0.53, z - 0.12); gb.box(0.28, 0.44, 0.08, col, x, 0.55, z + 0.36);
+  gb.box(0.5, 0.04, 0.04, 0x333333, x, 0.8, z + 0.34); gb.sph(0.06, 0xfff2b0, x, 0.68, z + 0.42, 1, 1, 0.6, 6);
+  for (const zz of [0.34, -0.32]) gb.cyl(0.15, 0.15, 0.09, 0x222222, x, 0.15, z + zz, 10, 0, 0, Math.PI / 2);
+}
 function mShop(w, fl, o = {}) {
   const gb = new GB(), gl = new GB(), tile = o.tile || TILES[rnd() * TILES.length | 0];
   gb.box(w, FLH, D - 1.5, 0x7d756b, 0, FLH / 2, -0.75);
@@ -63,6 +73,7 @@ function mShop(w, fl, o = {}) {
   gb.box(w, 0.22, 1.5, tile, 0, FLH - 0.11, D / 2 - 0.75);
   for (const s of [-1, 1]) gb.box(0.42, FLH, 0.42, tile, s * (w / 2 - 0.21), FLH / 2, D / 2 - 0.21);
   gb.box(w, 0.06, 1.5, 0xb85c4a, 0, 0.03, D / 2 - 0.75);   // 騎樓地磚
+  if (rnd() < 0.6) { const n = 1 + (rnd() * Math.min(3, w / 1.4) | 0); for (let k = 0; k < n; k++) mScooter(gb, -w / 2 + 0.8 + k * ((w - 1.6) / Math.max(1, n - 1 || 1)), D / 2 - 1.15, SCOOTER_COL[rnd() * SCOOTER_COL.length | 0]); }
   for (let f = 1; f < fl; f++) {
     const y0 = f * FLH;
     gb.box(w, FLH, D, tile, 0, y0 + FLH / 2, 0);
@@ -73,6 +84,7 @@ function mShop(w, fl, o = {}) {
       gl.box(ww, 1.1, 0.04, WINGLOW, x, y0 + 1.35, D / 2 + 0.02);
       if (rnd() < 0.7) { gb.box(ww + 0.16, 1.26, 0.06, 0x3a3f42, x, y0 + 1.35, D / 2 + 0.32); gb.box(ww + 0.16, 0.06, 0.34, 0x3a3f42, x, y0 + 0.72, D / 2 + 0.17); gb.box(ww + 0.16, 0.06, 0.34, 0x3a3f42, x, y0 + 1.98, D / 2 + 0.17); for (let b = 0; b < 4; b++) gb.box(0.03, 1.2, 0.03, 0x3a3f42, x - ww / 2 + (b + 0.5) * ww / 4, y0 + 1.35, D / 2 + 0.33); }
       if (rnd() < 0.35) gb.box(0.7, 0.45, 0.45, 0xe9ecec, x + 0.15, y0 + 0.45, D / 2 + 0.25);
+      if (rnd() < 0.18) { gb.box(ww + 0.4, 0.03, 0.03, 0x888888, x, y0 + 2.15, D / 2 + 0.55); for (let c = 0; c < 3; c++) gb.box(0.26, 0.36, 0.02, [0xffffff, 0x7fb3d6, 0xe8789a, 0xf2c14e, 0x5f9e6a][rnd() * 5 | 0], x - ww / 2 + 0.1 + c * (ww / 2.4), y0 + 1.95, D / 2 + 0.55); }
     }
   }
   const top = fl * FLH;
@@ -89,6 +101,7 @@ function placeBuilding(road, s, side, w, fl, o = {}) {
   // 招牌
   const sc = o.signCol || SIGN_COL[rnd() * SIGN_COL.length | 0];
   if (o.hsign) addSignQuad(m, 0, FLH + 0.42, D / 2 + 0.08, Math.min(w * 0.92, 7.6), Math.min(w * 0.92, 7.6) / 4, 0, signCell(o.hsign, sc[0], sc[1], false, o.hsub));
+  if (o.hsign && rnd() < 0.55) { const sw = Math.min(w * 0.92, 7.6) + 0.14, sh = sw / 4 + 0.14, nc = NEON_COL[rnd() * NEON_COL.length | 0], ng = new GB(), y = FLH + 0.42, z = D / 2 + 0.12; ng.box(sw, 0.05, 0.05, nc, 0, y + sh / 2, z); ng.box(sw, 0.05, 0.05, nc, 0, y - sh / 2, z); ng.box(0.05, sh, 0.05, nc, -sw / 2, y, z); ng.box(0.05, sh, 0.05, nc, sw / 2, y, z); NEONGB.merge(ng, m); }
   if (o.vsign !== false && fl >= 3) verticalSign(m, (rnd() < 0.5 ? -1 : 1) * (w / 2 - 0.3), FLH + 1.75, D / 2 + 0.5, o.vsign || SHOP_TXT[rnd() * SHOP_TXT.length | 0], sc[0], sc[1]);
   for (const sx of [-1, 1]) COLLIDERS.push({ d: localToDir(m, sx * (w / 2 - 0.21), D / 2 - 0.21), r: 0.32 });
   return { m, sl, b };
@@ -237,8 +250,16 @@ function buildCity() {
     const sl = slot(road, s, side, 2.0), gl = new GB(), gb = mLamp(gl); CITY.merge(gb, matFrom(sl.dir, tangentize(roadPoint(road, s + 0.1).sub(roadPoint(road, s)), sl.dir).applyAxisAngle(sl.dir, side * Math.PI / 2), 0)); CITYGL.merge(gl, matFrom(sl.dir, tangentize(roadPoint(road, s + 0.1).sub(roadPoint(road, s)), sl.dir).applyAxisAngle(sl.dir, side * Math.PI / 2), 0));
     COLLIDERS.push({ d: sl.dir, r: 0.25 });
   }
+  // ---- 街道小物：公用電話亭、郵筒、公車站牌 ----
+  for (const [rd, s0, sd] of [['E', -6.5, 1], ['M', 21, -1], ['E', 36, 1], ['M', -16, 1]]) { const sl = slot(rd, s0, sd, 2.25), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(0.72, 2.0, 0.72, 0xe8742b, 0, 1.0, 0); for (const sx of [-1, 1]) gb.box(0.04, 1.2, 0.6, 0xbfe3ef, sx * 0.37, 1.15, 0); gb.box(0.6, 1.2, 0.04, 0xbfe3ef, 0, 1.15, 0.37); gb.box(0.8, 0.1, 0.8, 0x2b2622, 0, 2.05, 0); CITY.merge(gb, m); addSignQuad(m, 0, 1.85, 0.38, 0.5, 0.16, 0, signCell('電話', '#e8742b', '#ffffff', false)); COLLIDERS.push({ d: sl.dir, r: 0.45 }); }
+  for (const [rd, s0, sd] of [['E', -19, -1], ['M', 6, -1]]) { const sl = slot(rd, s0, sd, 2.2), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.box(0.42, 0.95, 0.38, 0x2e7d4f, -0.25, 0.48, 0); gb.box(0.42, 0.95, 0.38, 0xc8402f, 0.25, 0.48, 0); gb.box(0.95, 0.06, 0.45, 0x2b2622, 0, 0.98, 0); CITY.merge(gb, m); COLLIDERS.push({ d: sl.dir, r: 0.4 }); }
+  for (const [rd, s0, sd] of [['M', 44, 1], ['E', -40, 1], ['E', 58, -1]]) { const sl = slot(rd, s0, sd, 2.05), m = matFrom(sl.dir, sl.fwd, 0), gb = new GB(); gb.cyl(0.04, 0.04, 2.3, 0x666666, 0, 1.15, 0, 6); gb.box(0.55, 0.42, 0.04, 0x1f4f9a, 0, 2.2, 0.02); CITY.merge(gb, m); addSignQuad(m, 0, 2.2, 0.05, 0.5, 0.16, 0, signCell('公車站', '#1f4f9a', '#ffffff', false)); COLLIDERS.push({ d: sl.dir, r: 0.2 }); }
+  // 冒煙的小吃攤：市場和居酒屋門口
+  for (const [rd, s0, sd, night] of [['E', 26.5, -1, false], ['E', 30, -1, false], ['E', 45, -1, true]]) STEAM.push({ dir: slot(rd, s0, sd, 3.0).dir, night, pts: null });
   // ---- 合併 ----
   const cm = CITY.mesh(true); scene.add(cm); const gm = new THREE.Mesh(CITYGL.geometry(), GLOW); scene.add(gm);
+  if (NEONGB.L.length) scene.add(new THREE.Mesh(NEONGB.geometry(), NEON_MAT));
+  buildSteam();
   const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(SIGNS.pos, 3)); sg.setAttribute('uv', new THREE.Float32BufferAttribute(SIGNS.uv, 2)); sg.computeVertexNormals();
   const at = new THREE.CanvasTexture(ATLAS.c); at.anisotropy = 4; SIGN_MAT.map = at; scene.add(new THREE.Mesh(sg, SIGN_MAT));
 }
@@ -298,5 +319,29 @@ function updateCars(dt, plDir) {
     c.s += c.sp * c.dirn * dt; if (c.s > L / 2) c.s -= L; if (c.s < -L / 2) c.s += L;
     const sl = slot(c.road, c.s, side, 0.9), fwd = tangentize(roadPoint(c.road, c.s + c.dirn * 0.1).sub(roadPoint(c.road, c.s)), sl.dir);
     placeOn(c.g, sl.dir, fwd, 0.04);
+  }
+}
+
+/* ---------- 霓虹燈閃爍、小吃攤冒煙 ---------- */
+function buildSteam() {
+  const tex = canvasTex(64, 64, (g, w, h) => { const gr = g.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+  for (const st of STEAM) {
+    const n = 14, geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    st.pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.55, map: tex, transparent: true, opacity: 0.55, depthWrite: false })); st.age = [...Array(n)].map((_, k) => k / n * 2.4); scene.add(st.pts);
+    const t = tangentize(new V3(0, 1, 0), st.dir); st.t1 = isFinite(t.x) ? t : tangentize(new V3(1, 0, 0), st.dir); st.t2 = new V3().crossVectors(st.dir, st.t1);
+  }
+}
+function updateCityFx(dt) {
+  const h = TIME.min / 60, night = GAME.mode !== 'title' && (h < 6.3 || h > 18.2), t = GAME.t;
+  NEON_MAT.color.setScalar(night ? 0.82 + 0.18 * Math.sin(t * 9) * (Math.sin(t * 1.3) > 0.85 ? 1 : 0.15) : 0.35);
+  for (const st of STEAM) {
+    if (!st.pts) continue; const on = GAME.mode === 'ground' && (st.night ? night : !night && PHASE() !== 'night') && angDist(PL.dir, st.dir) < 22; st.pts.visible = on; if (!on) continue;
+    const a = st.pts.geometry.attributes.position;
+    for (let k = 0; k < st.age.length; k++) {
+      st.age[k] = (st.age[k] + dt) % 2.4; const u = st.age[k] / 2.4, sw = Math.sin(k * 7.1 + t) * 0.18 * u;
+      const p = st.dir.clone().multiplyScalar(R + 1.1 + u * 1.8).addScaledVector(st.t1, sw + (k % 3 - 1) * 0.12).addScaledVector(st.t2, Math.cos(k * 3.3 + t) * 0.12 * u);
+      a.setXYZ(k, p.x, p.y, p.z);
+    }
+    a.needsUpdate = true; st.pts.material.opacity = 0.5;
   }
 }

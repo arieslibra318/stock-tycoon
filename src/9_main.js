@@ -27,7 +27,7 @@ function musicLoop() {
 }
 function updatePrompt() {
   const p = $('prompt');
-  if (!NEAR || GAME.mode !== 'ground' || GAME.busy) { if (!p.classList.contains('hide')) p.classList.add('hide'); return; }
+  if (!NEAR || (GAME.mode !== 'ground' && GAME.mode !== 'interior') || GAME.busy) { if (!p.classList.contains('hide')) p.classList.add('hide'); return; }
   const t = NEAR.verb || `和${NEAR.name}說話`; if ($('promptT').textContent !== t) $('promptT').textContent = t;
   p.querySelector('kbd').classList.toggle('hide', IS_TOUCH); p.classList.remove('hide');
 }
@@ -37,7 +37,7 @@ function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05); GAME.t += dt; SKY_U.uTime.value = GAME.t;
   if (GAME.started) {
-    if (!GAME.busy && !GAME.paused) TIME.min += dt * RATE[PHASE()] * (S.speed || 1);
+    if (!GAME.busy && !GAME.paused) TIME.min += dt * phaseRate();
     const ph = PHASE();
     if (ph !== lastPhase) { lastPhase = ph; onPhase(ph); }
     if (ph === 'open' && MK.path) { const k = clamp(Math.floor((TIME.min - 540) / 5), 0, TICKS); if (k !== MK.k) { MK.k = k; MK.prices = MK.path.map(p => p[k]); GAME.idxTicks.push(idxOf(MK.prices)); drawBoard(); renderTrade(); marketPulse(); if (k % 3 === 0) sfx('tick2'); } }
@@ -45,13 +45,13 @@ function loop() {
     if (PHASE() === 'pre' && TIME.min >= 480 && GAME.jkDay !== `${S.season}-${S.day}`) { GAME.jkDay = `${S.season}-${S.day}`; toast(`08:00 日韓開盤：日經 ${pct(SEASON.jp[S.day])}・韓股 ${pct(SEASON.kr[S.day])}`); sfx('tick'); renderTrade(); }
     updateGoals(dt); updateRain(dt); updateCerts(dt); updateStreet(dt); drawMini(dt); countSteps(dt);
     GAME.boardT = (GAME.boardT || 0) - dt; if (GAME.boardT < 0) { GAME.boardT = 5; drawBoard(); }
-    movePlayer(dt); placeChar(PL.ch, PL.dir, PL.fwd, 0); PL.ch.speed = PL.speed / 5; PL.ch.update(dt, GAME.t);
-    updateNPCs(dt); NEAR = findNear(); updatePrompt(); updateTicker(); updateMarquee(dt);
-    const tHide = !IS_TOUCH || GAME.busy || GAME.mode !== 'ground'; if (tHide !== GAME.tHide) { GAME.tHide = tHide; $('touch').classList.toggle('hide', tHide); }
+    if (GAME.mode === 'interior') interiorUpdate(dt); else { movePlayer(dt); placeChar(PL.ch, PL.dir, PL.fwd, 0); PL.ch.speed = PL.speed / 5; PL.ch.update(dt, GAME.t); }
+    updateNPCs(dt); NEAR = GAME.mode === 'interior' ? interiorNear() : findNear(); updatePrompt(); updateTicker(); updateMarquee(dt);
+    const tHide = !IS_TOUCH || GAME.busy || (GAME.mode !== 'ground' && GAME.mode !== 'interior'); if (tHide !== GAME.tHide) { GAME.tHide = tHide; $('touch').classList.toggle('hide', tHide); }
     $('marquee').classList.toggle('hide', PHASE() !== 'open'); $('hint').classList.toggle('hide', PHASE() === 'open' || GAME.mode !== 'ground');
     hudT -= dt; if (hudT < 0) { hudT = 0.5; refreshHUD(); }
   }
-  updateCars(dt, GAME.started ? PL.dir : new V3(0, 1, 0));
+  updateCars(dt, GAME.started ? PL.dir : new V3(0, 1, 0)); updateCityFx(dt);
   updateCamera(dt); updateLighting(); DLG.tick(dt);
   sky.position.copy(camera.position);
   if (!POWER || (GAME.frame = (GAME.frame || 0) + 1) % 2) renderer.render(scene, camera);
@@ -101,7 +101,8 @@ async function startGame(cont, state, opts) {
   $('fade').style.opacity = 1; await wait(600);
   if (state) { S = Object.assign(S0(), JSON.parse(JSON.stringify(state))); TIME.min = S.min || 360; cont = true; }
   else if (cont && loadGame()) { TIME.min = S.min || 360; } else { S = S0(); TIME.min = 6 * 60; const o = opts || { len: prevTotal ? 20 : prevLen, total: prevTotal, base: Math.random() * 2000000000 | 0 }; S.len = o.len; S.total = o.total; S.base = o.base; S.seed = seasonSeed(o.base, 1); S.tut = 0; }
-  const hadPref = loadSoundPref(); syncTotal(); assignTypes(); genSeason(S.seed); applyWeatherOverrides();
+  const hadPref = loadSoundPref(); syncTotal(); assignTypes(); genSeason(S.seed);
+  for (const k in IN.groups) IN.groups[k].visible = false; IN.id = null; PLACE_BY.home.name = HOUSES[houseTier()].place; applyWeatherOverrides();
   lastPhase = PHASE(); MK.prices = null; MK.path = null;
   if (lastPhase === 'open') { MK.path = genIntraday(S.day); MK.k = -1; }
   if (lastPhase === 'post' || lastPhase === 'night') MK.prices = SEASON.close[S.day].slice();
@@ -113,7 +114,7 @@ async function startGame(cont, state, opts) {
   $('fade').style.opacity = 0; canvas.focus();
   if (cont) { GAME.mpDay = TIME.min > 365 ? `${S.season}-${S.day}` : null; GAME.jkDay = TIME.min >= 480 ? `${S.season}-${S.day}` : null; }
   if (!hadPref) setTimeout(() => toast('聲音預設是關的，想聽音樂和音效，按右上角的喇叭'), 1500);
-  if (!cont) setTimeout(intro, 700); else toast(`${state ? '讀取存檔完成' : '歡迎回來'}：第 ${S.season} 季・第 ${S.day} 個交易日 ${fmtTime()}`);
+  if (!cont) setTimeout(intro, 700); else toast(`${state ? '讀取存檔完成' : '歡迎回來'}：第 ${S.season} 個月・第 ${S.day} 個交易日 ${fmtTime()}`);
   setTimeout(async () => { await dayWeather(); await morningPaper(); }, cont ? 1500 : 11000);
 }
 async function boot() {
@@ -124,7 +125,7 @@ async function boot() {
     buildCity(); buildCars(); buildNPCs(); NPCS.forEach(n => n.ch.root.visible = false);
     PL.ch = new Character(LOOKS.me); scene.add(PL.ch.root); drawPortrait($('pp'), LOOKS.me);
     setPlayerAt(slot('E', 4, 1, 2.3).dir); placeChar(PL.ch, PL.dir, PL.fwd, 0);
-    applyPower(); bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore();
+    applyPower(); bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore(); ensureLifeModal();
     $('loadTxt').classList.add('hide'); $('titleBtns').classList.remove('hide'); if (hasSave()) $('bCont').classList.remove('hide');
     $('bStart').onclick = openNewGame; $('bCont').onclick = () => startGame(true); $('bLoad').onclick = () => openSaves();
     loop();

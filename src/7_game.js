@@ -56,7 +56,7 @@ const LOOKS = {
 };
 // role：消息來源類型；rel：可信度（玩家看不到，只能從戰績推敲）
 const NPCS = [
-  { id: 'broker', name: '營業員小美', look: 'broker', road: 'E', s: 11, side: 1, off: 3.7, role: 'broker', rel: 0.5 },
+  { id: 'broker', name: '營業員小美', look: 'broker', road: 'E', s: 11, side: 1, off: 3.7, role: 'broker', rel: 0.5, appear: () => false },
   { id: 'oldhand', name: '老張伯', look: 'oldhand', road: 'E', s: 8.4, side: 1, off: 2.75, role: 'oldhand', rel: 0.62, sit: true },
   { id: 'aunt1', name: '王媽媽', look: 'auntie1', road: 'E', s: 11.4, side: 1, off: 2.75, role: 'auntie', rel: 0.36, sit: true, day: true },
   { id: 'aunt2', name: '林阿姨', look: 'auntie2', road: 'E', s: 12.9, side: 1, off: 2.75, role: 'auntie', rel: 0.4, sit: true, day: true },
@@ -70,8 +70,8 @@ const NPCS = [
   { id: 'builder', name: '陳董', look: 'builder', road: 'E', s: -46, side: -1, off: 2.6, role: 'builder', rel: 0.7, sectors: ['營建', '紡織'] },
   { id: 'boss', name: '阿財哥', look: 'boss', road: 'E', s: 28, side: 1, off: 2.6, role: 'boss' },
   { id: 'vendor', name: '菜販阿珠', look: 'vendor', road: 'E', s: 28, side: -1, off: 2.6, role: 'auntie', rel: 0.32, day: true },
-  { id: 'whale', name: '大戶阿忠', look: 'whale', road: 'E', s: 44.4, side: -1, off: 3.7, role: 'whale', rel: 0.72, night: true },
-  { id: 'mama', name: '居酒屋老闆娘', look: 'mama', road: 'E', s: 47.6, side: -1, off: 3.7, role: 'mama', rel: 0.6, night: true },
+  { id: 'whale', name: '大戶阿忠', look: 'whale', road: 'E', s: 44.4, side: -1, off: 3.7, role: 'whale', rel: 0.72, night: true, appear: () => false },
+  { id: 'mama', name: '居酒屋老闆娘', look: 'mama', road: 'E', s: 47.6, side: -1, off: 3.7, role: 'mama', rel: 0.6, night: true, appear: () => false },
   { id: 'monk', name: '廟公', look: 'monk', road: 'M', s: 13, side: 1, off: 2.8, role: 'temple' },
   { id: 'taxi', name: '運將阿輝', look: 'taxi', road: 'M', s: 30, side: -1, off: 2.6, role: 'taxi', rel: 0.45 },
   { id: 'phone', name: '通訊行小姐', look: 'phone', road: 'E', s: -62, side: 1, off: 2.6, role: 'phone' },
@@ -161,6 +161,7 @@ function groundCam(out) {
   out.look.copy(base).addScaledVector(up, 1.3).addScaledVector(PL.camF, 1.2); out.up.copy(up);
 }
 function updateCamera(dt) {
+  if (GAME.mode === 'interior') return interiorCamera(dt);
   const k = 1 - Math.exp(-dt * 7);
   if (GAME.mode === 'title') { const a = GAME.t * 0.07; const c = new V3(Math.sin(a), 0.35, Math.cos(a)).normalize(); camera.position.copy(c).multiplyScalar(R * 2.9); camera.up.set(0, 1, 0); camera.lookAt(0, R * 0.55, 0); return; }
   const tgt = GAME.mode === 'map' ? 1 : 0; CAM.blend += (tgt - CAM.blend) * (1 - Math.exp(-dt * 3.2)); if (Math.abs(tgt - CAM.blend) < 0.002) CAM.blend = tgt;
@@ -171,15 +172,15 @@ function updateCamera(dt) {
   camera.lookAt(CAM.look);
 }
 function toggleMap() {
-  if (GAME.busy) return;
+  if (GAME.busy || GAME.mode === 'interior') return;
   if (GAME.mode === 'map') { GAME.mode = 'ground'; return; }
   GAME.mode = 'map'; CAM.mapPos.copy(PL.dir); CAM.mapUp.copy(tangentize(new V3(0, 1, 0), PL.dir)); if (!isFinite(CAM.mapUp.x)) CAM.mapUp.set(0, 0, 1);
 }
 function mapDrag(dx, dy) { const right = new V3().crossVectors(CAM.mapUp, CAM.mapPos).normalize(); CAM.mapPos.applyAxisAngle(CAM.mapUp, -dx * 0.006); CAM.mapPos.applyAxisAngle(right, dy * 0.006); CAM.mapUp.applyAxisAngle(right, dy * 0.006); tangentize(CAM.mapUp, CAM.mapPos.normalize()); }
 
 /* ---------- 輸入 ---------- */
-function anyModal() { return ['trade', 'notes', 'help', 'sum', 'ext', 'saves', 'ending'].some(id => !$(id).classList.contains('hide')); }
-function closeModals() { ['trade', 'notes', 'help', 'saves'].forEach(id => $(id).classList.add('hide')); GAME.busy = false; }
+function anyModal() { return ['trade', 'notes', 'help', 'sum', 'ext', 'saves', 'ending', 'life'].some(id => !$(id).classList.contains('hide')); }
+function closeModals() { ['trade', 'notes', 'help', 'saves', 'life'].forEach(id => $(id).classList.add('hide')); GAME.busy = false; }
 function bindInput() {
   addEventListener('keydown', e => {
     if (GAME.mode === 'title') return;
@@ -230,12 +231,12 @@ function findNear() {
   for (const e of EGGS) if (EGG_SPOTS[e.id] && angDist(PL.dir, EGG_SPOTS[e.id]) < 2.6) return Object.assign({ egg: true }, e);
   let best = null, bd = 2.4;
   for (const n of NPCS) { if (!n.ch.root.visible || n.role === 'crowd') continue; const d = angDist(PL.dir, n.dir); if (d < bd) { bd = d; best = n; } }
-  return best;
+  return doorNear(best);
 }
-function interact() { if (GAME.busy || !NEAR) return; if (NEAR.egg) return eggAct(NEAR.id); talkTo(NEAR); }
+function interact() { if (GAME.busy || !NEAR) return; if (NEAR.act) return NEAR.act(); if (NEAR.egg) return eggAct(NEAR.id); talkTo(NEAR); }
 async function talkTo(n) {
   GAME.busy = true; n.facing = true; sfx('blip');
-  try { await (TALK[n.role] || TALK.rumor)(n); }
+  try { if (!(await lifeHook(n))) await (TALK[n.role] || TALK.rumor)(n); }
   finally { DLG.hide(); n.facing = false; GAME.busy = false; saveGame(); refreshHUD(); }
 }
 function toast(html) { const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = html; $('toasts').appendChild(el); while ($('toasts').children.length > (innerWidth <= 640 || innerHeight <= 500 ? 2 : 3)) $('toasts').firstChild.remove(); setTimeout(() => el.remove(), 3300); }

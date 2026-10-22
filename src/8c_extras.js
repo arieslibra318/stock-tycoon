@@ -4,15 +4,15 @@
 const yearOf = s => (S && S.total ? 1984 : 1985) + s;
 
 /* ---------- 開新局：選遊戲長度 ---------- */
-// 每季的種子由這一局的 base 推出來，換季時行情重新洗牌
+// 每個月的種子由這一局的 base 推出來，換月時行情重新洗牌
 const seasonSeed = (base, s) => ((Math.imul(base ^ 0x5bd1e995, 2654435761) >>> 0) + s * 104729) % 2000000000;
 const NEWOPT = { total: 6 };
 function openNewGame() { $('titleBtns').classList.add('hide'); $('newBox').classList.remove('hide'); renderNewGame(); }
 function renderNewGame() {
   const T = NEWOPT.total;
   $('newBox').innerHTML = `<h3>開始新的一年</h3>
-    <div class="nbRow"><span>遊戲長度</span><button class="tab ${T === 6 ? 'on' : ''}" data-total="6">6 季（1985–1990）</button><button class="tab ${T === 12 ? 'on' : ''}" data-total="12">12 季（1985–1996）</button></div>
-    <p class="nbNote">每季 20 個交易日、代表一年。6 季在 1990 年泡沫破裂時結束；12 季會再經歷崩盤後的起伏，一直走到 1996 年。遊戲後半段行情偏空，大約六到七成的日子在跌。</p>
+    <div class="nbRow"><span>遊戲長度</span><button class="tab ${T === 6 ? 'on' : ''}" data-total="6">6 個月（1985–1990）</button><button class="tab ${T === 12 ? 'on' : ''}" data-total="12">12 個月（1985–1996）</button></div>
+    <p class="nbNote">每個月 20 個交易日，代表那一年最熱鬧的一個月：6 個月從 1985 年走到 1990 年泡沫破裂；12 個月會再經歷崩盤後的起伏，一直走到 1996 年。遊戲後半段行情偏空，大約六到七成的日子在跌。</p>
     <div class="nbRow" style="justify-content:flex-end;margin-bottom:0"><button class="btn" id="nbBack">返回</button><button class="btn pri" id="nbGo">開始</button></div>`;
   const q = s => $('newBox').querySelector(s);
   $('newBox').querySelectorAll('[data-total]').forEach(b => b.onclick = () => { NEWOPT.total = +b.dataset.total; renderNewGame(); });
@@ -46,7 +46,7 @@ function ring() { if (!AU.ctx || !S.sfx) return; const t = AU.ctx.currentTime; f
 function celebrate(text, good) {
   toast(`<b class="${good ? 'up' : 'down'}">${text}</b>`);
   if (good) {
-    sfx('done'); flash('rgba(255,196,60,.8)'); buzz(70);
+    sfx('done'); flash('rgba(255,196,60,.8)'); buzz(70); achieve('limitup');
     const crowd = NPCS.filter(n => n.sit && n.road === 'E' && n.ch.root.visible); crowd.forEach(n => n.ch.wave = 2.5);
     if (crowd.length) crowdSay = { t: 3.5, n: crowd[0], txt: '漲停！漲停啦！' };
   } else { sfx('bad'); flash('rgba(20,150,90,.7)'); buzz([40, 50, 40]); }
@@ -109,7 +109,7 @@ function bondUp(n, k = 1) {
 /* ---------- 新手教學（第一天） ---------- */
 const TUT = [
   { text: '教學 1/4：到證券行門口找老張伯聊天，聽一則明牌', at: 'broker', done: () => S.rumors.length > 0 },
-  { text: () => PHASE() === 'pre' ? '教學 2/4：9 點開盤後，到證券行找小美（或按 K）照明牌買 1 張' : '教學 2/4：到證券行找小美（或按 K），照明牌買 1 張股票', at: 'broker', done: () => S.tradeDay === S.day || Object.keys(S.hold).length + Object.keys(S.mar).length + Object.keys(S.sht).length > 0 },
+  { text: () => PHASE() === 'pre' ? '教學 2/4：9 點開盤後，走進城中證券（在門口按互動），到櫃檯找小美照明牌買 1 張（或按 K）' : '教學 2/4：走進城中證券（在門口按互動），到櫃檯找小美照明牌買 1 張（或按 K）', at: 'broker', done: () => S.tradeDay === S.day || Object.keys(S.hold).length + Object.keys(S.mar).length + Object.keys(S.sht).length > 0 },
   { text: '教學 3/4：等 13:30 收盤，看看今天的成績（按 T 可以快轉）', done: () => PHASE() === 'post' || PHASE() === 'night' || S.day > 1 },
   { text: '教學 4/4：按 N 打開消息本，看看明牌有沒有應驗', done: () => !!S.tutN },
 ];
@@ -123,7 +123,7 @@ const TUT_GOAL = {
 };
 GOALS.unshift(TUT_GOAL);
 
-/* ---------- 年代新聞：最後一季的泡沫 ---------- */
+/* ---------- 年代新聞：最後一個月的泡沫 ---------- */
 function eraNews(d) {
   if (yearOf(S.season) !== 1990 || S.ended) return '';
   const a = Math.round(DAYS * 0.3), b = Math.round(DAYS * 0.45), c = Math.round(DAYS * 0.55);

@@ -34,7 +34,7 @@ function subscribe(id) {
 function ipoDraw() {
   for (const id in S.subs || {}) {
     if (S.subs[id] !== S.day) continue; const x = SEASON.ipos.find(x => STOCKS[x.i].id === id); delete S.subs[id]; if (!x) continue;
-    if (Math.random() < IPO_WIN) { const h = S.hold[id] || (S.hold[id] = { q: 0, cost: 0 }); h.cost = (h.cost * h.q + x.price) / (h.q + 1); h.q += 1; toast(`<b class="up">恭喜中籤！</b>${STOCKS[x.i].name} 1 張以承銷價 ${x.price} 元入帳，今天掛牌`); sfx('done'); buzz([60, 40, 120]); }
+    if (Math.random() < IPO_WIN) { const h = S.hold[id] || (S.hold[id] = { q: 0, cost: 0 }); h.cost = (h.cost * h.q + x.price) / (h.q + 1); h.q += 1; toast(`<b class="up">恭喜中籤！</b>${STOCKS[x.i].name} 1 張以承銷價 ${x.price} 元入帳，今天掛牌`); sfx('done'); buzz([60, 40, 120]); achieve('ipo'); }
     else { S.cash += x.price * LOT; toast(`${STOCKS[x.i].name}沒抽中，申購款已退回`); }
   }
 }
@@ -64,7 +64,7 @@ function payCall(key) {
   const c = S.calls[key]; if (!c) return; const need = Math.ceil(callNeed(c));
   if (S.cash < need) { toast('現金不夠補繳，可以先賣掉一些股票'); sfx('bad'); return; }
   S.cash -= need; if (c.kind === 'mar') S.mar[c.id].loan -= need; else S.sht[c.id].margin += need;
-  delete S.calls[key]; sfx('coin'); toast(`已補繳 ${money(need)} 元，追繳解除`); renderTrade(); refreshHUD();
+  delete S.calls[key]; sfx('coin'); achieve('saved'); toast(`已補繳 ${money(need)} 元，追繳解除`); renderTrade(); refreshHUD();
 }
 function checkCall(s, kind, r, msgs, liquidate) {
   S.calls = S.calls || {}; const key = s.id + ':' + kind, c = S.calls[key], nm = kind === 'mar' ? '融資' : '融券', act = kind === 'mar' ? '斷頭賣出' : '回補';
@@ -118,7 +118,7 @@ Object.assign(TALK, {
   analyst: async n => {
     await say(n, '我是城中證券研究部的陳博士。今天幫你看一個族群的三天走勢。');
     const m = sectorCall(n);
-    if (!m) { await say(n, S.talked[n.id] === S.day ? '報告今天已經給你了，記得對照消息本。' : '季底了，盤勢不明朗，我建議多看少做。'); return; }
+    if (!m) { await say(n, S.talked[n.id] === S.day ? '報告今天已經給你了，記得對照消息本。' : '月底了，盤勢不明朗，我建議多看少做。'); return; }
     await say(n, m.text); toast('記進消息本了（三天後驗證）'); sfx('tick');
   },
   guru: async n => { await rumorTalk(n, '各位鄉親！跟著明燈老師，保證賺大錢！今天的飆股是——'); },
@@ -136,6 +136,7 @@ Object.assign(TALK, {
   driver: async n => {
     await say(n, '（壓低聲音）我是幫長官開車的。車上聽到的事，不要說是我講的。');
     if (S.talked[n.id] === S.day) { await say(n, '今天就這樣，我要去接長官了。'); return; }
+    if ((S.driverBan || 0) > S.day) { await say(n, '最近風聲很緊，先別來找我。'); return; }
     S.talked[n.id] = S.day; bondUp(n);
     const d = S.day, dl = SEASON.delist, pe = SEASON.policy.find(x => x.day > d && x.day - d <= 4), ip = (SEASON.ipos || []).find(x => x.day > d && x.day - d <= 6);
     let m = null;
@@ -143,7 +144,8 @@ Object.assign(TALK, {
     else if (pe) m = { kind: 'event', ev: pe.id, text: POLICY_HINT[pe.id], truth: true, resolve: pe.day };
     else if (ip) m = { kind: 'event', ev: null, evName: '新股', text: `${STOCKS[ip.i].name}要上市了，承銷價很便宜，記得去證券行抽籤。`, truth: true, resolve: ip.day };
     if (!m) { await say(n, '最近長官都在開會，沒聽到什麼特別的。'); return; }
-    Object.assign(m, { day: d, npc: n.id, npcName: n.name }); S.rumors.push(m); $('noteBadge').classList.remove('hide');
+    Object.assign(m, { day: d, npc: n.id, npcName: n.name }); S.rumors.push(m); $('noteBadge').classList.remove('hide'); driverHeat();
+    if (S.heat >= 3) await say(n, '……不過最近好像有人在查，你自己小心點。');
     await say(n, m.text); toast('記進消息本了'); sfx('tick');
   },
 });
@@ -179,7 +181,7 @@ function countSteps(dt) {
     const d = angDist(stepLast, PL.dir);
     if (d > 0.0005 && d < 2) {
       const st = d * STEP_PER_UNIT; S.stepsDay = (S.stepsDay || 0) + st; S.steps = (S.steps || 0) + st;
-      const key = S.season * 100 + S.day; if (S.stepsDay >= 10000 && S.stepGoal !== key) { S.stepGoal = key; toast('今天走了一萬步！日行萬步，身體健康'); sfx('done'); }
+      const key = S.season * 100 + S.day; if (S.stepsDay >= 10000 && S.stepGoal !== key) { S.stepGoal = key; toast('今天走了一萬步！日行萬步，身體健康'); sfx('done'); achieve('walker'); }
     }
   }
   stepLast = PL.dir.clone();
