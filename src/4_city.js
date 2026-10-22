@@ -82,9 +82,11 @@ function mShop(w, fl, o = {}) {
     for (let i = 0; i < nw; i++) {
       const x = (i - (nw - 1) / 2) * (w / nw), ww = Math.min(1.3, w / nw - 0.5);
       gl.box(ww, 1.1, 0.04, WINGLOW, x, y0 + 1.35, D / 2 + 0.02);
-      if (rnd() < 0.7) { gb.box(ww + 0.16, 1.26, 0.06, 0x3a3f42, x, y0 + 1.35, D / 2 + 0.32); gb.box(ww + 0.16, 0.06, 0.34, 0x3a3f42, x, y0 + 0.72, D / 2 + 0.17); gb.box(ww + 0.16, 0.06, 0.34, 0x3a3f42, x, y0 + 1.98, D / 2 + 0.17); for (let b = 0; b < 4; b++) gb.box(0.03, 1.2, 0.03, 0x3a3f42, x - ww / 2 + (b + 0.5) * ww / 4, y0 + 1.35, D / 2 + 0.33); }
-      if (rnd() < 0.35) gb.box(0.7, 0.45, 0.45, 0xe9ecec, x + 0.15, y0 + 0.45, D / 2 + 0.25);
-      if (rnd() < 0.18) { gb.box(ww + 0.4, 0.03, 0.03, 0x888888, x, y0 + 2.15, D / 2 + 0.55); for (let c = 0; c < 3; c++) gb.box(0.26, 0.36, 0.02, [0xffffff, 0x7fb3d6, 0xe8789a, 0xf2c14e, 0x5f9e6a][rnd() * 5 | 0], x - ww / 2 + 0.1 + c * (ww / 2.4), y0 + 1.95, D / 2 + 0.55); }
+      // 有橫招牌的二樓不放鐵窗、冷氣、晾衣，免得擋住招牌的字
+      const clear = f === 1 && o.hsign;
+      if (!clear && rnd() < 0.7) { gb.box(ww + 0.16, 1.26, 0.06, 0x3a3f42, x, y0 + 1.35, D / 2 + 0.32); gb.box(ww + 0.16, 0.06, 0.34, 0x3a3f42, x, y0 + 0.72, D / 2 + 0.17); gb.box(ww + 0.16, 0.06, 0.34, 0x3a3f42, x, y0 + 1.98, D / 2 + 0.17); for (let b = 0; b < 4; b++) gb.box(0.03, 1.2, 0.03, 0x3a3f42, x - ww / 2 + (b + 0.5) * ww / 4, y0 + 1.35, D / 2 + 0.33); }
+      if (!clear && rnd() < 0.35) gb.box(0.7, 0.45, 0.45, 0xe9ecec, x + 0.15, y0 + 0.45, D / 2 + 0.25);
+      if (!clear && rnd() < 0.18) { gb.box(ww + 0.4, 0.03, 0.03, 0x888888, x, y0 + 2.15, D / 2 + 0.55); for (let c = 0; c < 3; c++) gb.box(0.26, 0.36, 0.02, [0xffffff, 0x7fb3d6, 0xe8789a, 0xf2c14e, 0x5f9e6a][rnd() * 5 | 0], x - ww / 2 + 0.1 + c * (ww / 2.4), y0 + 1.95, D / 2 + 0.55); }
     }
   }
   const top = fl * FLH;
