@@ -3319,10 +3319,7 @@ const ROOMS = {
       room.spots.push({ x: -w / 2 + 1.1, z: -d / 2 + 2.8, r: 1.2, verb: '睡覺（跳到明天）', label: '床', act: sleepNow });
       room.spots.push({ x: w / 2 - 1.1, z: -d / 2 + 1.4, r: 1.1, verb: t >= 1 ? '打電話給營業員（下單）' : '存檔與讀檔', label: t >= 1 ? '電話・書桌' : '書桌', act: () => t >= 1 ? homeDesk() : openSaves() });
       room.spots.push({ x: 0, z: -d / 2 + 1.2, r: 1.1, verb: '看成就與公司圖鑑', label: '戰績板', act: () => { noteTab = 'ach'; openNotes(); } });
-      room.spots.push({ x: w / 2 - 1.0, z: d / 2 - 1.3, r: 1.1, verb: '看房屋廣告（換房子）', label: '房屋廣告', act: () => openLife('house') });
-      if (t >= 3) room.spots.push({ x: 0, z: -0.6, r: 1.3, verb: '辦一場派對', label: '派對', act: throwParty });
     },
-    onEnter: () => neighborChat(),
   },
   izakaya: {
     name: '月見居酒屋', w: 9, d: 7, place: 'izakaya',
@@ -3515,7 +3512,9 @@ const HOUSE_IDX = { 1985: 1, 1986: 1.05, 1987: 1.35, 1988: 1.95, 1989: 2.7, 1990
 const DEP_RATE = { 1985: 0.0675, 1986: 0.055, 1987: 0.05, 1988: 0.05, 1989: 0.095, 1990: 0.0975, 1991: 0.085, 1992: 0.0775, 1993: 0.075, 1994: 0.0725, 1995: 0.07, 1996: 0.0625 };
 // 金價（新台幣／台兩，參考當年國際金價與匯率，簡化）
 const GOLD_Y = { 1985: 15400, 1986: 15900, 1987: 17300, 1988: 15500, 1989: 13500, 1990: 12400, 1991: 11700, 1992: 10900, 1993: 11500, 1994: 12400, 1995: 12400, 1996: 12300 };
-const houseTier = () => (S.house && S.house.tier) || 0;
+// 住宅升級與生活開銷先關掉，之後要再開只要改成 true
+const HOUSING = false;
+const houseTier = () => HOUSING ? (S.house && S.house.tier) || 0 : 0;
 const depRate = () => DEP_RATE[yearOf(S.season)] || 0.06;
 function houseIdx() { const y = yearOf(S.season), a = HOUSE_IDX[y] || 2.4, b = HOUSE_IDX[y + 1] || a; return a + (b - a) * clamp((Math.min(S.day, DAYS) - 1) / Math.max(1, DAYS - 1), 0, 1); }
 const houseValue = () => HOUSES[houseTier()].price * houseIdx();
@@ -3533,7 +3532,7 @@ const goldPrice = () => goldSeries()[Math.min(DAYS, curDay() - 1 + (PHASE() === 
 // 預售屋紅單：每張先付 30 萬訂金，跟著一戶 300 萬（1985 年價）的房子漲跌
 const PRE_DEP = 3e5, PRE_FULL = 3e6;
 const preValue = () => { const p = S.pre; if (!p || !p.units) return 0; return Math.max(0, p.units * (PRE_DEP + PRE_FULL * (houseIdx() - p.idx))); };
-function lifeValue() { const h = S.house || {}; return (S.fixed || 0) + (S.gold || 0) * goldPrice() + houseValue() - (h.loan || 0) + preValue(); }
+function lifeValue() { const h = S.house || {}; return (S.fixed || 0) + (S.gold || 0) * goldPrice() + (HOUSING ? houseValue() - (h.loan || 0) : 0) + preValue(); }
 
 /* ---------- 生活與資產的面板 ---------- */
 let LIFE_TAB = 'bank', LIFE_TABS = ['alloc', 'bank', 'house'];
@@ -3546,9 +3545,9 @@ function ensureLifeModal() {
 function openLife(tab) {
   ensureLifeModal(); if (GAME.busy && $('life').classList.contains('hide')) return; LIFE_TAB = tab || LIFE_TAB;
   // 在銀行能辦定存、黃金和房屋；在家能看房屋；在外面只能看資產配置
-  LIFE_TABS = GAME.mode === 'interior' && IN.id === 'bank' ? ['alloc', 'bank', 'house'] : GAME.mode === 'interior' && IN.id === 'home' ? ['alloc', 'house'] : ['alloc']; if (!LIFE_TABS.includes(LIFE_TAB)) LIFE_TAB = LIFE_TABS[0]; GAME.busy = true; $('life').classList.remove('hide'); renderLife(); }
+  LIFE_TABS = GAME.mode === 'interior' && IN.id === 'bank' ? ['alloc', 'bank'] : ['alloc']; if (!LIFE_TABS.includes(LIFE_TAB)) LIFE_TAB = LIFE_TABS[0]; GAME.busy = true; $('life').classList.remove('hide'); renderLife(); }
 function renderLife(msg) {
-  const tabs = [['alloc', '資產配置'], ['bank', '定存・黃金'], ['house', '住宅・預售屋']].filter(t => LIFE_TABS.includes(t[0])), h = S.house || {}, gp = goldPrice();
+  const tabs = [['alloc', '資產配置'], ['bank', '定存・黃金・預售屋']].filter(t => LIFE_TABS.includes(t[0])), h = S.house || {}, gp = goldPrice();
   let o = `<div class="tabs" style="margin-bottom:10px">${tabs.map(([k, t]) => `<button class="tab ${LIFE_TAB === k ? 'on' : ''}" data-lt="${k}">${t}</button>`).join('')}</div>`;
   if (msg) o += `<div class="sum">${msg}</div>`;
   if (LIFE_TAB === 'alloc') { $('lfBody').innerHTML = o + allocHTML(); $('lfTitle').textContent = '資產配置'; $('lfBody').querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { LIFE_TAB = b.dataset.lt; renderLife(); }); return; }
@@ -3558,15 +3557,10 @@ function renderLife(msg) {
       <p>${[[1e5, '存 10 萬'], [1e6, '存 100 萬'], ['all', '現金全部存']].map(([v, t]) => `<button class="btn" data-fx="${v}">${t}</button>`).join(' ')}　${(S.fixed || 0) ? '<button class="btn" data-fx="out">全部解約</button>' : ''}</p>
       <h4>黃金　今日牌價 ${money(gp)} 元／台兩</h4><p class="note" style="margin-top:0">戰爭、股災、疫情時金價常會上漲，可以拿來避險；買賣各收 1% 手續費。${S.gold ? `你的平均成本 ${money(S.goldCost || 0)} 元。` : ''}</p>
       <p>${[[1, '買 1 兩'], [10, '買 10 兩'], [50, '買 50 兩']].map(([v, t]) => `<button class="btn" data-gb="${v}">${t}</button>`).join(' ')}　${S.gold ? '<button class="btn" data-gs="1">全部賣出</button>' : ''}</p>`;
-  } else {
-    const t = houseTier(), idx = houseIdx();
-    o += `<h4>你現在住：${HOUSES[t].name}</h4><p class="note" style="margin-top:0">${HOUSES[t].perk}每個月生活開銷約 ${wan(HOUSES[t].cost)}${h.loan ? `，房貸 ${wan(h.loan)}（月底付利息約 ${wan(h.loan * (depRate() + 0.02))}）` : ''}。今年房價指數 ${idx.toFixed(2)}（1985 年＝1）。</p>`;
-    o += HOUSES.map((x, k) => k === 0 || k === t ? '' : `<div class="slot"><div><b>${x.name}　${wan(x.price * idx)}</b><small>${x.perk}每個月開銷約 ${wan(x.cost)}。</small></div><div class="acts"><button class="btn" data-hb="${k}" data-pay="cash">現金買</button><button class="btn pri" data-hb="${k}" data-pay="loan">貸款買（自備 3 成）</button></div></div>`).join('');
-    if (t > 0) o += `<p><button class="btn" data-hs="1">賣掉${HOUSES[t].name}，搬回雅房（可拿回約 ${wan(houseValue() * 0.96 - (h.loan || 0))}）</button></p>`;
     o += `<h4>預售屋紅單</h4><p class="note" style="margin-top:0">每張先付 ${wan(PRE_DEP)} 訂金，綁一戶 ${wan(PRE_FULL)}（1985 年價）的房子：房價漲，紅單就跟著漲好幾倍；房價跌，訂金可能賠光。可以隨時轉賣（手續費 3%）。</p>
       <p><button class="btn" data-pb="1">買 1 張（${wan(PRE_DEP)}）</button> ${S.pre && S.pre.units ? `<button class="btn" data-ps="1">全部轉賣（約 ${wan(preValue() * 0.97)}）</button>　持有 ${S.pre.units} 張` : ''}</p>`;
   }
-  $('lfBody').innerHTML = o; $('lfTitle').textContent = LIFE_TAB === 'bank' ? '寶島銀行・定存與黃金' : '住宅與預售屋';
+  $('lfBody').innerHTML = o; $('lfTitle').textContent = '寶島銀行・定存、黃金、預售屋';
   const q = s => $('lfBody').querySelectorAll(s);
   q('[data-lt]').forEach(b => b.onclick = () => { LIFE_TAB = b.dataset.lt; renderLife(); });
   q('[data-fx]').forEach(b => b.onclick = () => lifeAct('fx', b.dataset.fx)); q('[data-gb]').forEach(b => b.onclick = () => lifeAct('gb', +b.dataset.gb)); q('[data-gs]').forEach(b => b.onclick = () => lifeAct('gs'));
@@ -3653,10 +3647,8 @@ function downlineCollapse() {
 
 /* ---------- 月底：生活開銷、利息、代客操作結算 ---------- */
 function lifeSeasonEnd() {
-  const msgs = [], t = houseTier(), h = S.house || {};
-  const cost = HOUSES[t].cost, loanInt = (h.loan || 0) * (depRate() + 0.02), dep = (S.fixed || 0) * depRate();
-  S.cash -= cost + loanInt; S.fixed = (S.fixed || 0) + dep;
-  msgs.push(`生活開銷（${HOUSES[t].name}）${money(cost)} 元${loanInt ? `、房貸利息 ${money(loanInt)} 元` : ''}${dep ? `；定存利息 +${money(dep)} 元（已滾入定存）` : ''}。`);
+  const msgs = [], dep = (S.fixed || 0) * depRate();
+  S.fixed = (S.fixed || 0) + dep; if (dep) msgs.push(`定存利息 +${money(dep)} 元（已滾入定存）。`);
   if (S.managed && S.managed.season === S.season) {
     const r = netWorth() / S.managed.start - 1, pl = S.managed.amt * r, a = NPC_BY.aunt1;
     if (pl >= 0) { const fee = pl * 0.2; S.cash += fee; bondUp(a, 3); achieve('managed'); msgs.push(`幫王媽媽代客操作賺了 ${money(pl)} 元，她分你兩成 ${money(fee)} 元，逢人就誇你。`); }
@@ -3674,7 +3666,7 @@ const ACH = [
   ['profit', '開張大吉', '第一次單日獲利'], ['limitup', '漲停板！', '持股鎖上漲停'], ['bounce', '接住落下的刀', '持有前一天跌停的股票，隔天反彈 3% 以上'],
   ['short', '空頭高手', '融券部位帳面獲利超過 10%'], ['ipo', '新股中籤', '抽中新股'], ['saved', '化險為夷', '收到追繳令後補繳成功'],
   ['rank1', '散戶', '升上散戶'], ['rank2', '中實戶', '升上中實戶'], ['rank3', '大戶', '升上大戶'], ['rank4', '證券大亨', '成為證券大亨'],
-  ['vip', '大戶室的常客', '進證券行的大戶室喝茶'], ['home', '有殼一族', '買下第一間房子'], ['mansion', '豪宅主人', '住進豪宅'], ['party', '派對之王', '在豪宅辦派對'],
+  ['vip', '大戶室的常客', '進證券行的大戶室喝茶'],
   ['saver', '穩健派', '月底定存超過 100 萬'], ['gold', '黃金避險', '黃金賺 10% 以上賣出'],
   ['bubble', '躲過泡沫破裂', '1990 年那個月，月底持股不到資產一成而且沒有虧損'], ['walker', '日行萬步', '一天走滿一萬步'], ['bestie', '麻吉', '和某個人的交情到滿點'], ['eggs', '城市探險家', '找齊 10 個彩蛋'],
 ];

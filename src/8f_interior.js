@@ -82,10 +82,7 @@ const ROOMS = {
       room.spots.push({ x: -w / 2 + 1.1, z: -d / 2 + 2.8, r: 1.2, verb: '睡覺（跳到明天）', label: '床', act: sleepNow });
       room.spots.push({ x: w / 2 - 1.1, z: -d / 2 + 1.4, r: 1.1, verb: t >= 1 ? '打電話給營業員（下單）' : '存檔與讀檔', label: t >= 1 ? '電話・書桌' : '書桌', act: () => t >= 1 ? homeDesk() : openSaves() });
       room.spots.push({ x: 0, z: -d / 2 + 1.2, r: 1.1, verb: '看成就與公司圖鑑', label: '戰績板', act: () => { noteTab = 'ach'; openNotes(); } });
-      room.spots.push({ x: w / 2 - 1.0, z: d / 2 - 1.3, r: 1.1, verb: '看房屋廣告（換房子）', label: '房屋廣告', act: () => openLife('house') });
-      if (t >= 3) room.spots.push({ x: 0, z: -0.6, r: 1.3, verb: '辦一場派對', label: '派對', act: throwParty });
     },
-    onEnter: () => neighborChat(),
   },
   izakaya: {
     name: '月見居酒屋', w: 9, d: 7, place: 'izakaya',
