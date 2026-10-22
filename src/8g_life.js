@@ -42,18 +42,22 @@ const preValue = () => { const p = S.pre; if (!p || !p.units) return 0; return M
 function lifeValue() { const h = S.house || {}; return (S.fixed || 0) + (S.gold || 0) * goldPrice() + houseValue() - (h.loan || 0) + preValue(); }
 
 /* ---------- 生活與資產的面板 ---------- */
-let LIFE_TAB = 'bank';
+let LIFE_TAB = 'bank', LIFE_TABS = ['alloc', 'bank', 'house'];
 function ensureLifeModal() {
   if ($('life')) return;
   const m = document.createElement('div'); m.id = 'life'; m.className = 'modal hide';
   m.innerHTML = '<div class="box paper"><div class="bh"><h3 id="lfTitle">生活與資產</h3><button class="x" aria-label="關閉">×</button></div><div class="bb" id="lfBody"></div></div>';
   $('app').appendChild(m); m.querySelector('.x').onclick = closeModals;
 }
-function openLife(tab) { ensureLifeModal(); if (GAME.busy && $('life').classList.contains('hide')) return; LIFE_TAB = tab || LIFE_TAB; GAME.busy = true; $('life').classList.remove('hide'); renderLife(); }
+function openLife(tab) {
+  ensureLifeModal(); if (GAME.busy && $('life').classList.contains('hide')) return; LIFE_TAB = tab || LIFE_TAB;
+  // 在銀行能辦定存、黃金和房屋；在家能看房屋；在外面只能看資產配置
+  LIFE_TABS = GAME.mode === 'interior' && IN.id === 'bank' ? ['alloc', 'bank', 'house'] : GAME.mode === 'interior' && IN.id === 'home' ? ['alloc', 'house'] : ['alloc']; if (!LIFE_TABS.includes(LIFE_TAB)) LIFE_TAB = LIFE_TABS[0]; GAME.busy = true; $('life').classList.remove('hide'); renderLife(); }
 function renderLife(msg) {
-  const tabs = [['bank', '定存・黃金'], ['house', '住宅・預售屋']], h = S.house || {}, gp = goldPrice();
+  const tabs = [['alloc', '資產配置'], ['bank', '定存・黃金'], ['house', '住宅・預售屋']].filter(t => LIFE_TABS.includes(t[0])), h = S.house || {}, gp = goldPrice();
   let o = `<div class="tabs" style="margin-bottom:10px">${tabs.map(([k, t]) => `<button class="tab ${LIFE_TAB === k ? 'on' : ''}" data-lt="${k}">${t}</button>`).join('')}</div>`;
   if (msg) o += `<div class="sum">${msg}</div>`;
+  if (LIFE_TAB === 'alloc') { $('lfBody').innerHTML = o + allocHTML(); $('lfTitle').textContent = '資產配置'; $('lfBody').querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { LIFE_TAB = b.dataset.lt; renderLife(); }); return; }
   o += `<div class="sum"><span>現金 <b>${money(S.cash)}</b></span><span>定存 <b>${money(S.fixed || 0)}</b></span><span>黃金 <b>${(S.gold || 0)} 兩</b></span><span>房產淨值 <b>${money(houseValue() - (h.loan || 0))}</b></span><span>預售屋 <b>${money(preValue())}</b></span></div>`;
   if (LIFE_TAB === 'bank') {
     o += `<h4>一年期定存　年利率 ${(depRate() * 100).toFixed(2)}%</h4><p class="note" style="margin-top:0">一個月代表一年，月底依利率發利息，隨時可以解約領回。</p>
@@ -140,7 +144,10 @@ function lottoDraw() {
 }
 
 /* ---------- 道德抉擇：內線、代客操作、老鼠會 ---------- */
+// 道德抉擇（代客操作、老鼠會下線、內線被約談）先關掉，之後要再開只要改成 true
+const ETHICS = false;
 async function lifeHook(n) {
+  if (!ETHICS) return false;
   if (n.id === 'aunt1' && !S.managed && S.offerAunt !== S.season && S.day >= 3 && S.day <= DAYS - 5 && Math.random() < 0.6) {
     S.offerAunt = S.season;
     await say(n, '阿德，阿姨看你最近股票做得很好……我這 50 萬交給你幫我操作好不好？賺了分你兩成！');
@@ -159,8 +166,9 @@ async function lifeHook(n) {
   }
   return false;
 }
-function driverHeat() { S.heat = (S.heat || 0) + 1; S.driverUsed = (S.driverUsed || 0) + 1; }
+function driverHeat() { if (!ETHICS) return; S.heat = (S.heat || 0) + 1; S.driverUsed = (S.driverUsed || 0) + 1; }
 async function ethicsMorning() {
+  if (!ETHICS) return;
   if ((S.heat || 0) >= 2 && Math.random() < 0.05 * S.heat) {
     const fine = Math.round(Math.min(Math.max(1e5, netWorth() * 0.04 * S.heat), Math.max(0, S.cash)));
     GAME.busy = true;
@@ -188,7 +196,6 @@ function lifeSeasonEnd() {
     else { S.bond = S.bond || {}; S.bond.aunt1 = 0; for (const id of ['aunt2', 'aunt3', 'vendor']) S.bond[id] = Math.max(0, (S.bond[id] || 0) - 2); msgs.push(`幫王媽媽操作賠了 ${money(-pl)} 元，她氣到不跟你說話，還跟菜市場的姊妹們講你的壞話。`); }
     S.managed = null;
   }
-  if (!S.driverUsed && !(S.heat || 0)) achieve('clean');
   if (yearOf(S.season) === 1990) { const exp = holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).mv; if (exp < netWorth() * 0.1 && netWorth() >= (S.netHist || [])[0]) achieve('bubble'); }
   if ((S.fixed || 0) >= 1e6) achieve('saver');
   return msgs;
@@ -202,7 +209,6 @@ const ACH = [
   ['rank1', '散戶', '升上散戶'], ['rank2', '中實戶', '升上中實戶'], ['rank3', '大戶', '升上大戶'], ['rank4', '證券大亨', '成為證券大亨'],
   ['vip', '大戶室的常客', '進證券行的大戶室喝茶'], ['home', '有殼一族', '買下第一間房子'], ['mansion', '豪宅主人', '住進豪宅'], ['party', '派對之王', '在豪宅辦派對'],
   ['saver', '穩健派', '月底定存超過 100 萬'], ['gold', '黃金避險', '黃金賺 10% 以上賣出'], ['lotto', '土地公保佑', '大家樂（六合彩）中獎'],
-  ['honest', '老實人', '拒絕代客操作'], ['noponzi', '不貪心', '拒絕當金滿堂的下線'], ['managed', '代操有功', '代客操作讓王媽媽賺錢'], ['clean', '清白人生', '整個月沒有用過內線消息'],
   ['bubble', '躲過泡沫破裂', '1990 年那個月，月底持股不到資產一成而且沒有虧損'], ['walker', '日行萬步', '一天走滿一萬步'], ['bestie', '麻吉', '和某個人的交情到滿點'], ['eggs', '城市探險家', '找齊 10 個彩蛋'],
 ];
 function achieve(id) {
@@ -248,4 +254,29 @@ function dayChecks(d, dpl) {
     const t = S.sht[s.id]; if (t && (t.cost - SEASON.close[d][i]) / t.cost >= 0.1) achieve('short');
   });
   if (NPCS.some(n => n.rel && hearts(n.id) >= 5)) achieve('bestie');
+}
+
+/* ---------- 資產配置：現在的錢放在哪裡 ---------- */
+function allocHTML() {
+  const p = prices(), mp = marginParts(p), h = S.house || {}, gp = goldPrice(), stock = holdValue(p);
+  const rows = [['現金', S.cash, '#8a7a62'], ['現股', stock, '#d7263d'], ['融資（扣掉借款）', mp.mv - mp.loan, '#e8742b'], ['融券（保證金扣掉回補成本）', mp.coll - mp.sv, '#14965a'],
+    ['新股申購中', subFrozen(), '#b98cd6'], ['定存', S.fixed || 0, '#1f4f9a'], ['黃金', (S.gold || 0) * gp, '#f2c14e'], ['房產（扣掉房貸）', houseValue() - (h.loan || 0), '#5f9e6a'],
+    ['預售屋紅單', preValue(), '#2b7f86'], ['金滿堂存款', S.deposit || 0, '#6b5d4a']].filter(r => Math.abs(r[1]) >= 1);
+  const total = netWorth(), pos = rows.filter(r => r[1] > 0), sum = pos.reduce((a, r) => a + r[1], 0) || 1;
+  let o = `<div class="sum"><span>總資產 <b>${money(total)}</b></span>${h.loan ? `<span>房貸 <b class="down">${money(h.loan)}</b></span>` : ''}${mp.loan ? `<span>融資借款 <b class="down">${money(mp.loan)}</b></span>` : ''}</div>`;
+  o += `<div class="alBar" role="img" aria-label="資產配置比例">${pos.map(r => `<span style="flex:${r[1]};background:${r[2]}" title="${r[0]} ${(r[1] / sum * 100).toFixed(1)}%"></span>`).join('')}</div>`;
+  o += `<table class="q alTab"><tr><th style="text-align:left">項目</th><th>金額</th><th>比例</th></tr>${rows.map(r => `<tr><td style="text-align:left"><i class="alDot" style="background:${r[2]}"></i>${r[0]}</td><td class="${r[1] < 0 ? 'down' : ''}">${money(r[1])}</td><td>${r[1] > 0 ? (r[1] / sum * 100).toFixed(1) + '%' : '—'}</td></tr>`).join('')}</table>`;
+  // 股票部位依族群
+  const sec = {}; let ex = 0;
+  STOCKS.forEach((s, i) => { const v = ((S.hold[s.id] || {}).q || 0) * LOT * p[i] + ((S.mar[s.id] || {}).q || 0) * LOT * p[i]; if (v > 0) { sec[s.sector] = (sec[s.sector] || 0) + v; ex += v; } });
+  if (ex > 0) o += `<h4 style="margin:12px 0 4px">做多的股票依族群</h4>` + Object.entries(sec).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="alSec"><span>${k}</span><span class="alTrack"><span style="width:${(v / ex * 100).toFixed(1)}%"></span></span><b>${(v / ex * 100).toFixed(0)}%</b></div>`).join('');
+  // 簡單的提醒（不是投資建議）
+  const share = k => rows.filter(r => k.includes(r[0])).reduce((a, r) => a + Math.max(0, r[1]), 0) / sum;
+  const st = share(['現股', '融資（扣掉借款）']), cash = share(['現金']), top = ex ? Math.max(...Object.values(sec)) / ex : 0, tips = [];
+  if (st > 0.8) tips.push('股票占了八成以上，大盤一跌，總資產會跟著大跌。');
+  if (mp.loan > total * 0.5) tips.push('融資借款超過總資產一半，遇到連續跌停很容易被追繳。');
+  if (top > 0.6 && Object.keys(sec).length >= 1 && ex > total * 0.3) tips.push('股票集中在同一個族群，那個族群出事時會很痛。');
+  if (cash > 0.7 && total > START_CASH * 0.8) tips.push('現金放了七成以上，比較安全，但也沒在幫你賺錢。');
+  if (!tips.length) tips.push('配置看起來還算平均。');
+  return o + `<p class="note">${tips.join('')}（遊戲裡的提醒，不構成投資建議）</p>`;
 }

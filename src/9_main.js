@@ -51,7 +51,7 @@ function loop() {
     $('marquee').classList.toggle('hide', PHASE() !== 'open'); $('hint').classList.toggle('hide', PHASE() === 'open' || GAME.mode !== 'ground');
     hudT -= dt; if (hudT < 0) { hudT = 0.5; refreshHUD(); }
   }
-  updateCars(dt, GAME.started ? PL.dir : new V3(0, 1, 0)); updateCityFx(dt);
+  updateCars(dt, GAME.started ? PL.dir : new V3(0, 1, 0)); updateCityFx(dt); updateDoorFrames();
   updateCamera(dt); updateLighting(); DLG.tick(dt);
   sky.position.copy(camera.position);
   if (!POWER || (GAME.frame = (GAME.frame || 0) + 1) % 2) renderer.render(scene, camera);
@@ -125,7 +125,8 @@ async function boot() {
     buildCity(); buildCars(); buildNPCs(); NPCS.forEach(n => n.ch.root.visible = false);
     PL.ch = new Character(LOOKS.me); scene.add(PL.ch.root); drawPortrait($('pp'), LOOKS.me);
     setPlayerAt(slot('E', 4, 1, 2.3).dir); placeChar(PL.ch, PL.dir, PL.fwd, 0);
-    applyPower(); bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore(); ensureLifeModal();
+    applyPower(); bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore(); ensureLifeModal(); buildDoorFrames();
+    for (const id of ['chNet', 'chCash']) { $(id).style.cursor = 'pointer'; $(id).title = '點一下看資產配置'; $(id).onclick = () => { if (GAME.started && !GAME.busy) openLife('alloc'); }; }
     $('loadTxt').classList.add('hide'); $('titleBtns').classList.remove('hide'); if (hasSave()) $('bCont').classList.remove('hide');
     $('bStart').onclick = openNewGame; $('bCont').onclick = () => startGame(true); $('bLoad').onclick = () => openSaves();
     loop();

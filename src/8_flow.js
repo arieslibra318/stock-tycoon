@@ -752,6 +752,7 @@ function updateLabels() {
     for (const p of PLACES) { if (p.front.dot(cd) < 0.2) continue; const s = proj(p.front.clone().multiplyScalar(R + 3)); if (s) lbl(p.name, 'map', s[0], s[1], () => { toggleMap(); }); }
     const me = proj(PL.dir.clone().multiplyScalar(R + 2)); if (me) lbl('你在這裡', 'me', me[0], me[1]);
   } else if (GAME.mode === 'interior') { interiorLabels(proj); } else if (GAME.mode === 'ground') {
+    doorLabels(proj);
     const cf = new V3(); camera.getWorldDirection(cf);
     for (const n of NPCS) {
       if (!n.ch.root.visible || n.role === 'crowd') continue; const d = angDist(PL.dir, n.dir); if (d > 9) continue;

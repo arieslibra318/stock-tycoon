@@ -231,3 +231,27 @@ async function sleepNow() {
   GAME.busy = true; await say(null, '（你躺上床，很快就睡著了。）'); DLG.hide(); GAME.busy = false; await endDay();
 }
 function homeDesk() { openTrade(true); }
+
+/* ---------- 門口的橘色框：在外面就看得出哪裡可以進去（打烊時變灰） ---------- */
+const DOORS = [];
+function buildDoorFrames() {
+  for (const id in ROOMS) {
+    const p = PLACE_BY[ROOMS[id].place]; if (!p) continue;
+    const sl = slot(p.road, p.s, p.side, 4.42), m = matFrom(sl.dir, sl.fwd, 0), g = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ color: 0xff8a1f });
+    for (const [w, h, x, y] of [[1.95, 0.14, 0, 2.45], [0.14, 2.45, -0.9, 1.22], [0.14, 2.45, 0.9, 1.22]]) { const b = new THREE.Mesh(GEO.box, mat); b.scale.set(w, h, 0.12); b.position.set(x, y, 0); g.add(b); }
+    const mt = new THREE.Mesh(GEO.box, new THREE.MeshBasicMaterial({ color: 0xff8a1f, transparent: true, opacity: 0.45 })); mt.scale.set(1.7, 0.02, 0.9); mt.position.set(0, 0.04, 0.55); g.add(mt);
+    m.decompose(g.position, g.quaternion, _s); scene.add(g); DOORS.push({ id, g, mat, mt, dir: sl.dir });
+  }
+}
+function updateDoorFrames() {
+  const pulse = 0.78 + 0.22 * Math.sin(GAME.t * 4);
+  for (const d of DOORS) { const shut = !!(ROOMS[d.id].closed && ROOMS[d.id].closed()); d.g.visible = GAME.mode === 'ground' || GAME.mode === 'title'; d.mat.color.setHex(shut ? 0x8a8070 : 0xff8a1f); if (!shut) d.mat.color.multiplyScalar(pulse); d.mt.visible = !shut; }
+}
+function doorLabels(proj) {
+  for (const d of DOORS) {
+    if (angDist(PL.dir, d.dir) > 10) continue; const R0 = ROOMS[d.id], shut = R0.closed && R0.closed();
+    const p = proj(d.dir.clone().multiplyScalar(R + 2.9)); if (!p) continue;
+    const name = R0.place === 'home' ? HOUSES[houseTier()].place : R0.name;
+    lbl(shut ? `${name}（${d.id === 'izakaya' ? '晚上營業' : d.id === 'bank' ? '已打烊' : '打烊'}）` : `▶ 可進入${name}`, shut ? '' : 'door tap', p[0], p[1], shut ? null : () => { if (angDist(PL.dir, roomDoorDir(d.id)) < 1.25) enterInterior(d.id); else autoGo({ dir: roomDoorDir(d.id), reach: 1.0, done: () => enterInterior(d.id) }); });
+  }
+}

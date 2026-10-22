@@ -23,7 +23,7 @@ function buildMore() {
   $('tr').appendChild(b);
   const m = document.createElement('div'); m.id = 'moreMenu'; m.className = 'paper hide'; $('hud').appendChild(m);
   const close = () => { m.classList.add('hide'); b.setAttribute('aria-expanded', 'false'); };
-  const items = [['map', '城市地圖', () => toggleMap()], ['snd', '', () => cycleSound()], ['save', '存檔與讀檔', () => openSaves()], ['help', '說明與設定', () => openHelp()], ['pow', '', () => setPower(!POWER)], ['full', '', () => toggleFull()]];
+  const items = [['alloc', '資產配置', () => openLife('alloc')], ['map', '城市地圖', () => toggleMap()], ['snd', '', () => cycleSound()], ['save', '存檔與讀檔', () => openSaves()], ['help', '說明與設定', () => openHelp()], ['pow', '', () => setPower(!POWER)], ['full', '', () => toggleFull()]];
   const label = k => k === 'snd' ? `聲音：${S.music || S.sfx ? '開' : '關'}` : k === 'pow' ? `省電模式：${POWER ? '開' : '關'}` : k === 'full' ? (document.fullscreenElement ? '離開全螢幕' : '全螢幕') : items.find(i => i[0] === k)[1];
   const render = () => { m.innerHTML = `<div class="mmInfo">今日步數 ${Math.floor(S.stepsDay || 0).toLocaleString('zh-TW')} 步</div>` + items.filter(([k]) => k !== 'full' || document.fullscreenEnabled).map(([k]) => `<button data-mm="${k}">${label(k)}</button>`).join(''); m.querySelectorAll('[data-mm]').forEach(x => x.onclick = e => { e.stopPropagation(); const it = items.find(i => i[0] === x.dataset.mm); close(); it[2](); }); };
   b.onclick = e => { e.stopPropagation(); if (m.classList.contains('hide')) { render(); m.classList.remove('hide'); b.setAttribute('aria-expanded', 'true'); } else close(); };

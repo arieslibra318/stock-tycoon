@@ -104,6 +104,13 @@ table.q th:first-child,table.q td:first-child{text-align:left}
 table.q td{padding:7px 6px;border-bottom:1.5px dashed #d8c9a8;text-align:right;white-space:nowrap}
 table.q td .sec{display:block;font-size:11px;color:var(--ink-soft)}
 .tw{overflow-x:auto}
+.lbl.door{background:#ff8a1f;color:#fff;border-color:var(--ink)}
+.alBar{display:flex;height:22px;border:2px solid var(--ink);border-radius:8px;overflow:hidden;margin:6px 0 10px}
+.alBar span{min-width:2px}
+.alDot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid var(--ink)}
+.alSec{display:grid;grid-template-columns:64px 1fr 44px;gap:8px;align-items:center;font-size:13px;margin:3px 0}
+.alTrack{height:10px;background:#efe6d2;border-radius:5px;overflow:hidden}.alTrack span{display:block;height:100%;background:var(--accent)}
+#chNet,#chCash{pointer-events:auto}
 .lbl.tap{pointer-events:auto;cursor:pointer}
 #title #titleNote{background:rgba(43,38,34,.68);padding:8px 14px;border-radius:10px;text-shadow:none}
 .mmInfo{font-size:13px;color:var(--ink-soft);padding:4px 6px}
@@ -2589,6 +2596,7 @@ function updateLabels() {
     for (const p of PLACES) { if (p.front.dot(cd) < 0.2) continue; const s = proj(p.front.clone().multiplyScalar(R + 3)); if (s) lbl(p.name, 'map', s[0], s[1], () => { toggleMap(); }); }
     const me = proj(PL.dir.clone().multiplyScalar(R + 2)); if (me) lbl('你在這裡', 'me', me[0], me[1]);
   } else if (GAME.mode === 'interior') { interiorLabels(proj); } else if (GAME.mode === 'ground') {
+    doorLabels(proj);
     const cf = new V3(); camera.getWorldDirection(cf);
     for (const n of NPCS) {
       if (!n.ch.root.visible || n.role === 'crowd') continue; const d = angDist(PL.dir, n.dir); if (d > 9) continue;
@@ -3181,7 +3189,7 @@ function buildMore() {
   $('tr').appendChild(b);
   const m = document.createElement('div'); m.id = 'moreMenu'; m.className = 'paper hide'; $('hud').appendChild(m);
   const close = () => { m.classList.add('hide'); b.setAttribute('aria-expanded', 'false'); };
-  const items = [['map', '城市地圖', () => toggleMap()], ['snd', '', () => cycleSound()], ['save', '存檔與讀檔', () => openSaves()], ['help', '說明與設定', () => openHelp()], ['pow', '', () => setPower(!POWER)], ['full', '', () => toggleFull()]];
+  const items = [['alloc', '資產配置', () => openLife('alloc')], ['map', '城市地圖', () => toggleMap()], ['snd', '', () => cycleSound()], ['save', '存檔與讀檔', () => openSaves()], ['help', '說明與設定', () => openHelp()], ['pow', '', () => setPower(!POWER)], ['full', '', () => toggleFull()]];
   const label = k => k === 'snd' ? `聲音：${S.music || S.sfx ? '開' : '關'}` : k === 'pow' ? `省電模式：${POWER ? '開' : '關'}` : k === 'full' ? (document.fullscreenElement ? '離開全螢幕' : '全螢幕') : items.find(i => i[0] === k)[1];
   const render = () => { m.innerHTML = `<div class="mmInfo">今日步數 ${Math.floor(S.stepsDay || 0).toLocaleString('zh-TW')} 步</div>` + items.filter(([k]) => k !== 'full' || document.fullscreenEnabled).map(([k]) => `<button data-mm="${k}">${label(k)}</button>`).join(''); m.querySelectorAll('[data-mm]').forEach(x => x.onclick = e => { e.stopPropagation(); const it = items.find(i => i[0] === x.dataset.mm); close(); it[2](); }); };
   b.onclick = e => { e.stopPropagation(); if (m.classList.contains('hide')) { render(); m.classList.remove('hide'); b.setAttribute('aria-expanded', 'true'); } else close(); };
@@ -3461,6 +3469,30 @@ async function sleepNow() {
   GAME.busy = true; await say(null, '（你躺上床，很快就睡著了。）'); DLG.hide(); GAME.busy = false; await endDay();
 }
 function homeDesk() { openTrade(true); }
+
+/* ---------- 門口的橘色框：在外面就看得出哪裡可以進去（打烊時變灰） ---------- */
+const DOORS = [];
+function buildDoorFrames() {
+  for (const id in ROOMS) {
+    const p = PLACE_BY[ROOMS[id].place]; if (!p) continue;
+    const sl = slot(p.road, p.s, p.side, 4.42), m = matFrom(sl.dir, sl.fwd, 0), g = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ color: 0xff8a1f });
+    for (const [w, h, x, y] of [[1.95, 0.14, 0, 2.45], [0.14, 2.45, -0.9, 1.22], [0.14, 2.45, 0.9, 1.22]]) { const b = new THREE.Mesh(GEO.box, mat); b.scale.set(w, h, 0.12); b.position.set(x, y, 0); g.add(b); }
+    const mt = new THREE.Mesh(GEO.box, new THREE.MeshBasicMaterial({ color: 0xff8a1f, transparent: true, opacity: 0.45 })); mt.scale.set(1.7, 0.02, 0.9); mt.position.set(0, 0.04, 0.55); g.add(mt);
+    m.decompose(g.position, g.quaternion, _s); scene.add(g); DOORS.push({ id, g, mat, mt, dir: sl.dir });
+  }
+}
+function updateDoorFrames() {
+  const pulse = 0.78 + 0.22 * Math.sin(GAME.t * 4);
+  for (const d of DOORS) { const shut = !!(ROOMS[d.id].closed && ROOMS[d.id].closed()); d.g.visible = GAME.mode === 'ground' || GAME.mode === 'title'; d.mat.color.setHex(shut ? 0x8a8070 : 0xff8a1f); if (!shut) d.mat.color.multiplyScalar(pulse); d.mt.visible = !shut; }
+}
+function doorLabels(proj) {
+  for (const d of DOORS) {
+    if (angDist(PL.dir, d.dir) > 10) continue; const R0 = ROOMS[d.id], shut = R0.closed && R0.closed();
+    const p = proj(d.dir.clone().multiplyScalar(R + 2.9)); if (!p) continue;
+    const name = R0.place === 'home' ? HOUSES[houseTier()].place : R0.name;
+    lbl(shut ? `${name}（${d.id === 'izakaya' ? '晚上營業' : d.id === 'bank' ? '已打烊' : '打烊'}）` : `▶ 可進入${name}`, shut ? '' : 'door tap', p[0], p[1], shut ? null : () => { if (angDist(PL.dir, roomDoorDir(d.id)) < 1.25) enterInterior(d.id); else autoGo({ dir: roomDoorDir(d.id), reach: 1.0, done: () => enterInterior(d.id) }); });
+  }
+}
 /* =========================================================
    life：時間速度、住宅與生活開銷、定存／黃金／預售屋、大家樂、道德抉擇、成就與公司圖鑑
    ========================================================= */
@@ -3505,18 +3537,22 @@ const preValue = () => { const p = S.pre; if (!p || !p.units) return 0; return M
 function lifeValue() { const h = S.house || {}; return (S.fixed || 0) + (S.gold || 0) * goldPrice() + houseValue() - (h.loan || 0) + preValue(); }
 
 /* ---------- 生活與資產的面板 ---------- */
-let LIFE_TAB = 'bank';
+let LIFE_TAB = 'bank', LIFE_TABS = ['alloc', 'bank', 'house'];
 function ensureLifeModal() {
   if ($('life')) return;
   const m = document.createElement('div'); m.id = 'life'; m.className = 'modal hide';
   m.innerHTML = '<div class="box paper"><div class="bh"><h3 id="lfTitle">生活與資產</h3><button class="x" aria-label="關閉">×</button></div><div class="bb" id="lfBody"></div></div>';
   $('app').appendChild(m); m.querySelector('.x').onclick = closeModals;
 }
-function openLife(tab) { ensureLifeModal(); if (GAME.busy && $('life').classList.contains('hide')) return; LIFE_TAB = tab || LIFE_TAB; GAME.busy = true; $('life').classList.remove('hide'); renderLife(); }
+function openLife(tab) {
+  ensureLifeModal(); if (GAME.busy && $('life').classList.contains('hide')) return; LIFE_TAB = tab || LIFE_TAB;
+  // 在銀行能辦定存、黃金和房屋；在家能看房屋；在外面只能看資產配置
+  LIFE_TABS = GAME.mode === 'interior' && IN.id === 'bank' ? ['alloc', 'bank', 'house'] : GAME.mode === 'interior' && IN.id === 'home' ? ['alloc', 'house'] : ['alloc']; if (!LIFE_TABS.includes(LIFE_TAB)) LIFE_TAB = LIFE_TABS[0]; GAME.busy = true; $('life').classList.remove('hide'); renderLife(); }
 function renderLife(msg) {
-  const tabs = [['bank', '定存・黃金'], ['house', '住宅・預售屋']], h = S.house || {}, gp = goldPrice();
+  const tabs = [['alloc', '資產配置'], ['bank', '定存・黃金'], ['house', '住宅・預售屋']].filter(t => LIFE_TABS.includes(t[0])), h = S.house || {}, gp = goldPrice();
   let o = `<div class="tabs" style="margin-bottom:10px">${tabs.map(([k, t]) => `<button class="tab ${LIFE_TAB === k ? 'on' : ''}" data-lt="${k}">${t}</button>`).join('')}</div>`;
   if (msg) o += `<div class="sum">${msg}</div>`;
+  if (LIFE_TAB === 'alloc') { $('lfBody').innerHTML = o + allocHTML(); $('lfTitle').textContent = '資產配置'; $('lfBody').querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { LIFE_TAB = b.dataset.lt; renderLife(); }); return; }
   o += `<div class="sum"><span>現金 <b>${money(S.cash)}</b></span><span>定存 <b>${money(S.fixed || 0)}</b></span><span>黃金 <b>${(S.gold || 0)} 兩</b></span><span>房產淨值 <b>${money(houseValue() - (h.loan || 0))}</b></span><span>預售屋 <b>${money(preValue())}</b></span></div>`;
   if (LIFE_TAB === 'bank') {
     o += `<h4>一年期定存　年利率 ${(depRate() * 100).toFixed(2)}%</h4><p class="note" style="margin-top:0">一個月代表一年，月底依利率發利息，隨時可以解約領回。</p>
@@ -3603,7 +3639,10 @@ function lottoDraw() {
 }
 
 /* ---------- 道德抉擇：內線、代客操作、老鼠會 ---------- */
+// 道德抉擇（代客操作、老鼠會下線、內線被約談）先關掉，之後要再開只要改成 true
+const ETHICS = false;
 async function lifeHook(n) {
+  if (!ETHICS) return false;
   if (n.id === 'aunt1' && !S.managed && S.offerAunt !== S.season && S.day >= 3 && S.day <= DAYS - 5 && Math.random() < 0.6) {
     S.offerAunt = S.season;
     await say(n, '阿德，阿姨看你最近股票做得很好……我這 50 萬交給你幫我操作好不好？賺了分你兩成！');
@@ -3622,8 +3661,9 @@ async function lifeHook(n) {
   }
   return false;
 }
-function driverHeat() { S.heat = (S.heat || 0) + 1; S.driverUsed = (S.driverUsed || 0) + 1; }
+function driverHeat() { if (!ETHICS) return; S.heat = (S.heat || 0) + 1; S.driverUsed = (S.driverUsed || 0) + 1; }
 async function ethicsMorning() {
+  if (!ETHICS) return;
   if ((S.heat || 0) >= 2 && Math.random() < 0.05 * S.heat) {
     const fine = Math.round(Math.min(Math.max(1e5, netWorth() * 0.04 * S.heat), Math.max(0, S.cash)));
     GAME.busy = true;
@@ -3651,7 +3691,6 @@ function lifeSeasonEnd() {
     else { S.bond = S.bond || {}; S.bond.aunt1 = 0; for (const id of ['aunt2', 'aunt3', 'vendor']) S.bond[id] = Math.max(0, (S.bond[id] || 0) - 2); msgs.push(`幫王媽媽操作賠了 ${money(-pl)} 元，她氣到不跟你說話，還跟菜市場的姊妹們講你的壞話。`); }
     S.managed = null;
   }
-  if (!S.driverUsed && !(S.heat || 0)) achieve('clean');
   if (yearOf(S.season) === 1990) { const exp = holdValue(SEASON.close[DAYS]) + marginParts(SEASON.close[DAYS]).mv; if (exp < netWorth() * 0.1 && netWorth() >= (S.netHist || [])[0]) achieve('bubble'); }
   if ((S.fixed || 0) >= 1e6) achieve('saver');
   return msgs;
@@ -3665,7 +3704,6 @@ const ACH = [
   ['rank1', '散戶', '升上散戶'], ['rank2', '中實戶', '升上中實戶'], ['rank3', '大戶', '升上大戶'], ['rank4', '證券大亨', '成為證券大亨'],
   ['vip', '大戶室的常客', '進證券行的大戶室喝茶'], ['home', '有殼一族', '買下第一間房子'], ['mansion', '豪宅主人', '住進豪宅'], ['party', '派對之王', '在豪宅辦派對'],
   ['saver', '穩健派', '月底定存超過 100 萬'], ['gold', '黃金避險', '黃金賺 10% 以上賣出'], ['lotto', '土地公保佑', '大家樂（六合彩）中獎'],
-  ['honest', '老實人', '拒絕代客操作'], ['noponzi', '不貪心', '拒絕當金滿堂的下線'], ['managed', '代操有功', '代客操作讓王媽媽賺錢'], ['clean', '清白人生', '整個月沒有用過內線消息'],
   ['bubble', '躲過泡沫破裂', '1990 年那個月，月底持股不到資產一成而且沒有虧損'], ['walker', '日行萬步', '一天走滿一萬步'], ['bestie', '麻吉', '和某個人的交情到滿點'], ['eggs', '城市探險家', '找齊 10 個彩蛋'],
 ];
 function achieve(id) {
@@ -3711,6 +3749,31 @@ function dayChecks(d, dpl) {
     const t = S.sht[s.id]; if (t && (t.cost - SEASON.close[d][i]) / t.cost >= 0.1) achieve('short');
   });
   if (NPCS.some(n => n.rel && hearts(n.id) >= 5)) achieve('bestie');
+}
+
+/* ---------- 資產配置：現在的錢放在哪裡 ---------- */
+function allocHTML() {
+  const p = prices(), mp = marginParts(p), h = S.house || {}, gp = goldPrice(), stock = holdValue(p);
+  const rows = [['現金', S.cash, '#8a7a62'], ['現股', stock, '#d7263d'], ['融資（扣掉借款）', mp.mv - mp.loan, '#e8742b'], ['融券（保證金扣掉回補成本）', mp.coll - mp.sv, '#14965a'],
+    ['新股申購中', subFrozen(), '#b98cd6'], ['定存', S.fixed || 0, '#1f4f9a'], ['黃金', (S.gold || 0) * gp, '#f2c14e'], ['房產（扣掉房貸）', houseValue() - (h.loan || 0), '#5f9e6a'],
+    ['預售屋紅單', preValue(), '#2b7f86'], ['金滿堂存款', S.deposit || 0, '#6b5d4a']].filter(r => Math.abs(r[1]) >= 1);
+  const total = netWorth(), pos = rows.filter(r => r[1] > 0), sum = pos.reduce((a, r) => a + r[1], 0) || 1;
+  let o = `<div class="sum"><span>總資產 <b>${money(total)}</b></span>${h.loan ? `<span>房貸 <b class="down">${money(h.loan)}</b></span>` : ''}${mp.loan ? `<span>融資借款 <b class="down">${money(mp.loan)}</b></span>` : ''}</div>`;
+  o += `<div class="alBar" role="img" aria-label="資產配置比例">${pos.map(r => `<span style="flex:${r[1]};background:${r[2]}" title="${r[0]} ${(r[1] / sum * 100).toFixed(1)}%"></span>`).join('')}</div>`;
+  o += `<table class="q alTab"><tr><th style="text-align:left">項目</th><th>金額</th><th>比例</th></tr>${rows.map(r => `<tr><td style="text-align:left"><i class="alDot" style="background:${r[2]}"></i>${r[0]}</td><td class="${r[1] < 0 ? 'down' : ''}">${money(r[1])}</td><td>${r[1] > 0 ? (r[1] / sum * 100).toFixed(1) + '%' : '—'}</td></tr>`).join('')}</table>`;
+  // 股票部位依族群
+  const sec = {}; let ex = 0;
+  STOCKS.forEach((s, i) => { const v = ((S.hold[s.id] || {}).q || 0) * LOT * p[i] + ((S.mar[s.id] || {}).q || 0) * LOT * p[i]; if (v > 0) { sec[s.sector] = (sec[s.sector] || 0) + v; ex += v; } });
+  if (ex > 0) o += `<h4 style="margin:12px 0 4px">做多的股票依族群</h4>` + Object.entries(sec).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="alSec"><span>${k}</span><span class="alTrack"><span style="width:${(v / ex * 100).toFixed(1)}%"></span></span><b>${(v / ex * 100).toFixed(0)}%</b></div>`).join('');
+  // 簡單的提醒（不是投資建議）
+  const share = k => rows.filter(r => k.includes(r[0])).reduce((a, r) => a + Math.max(0, r[1]), 0) / sum;
+  const st = share(['現股', '融資（扣掉借款）']), cash = share(['現金']), top = ex ? Math.max(...Object.values(sec)) / ex : 0, tips = [];
+  if (st > 0.8) tips.push('股票占了八成以上，大盤一跌，總資產會跟著大跌。');
+  if (mp.loan > total * 0.5) tips.push('融資借款超過總資產一半，遇到連續跌停很容易被追繳。');
+  if (top > 0.6 && Object.keys(sec).length >= 1 && ex > total * 0.3) tips.push('股票集中在同一個族群，那個族群出事時會很痛。');
+  if (cash > 0.7 && total > START_CASH * 0.8) tips.push('現金放了七成以上，比較安全，但也沒在幫你賺錢。');
+  if (!tips.length) tips.push('配置看起來還算平均。');
+  return o + `<p class="note">${tips.join('')}（遊戲裡的提醒，不構成投資建議）</p>`;
 }
 /* ---------- 聲音 ---------- */
 const AU = { ctx: null };
@@ -3820,7 +3883,7 @@ function loop() {
     $('marquee').classList.toggle('hide', PHASE() !== 'open'); $('hint').classList.toggle('hide', PHASE() === 'open' || GAME.mode !== 'ground');
     hudT -= dt; if (hudT < 0) { hudT = 0.5; refreshHUD(); }
   }
-  updateCars(dt, GAME.started ? PL.dir : new V3(0, 1, 0)); updateCityFx(dt);
+  updateCars(dt, GAME.started ? PL.dir : new V3(0, 1, 0)); updateCityFx(dt); updateDoorFrames();
   updateCamera(dt); updateLighting(); DLG.tick(dt);
   sky.position.copy(camera.position);
   if (!POWER || (GAME.frame = (GAME.frame || 0) + 1) % 2) renderer.render(scene, camera);
@@ -3894,7 +3957,8 @@ async function boot() {
     buildCity(); buildCars(); buildNPCs(); NPCS.forEach(n => n.ch.root.visible = false);
     PL.ch = new Character(LOOKS.me); scene.add(PL.ch.root); drawPortrait($('pp'), LOOKS.me);
     setPlayerAt(slot('E', 4, 1, 2.3).dir); placeChar(PL.ch, PL.dir, PL.fwd, 0);
-    applyPower(); bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore(); ensureLifeModal();
+    applyPower(); bindInput(); drawBoard(); buildRain(); buildCerts(); buildMini(); buildMore(); ensureLifeModal(); buildDoorFrames();
+    for (const id of ['chNet', 'chCash']) { $(id).style.cursor = 'pointer'; $(id).title = '點一下看資產配置'; $(id).onclick = () => { if (GAME.started && !GAME.busy) openLife('alloc'); }; }
     $('loadTxt').classList.add('hide'); $('titleBtns').classList.remove('hide'); if (hasSave()) $('bCont').classList.remove('hide');
     $('bStart').onclick = openNewGame; $('bCont').onclick = () => startGame(true); $('bLoad').onclick = () => openSaves();
     loop();
