@@ -152,8 +152,8 @@ table.q td .sec{display:block;font-size:11px;color:var(--ink-soft)}
   #bMap,#bSound,#bSave,#bMenu{display:none}
   #bMore{display:grid}
   #tr .ib{width:40px;height:40px}#tr .ib svg{width:21px;height:21px}
-  #trade.modal,#notes.modal,#help.modal,#saves.modal{padding:0}
-  #trade .box,#notes .box,#help .box,#saves .box{width:100%;height:100%;max-height:none;border-radius:0}
+  #trade.modal,#notes.modal,#help.modal,#saves.modal,#life.modal{padding:0}
+  #trade .box,#notes .box,#help .box,#saves .box,#life .box{width:100%;height:100%;max-height:none;border-radius:0}
   #trBody .tw{overflow:visible}
   #trBody table.q,#trBody table.q tbody{display:block}
   #trBody table.q tr:first-child{display:none}
@@ -3403,7 +3403,9 @@ function interiorNear() {
 }
 function interiorUpdate(dt) {
   let inp = GAME.busy ? { x: 0, y: 0, run: false } : moveInput();
-  if (IN.goal && !GAME.busy) { if (Math.hypot(inp.x, inp.y) > 0.05) IN.goal = null; else { const dx = IN.goal.x - IN.x, dz = IN.goal.z - IN.z, d = Math.hypot(dx, dz); if (d < 1.0) { const g = IN.goal; IN.goal = null; setTimeout(g.done, 0); } else inp = { x: dx / d, y: -dz / d, run: false }; } }
+  if (IN.goal && !GAME.busy) { if (Math.hypot(inp.x, inp.y) > 0.05) IN.goal = null; else { const g = IN.goal, dx = g.x - IN.x, dz = g.z - IN.z, d = Math.hypot(dx, dz), now = performance.now(); if (d < g.best - 0.05) { g.best = d; g.last = now; }
+    // 到了、或被櫃檯擋住但已經很近，就直接互動；卡太久就放棄
+    if (d < 1.0 || (now - g.last > 1200 && d < 2.3)) { IN.goal = null; setTimeout(g.done, 0); } else if (now - g.last > 2500) { IN.goal = null; toast('走不過去，用搖桿過去吧'); } else inp = { x: dx / d, y: -dz / d, run: false }; } }
   const mag = Math.min(1, Math.hypot(inp.x, inp.y)), tgt = mag > 0.05 ? (inp.run ? 5 : 3.2) * mag : 0;
   IN.speed = lerp(IN.speed, tgt, 1 - Math.exp(-dt * 10));
   if (mag > 0.05) { const fx = inp.x / Math.max(mag, 1e-6), fz = -inp.y / Math.max(mag, 1e-6), k = 1 - Math.exp(-dt * 12); IN.fx += (fx - IN.fx) * k; IN.fz += (fz - IN.fz) * k; const l = Math.hypot(IN.fx, IN.fz) || 1; IN.fx /= l; IN.fz /= l; }
@@ -3428,7 +3430,11 @@ function interiorUpdate(dt) {
 }
 function interiorCamera(dt, snap) {
   // 鏡頭在房間前上方，往裡面看；人往後走時鏡頭跟著往後，後牆的看板一直在畫面上方
-  const r = IN.room, zc = clamp(IN.z, -r.d / 2 + 2, r.d / 2), tp = new V3(IN_O.x + IN.x * 0.45, IN_O.y + 6.2 + r.d * 0.24, IN_O.z + zc + 8 + r.d * 0.5), tl = new V3(IN_O.x + IN.x * 0.6, IN_O.y + 1.6, IN_O.z + zc - 3);
+  const r = IN.room, zc = clamp(IN.z, -r.d / 2 + 2, r.d / 2), tl = new V3(IN_O.x + IN.x * 0.6, IN_O.y + 1.6, IN_O.z + zc - 3);
+  // 直向手機畫面比較窄：鏡頭自動拉遠，讓整個房間的寬度都放得進畫面
+  const off = new V3(IN.x * 0.45 - IN.x * 0.6, 6.2 + r.d * 0.24 - 1.6, 8 + r.d * 0.5 + 3), hf = Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect), need = (r.w / 2 + 0.6) / Math.tan(hf);
+  // 橫向寬螢幕可以拉近一點
+  off.multiplyScalar(clamp(need / off.length(), camera.aspect > 1.6 ? 0.78 : 1, 3)); const tp = tl.clone().add(off);
   if (snap) { camera.position.copy(tp); CAM.look.copy(tl); } else { camera.position.lerp(tp, 1 - Math.exp(-dt * 6)); CAM.look.lerp(tl, 1 - Math.exp(-dt * 8)); }
   camera.up.set(0, 1, 0); camera.lookAt(CAM.look);
 }
@@ -3440,13 +3446,13 @@ function interiorLabels(proj) {
   const lab = (pos, text, cls2, click) => { const p = proj(pos); if (p) lbl(text, cls2, p[0], p[1], click); };
   for (const p of IN.people) {
     if (!p.npc || !p.ch.root.visible) continue; const n = NPC_BY[p.npc], fresh = n.rel && S.talked[n.id] !== S.day;
-    lab(new V3(IN_O.x + p.x, IN_O.y + (p.sit ? 1.7 : 2.1), IN_O.z + p.z), (fresh ? '● ' : '') + n.name + (n.rel && hearts(n.id) ? ' ' + '♥'.repeat(hearts(n.id)) : ''), fresh ? 'q tap' : 'tap', () => goTo(p.x, p.z + (p.face === 0 ? 1.1 : 0), () => talkTo(n)));
+    lab(new V3(IN_O.x + p.x, IN_O.y + (p.sit ? 1.7 : 2.1), IN_O.z + p.z), (fresh ? '● ' : '') + n.name + (n.rel && hearts(n.id) ? ' ' + '♥'.repeat(hearts(n.id)) : ''), fresh ? 'q tap' : 'tap', () => goTo(p.x + Math.sin(p.face) * 1.3, p.z + Math.cos(p.face) * 1.3, () => talkTo(n)));
   }
-  for (const s of IN.spots) if (Math.hypot(IN.x - s.x, IN.z - s.z) < 5) lab(new V3(IN_O.x + s.x, IN_O.y + 1.4, IN_O.z + s.z), s.label, 'goal tap', () => goTo(s.x, s.z, s.act));
+  for (const s of IN.spots) lab(new V3(IN_O.x + s.x, IN_O.y + 1.4, IN_O.z + s.z), s.label, 'goal tap', () => goTo(s.x, s.z, s.act));
   if (IN.bubble && IN.bubble.t > 0) lab(new V3(IN_O.x + IN.bubble.p.x, IN_O.y + 1.9, IN_O.z + IN.bubble.p.z), IN.bubble.txt, 'q');
   lab(new V3(IN_O.x, IN_O.y + 0.9, IN_O.z + IN.room.d / 2 - 0.2), '出口', 'tap', () => goTo(0, IN.room.d / 2 - 0.5, () => exitInterior()));
 }
-function goTo(x, z, done) { if (GAME.busy) return; if (Math.hypot(IN.x - x, IN.z - z) < 1.1) return done(); IN.goal = { x, z, done }; }
+function goTo(x, z, done) { if (GAME.busy) return; if (Math.hypot(IN.x - x, IN.z - z) < 1.1) return done(); IN.goal = { x, z, done, best: 99, last: performance.now() }; }
 
 /* ---------- 房間裡的動作 ---------- */
 async function vipRoom() {
