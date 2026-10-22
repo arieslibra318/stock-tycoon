@@ -144,9 +144,8 @@ const TALK = {
   },
   temple: async n => {
     await say(n, '來求明牌喔？心誠則靈啦。');
-    const c = await choose(['擲筊求明牌', `簽${lottoName()}`, '只是來拜拜']);
-    if (c === 1) { await lottoTalk(n); return; }
-    if (c === 2) { await say(n, '平安就好，平安就好。'); return; }
+    const c = await choose(['擲筊求明牌', '只是來拜拜']);
+    if (c === 1) { await say(n, '平安就好，平安就好。'); return; }
     if (S.talked.monk === S.day) { await say(n, '一天問一次就好，神明也要休息。'); return; }
     S.talked.monk = S.day; sfx('tick');
     const live = STOCKS.filter((x, k) => listed(k, Math.min(DAYS, S.day + 1))), s = live[Math.random() * live.length | 0], dir = Math.random() < 0.5 ? 1 : -1;
@@ -626,7 +625,7 @@ async function onPhase(ph) {
   if (ph === 'post' && MK.path) {
     MK.prices = SEASON.close[S.day].slice(); GAME.dayPath = MK.path; MK.path = null; drawBoard();
     GAME.marginMsgs = settleMargin(); GAME.marginMsgs.forEach(m => toast(m)); if (GAME.marginMsgs.length) sfx('bad');
-    lottoDraw(); downlinePay();
+    downlinePay();
     if (GAME.callRing) { GAME.callRing = false; ring(); flash('rgba(215,38,61,.8)', true); buzz([300, 120, 300]); }
     if (S.deposit > 0 && (S.day - S.depDay) % 5 === 4 && !S.ponziGone) { const it = Math.round(S.deposit * 0.01); S.cash += it; toast(`金滿堂配息 ${money(it)} 元`); }
     await showSummary(); GAME.marginMsgs = []; checkRank(); saveGame();
@@ -714,7 +713,7 @@ function morningPaper() {
       <p><b>美股昨夜收盤</b>：道瓊 <span class="${cls(SEASON.us[d])}">${pct(SEASON.us[d])}</span>、那斯達克 <span class="${cls(SEASON.nas[d])}">${pct(SEASON.nas[d])}</span></p>
       <p><b>台股昨日</b>：${d > 1 ? `加權指數收 ${SEASON.index[d - 1].toFixed(0)} 點（<span class="${cls(SEASON.index[d - 1] / SEASON.index[d - 2] - 1)}">${pct(SEASON.index[d - 1] / SEASON.index[d - 2] - 1)}</span>）` : '新的一年第一個交易日'}</p>
       <p><b>今日天氣</b>：${W.name} ${SEASON.temp[d]}°C${W.closed ? '，颱風假休市' : ''}</p>
-      ${eraNews(d)}${ev ? `<p><b>焦點新聞</b>：${ev.def.head}</p>` : ''}${listNews(d)}${drawDays().includes(d) ? `<p><b>社會新聞</b>：今天${lottoName()}開獎，廟口擠滿求明牌的人，工廠請假的比上班的還多。</p>` : ''}
+      ${eraNews(d)}${ev ? `<p><b>焦點新聞</b>：${ev.def.head}</p>` : ''}${listNews(d)}
       <p class="ref">8:00 日本、韓國股市開盤，可以先看國際盤的方向；9:00 台股開盤，13:30 收盤。</p>
       <div class="row"><button class="btn pri" id="extOk">看完了</button></div>`;
     $('ext').classList.remove('hide'); sfx('tick');

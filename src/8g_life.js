@@ -1,5 +1,5 @@
 /* =========================================================
-   life：時間速度、住宅與生活開銷、定存／黃金／預售屋、大家樂、道德抉擇、成就與公司圖鑑
+   life：時間速度、住宅與生活開銷、定存／黃金／預售屋、道德抉擇、成就與公司圖鑑
    ========================================================= */
 
 /* ---------- 時間速度：盤中、逛街（盤前、盤後、晚上）分開調 ---------- */
@@ -116,33 +116,6 @@ async function throwParty() {
   } finally { DLG.hide(); GAME.busy = false; refreshHUD(); }
 }
 
-/* ---------- 大家樂（1988 年愛國獎券停售後改簽六合彩） ---------- */
-const LOTTO_ODDS = 70;
-const lottoName = () => yearOf(S.season) <= 1987 ? '大家樂' : '六合彩';
-const drawDays = () => { const a = []; for (let d = 10; d <= DAYS; d += 10) a.push(d); return a; };
-const nextDraw = () => drawDays().find(d => d > S.day || (d === S.day && (PHASE() === 'pre' || PHASE() === 'open')));
-const winNum = d => mulberry32((SEASON.seed * 91 + d * 7) >>> 0)() * 100 | 0;
-async function lottoTalk(n) {
-  const nm = lottoName(), nd = nextDraw();
-  if (!nd) { await say(n, `這個月的${nm}已經開完了，下個月再來。`); return; }
-  await say(n, `${nm}喔？猜開獎號碼的末兩碼，猜中賠 ${LOTTO_ODDS} 倍，第 ${nd} 天收盤後開獎。不過十個簽九個槓龜，少簽一點啦。`);
-  const c = await choose(['簽 1,000 元', '簽 1 萬', '簽 10 萬', '算了']); if (c === 3) return;
-  const amt = [1000, 1e4, 1e5][c]; if (S.cash < amt) { await say(n, '錢不夠就別簽了。'); return; }
-  const c2 = await choose(['請廟公幫我挑號碼', '用今天的日期當號碼', '隨便選一個']);
-  const num = c2 === 1 ? (S.season * 7 + S.day * 3) % 100 : Math.random() * 100 | 0;
-  S.cash -= amt; (S.lotto = S.lotto || []).push({ num, amt, day: nd, nm }); sfx('coin');
-  await say(n, `好，${String(num).padStart(2, '0')} 號，簽 ${wan(amt)}。第 ${nd} 天收盤後開獎，土地公保佑。`);
-}
-function lottoDraw() {
-  const msgs = []; S.lotto = (S.lotto || []).filter(t => {
-    if (t.day !== S.day) return true; const w = winNum(t.day);
-    if (t.num === w) { const got = t.amt * LOTTO_ODDS; S.cash += got; msgs.push(`<b class="up">${t.nm}中了！</b>開出 ${String(w).padStart(2, '0')}，你簽的 ${String(t.num).padStart(2, '0')} 號贏得 ${money(got)} 元`); achieve('lotto'); buzz([80, 60, 160]); }
-    else msgs.push(`${t.nm}開出 ${String(w).padStart(2, '0')}，你簽的 ${String(t.num).padStart(2, '0')} 號槓龜了`);
-    return false;
-  });
-  msgs.forEach(m => toast(m));
-}
-
 /* ---------- 道德抉擇：內線、代客操作、老鼠會 ---------- */
 // 道德抉擇（代客操作、老鼠會下線、內線被約談）先關掉，之後要再開只要改成 true
 const ETHICS = false;
@@ -208,7 +181,7 @@ const ACH = [
   ['short', '空頭高手', '融券部位帳面獲利超過 10%'], ['ipo', '新股中籤', '抽中新股'], ['saved', '化險為夷', '收到追繳令後補繳成功'],
   ['rank1', '散戶', '升上散戶'], ['rank2', '中實戶', '升上中實戶'], ['rank3', '大戶', '升上大戶'], ['rank4', '證券大亨', '成為證券大亨'],
   ['vip', '大戶室的常客', '進證券行的大戶室喝茶'], ['home', '有殼一族', '買下第一間房子'], ['mansion', '豪宅主人', '住進豪宅'], ['party', '派對之王', '在豪宅辦派對'],
-  ['saver', '穩健派', '月底定存超過 100 萬'], ['gold', '黃金避險', '黃金賺 10% 以上賣出'], ['lotto', '土地公保佑', '大家樂（六合彩）中獎'],
+  ['saver', '穩健派', '月底定存超過 100 萬'], ['gold', '黃金避險', '黃金賺 10% 以上賣出'],
   ['bubble', '躲過泡沫破裂', '1990 年那個月，月底持股不到資產一成而且沒有虧損'], ['walker', '日行萬步', '一天走滿一萬步'], ['bestie', '麻吉', '和某個人的交情到滿點'], ['eggs', '城市探險家', '找齊 10 個彩蛋'],
 ];
 function achieve(id) {
