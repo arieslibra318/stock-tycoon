@@ -3521,6 +3521,8 @@ const GOLD_Y = { 1985: 15400, 1986: 15900, 1987: 17300, 1988: 15500, 1989: 13500
 // 住宅升級與生活開銷先關掉，之後要再開只要改成 true
 const HOUSING = false;
 const houseTier = () => HOUSING ? (S.house && S.house.tier) || 0 : 0;
+// 定存月息（每個月底發一次）
+const DEP_MONTH = 0.002;
 const depRate = () => DEP_RATE[yearOf(S.season)] || 0.06;
 function houseIdx() { const y = yearOf(S.season), a = HOUSE_IDX[y] || 2.4, b = HOUSE_IDX[y + 1] || a; return a + (b - a) * clamp((Math.min(S.day, DAYS) - 1) / Math.max(1, DAYS - 1), 0, 1); }
 const houseValue = () => HOUSES[houseTier()].price * houseIdx();
@@ -3559,7 +3561,7 @@ function renderLife(msg) {
   if (LIFE_TAB === 'alloc') { $('lfBody').innerHTML = o + allocHTML(); $('lfTitle').textContent = '資產配置'; $('lfBody').querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { LIFE_TAB = b.dataset.lt; renderLife(); }); return; }
   o += `<div class="sum"><span>現金 <b>${money(S.cash)}</b></span><span>定存 <b>${money(S.fixed || 0)}</b></span><span>黃金 <b>${(S.gold || 0)} 兩</b></span><span>房產淨值 <b>${money(houseValue() - (h.loan || 0))}</b></span><span>預售屋 <b>${money(preValue())}</b></span></div>`;
   if (LIFE_TAB === 'bank') {
-    o += `<h4>一年期定存　年利率 ${(depRate() * 100).toFixed(2)}%</h4><p class="note" style="margin-top:0">一個月代表一年，月底依利率發利息，隨時可以解約領回。</p>
+    o += `<h4>定存　月息 ${(DEP_MONTH * 100).toFixed(1)}%</h4><p class="note" style="margin-top:0">每到月底依月息 ${(DEP_MONTH * 100).toFixed(1)}% 發利息（利息自動滾進定存），隨時可以解約領回。</p>
       <p>${[[1e5, '存 10 萬'], [1e6, '存 100 萬'], ['all', '現金全部存']].map(([v, t]) => `<button class="btn" data-fx="${v}">${t}</button>`).join(' ')}　${(S.fixed || 0) ? '<button class="btn" data-fx="out">全部解約</button>' : ''}</p>
       <h4>黃金　今日牌價 ${money(gp)} 元／台兩</h4><p class="note" style="margin-top:0">戰爭、股災、疫情時金價常會上漲，可以拿來避險；買賣各收 1% 手續費。${S.gold ? `你的平均成本 ${money(S.goldCost || 0)} 元。` : ''}</p>
       <p>${[[1, '買 1 兩'], [10, '買 10 兩'], [50, '買 50 兩']].map(([v, t]) => `<button class="btn" data-gb="${v}">${t}</button>`).join(' ')}　${S.gold ? '<button class="btn" data-gs="1">全部賣出</button>' : ''}</p>`;
@@ -3653,7 +3655,7 @@ function downlineCollapse() {
 
 /* ---------- 月底：生活開銷、利息、代客操作結算 ---------- */
 function lifeSeasonEnd() {
-  const msgs = [], dep = (S.fixed || 0) * depRate();
+  const msgs = [], dep = (S.fixed || 0) * DEP_MONTH;
   S.fixed = (S.fixed || 0) + dep; if (dep) msgs.push(`定存利息 +${money(dep)} 元（已滾入定存）。`);
   if (S.managed && S.managed.season === S.season) {
     const r = netWorth() / S.managed.start - 1, pl = S.managed.amt * r, a = NPC_BY.aunt1;
