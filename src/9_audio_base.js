@@ -10,7 +10,7 @@ function initAudio() {
     // 音效用的雜訊素材（不會自己播放）
     const len = ctx.sampleRate * 3, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
     let b0 = 0; for (let i = 0; i < len; i++) { b0 = 0.985 * b0 + 0.015 * (Math.random() * 2 - 1); d[i] = b0 * 6; }
-    AU.noise = buf; applySound(); musicLoop();
+    AU.noise = buf; applySound(); musicLoop(); bgmInit();
     // 切到別的分頁或縮小視窗時整個靜音
     document.addEventListener('visibilitychange', () => { if (!AU.ctx) return; document.hidden ? AU.ctx.suspend() : AU.ctx.resume(); });
   } catch (e) { AU.ctx = null; }
@@ -21,6 +21,7 @@ function loadSoundPref() { let p = null; try { p = JSON.parse(localStorage.getIt
 function saveSoundPref() { try { localStorage.setItem(SOUND_KEY, JSON.stringify({ music: S.music, sfx: S.sfx })); } catch (e) { } }
 function applySound() {
   if (AU.ctx) { AU.mus.gain.value = S.music ? 0.5 : 0; AU.sfx.gain.value = S.sfx ? 1 : 0; }
+  if (AU.bgm) bgmTick();   // 在點擊當下就開始播，手機才不會擋
   $('bSound').classList.toggle('off', !S.music && !S.sfx); $('bSound').title = `聲音：音樂${S.music ? '開' : '關'}・音效${S.sfx ? '開' : '關'}`;
 }
 // 右上角的喇叭：按一下全部靜音，再按一下全部打開；說明頁可以分開設定音樂和音效

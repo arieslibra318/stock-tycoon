@@ -17,13 +17,45 @@ function musicLoop() {
     if (!AU.ctx) return;
     while (next < c.currentTime + 0.3) {
       const bar = (i >> 4) % 4, s = i % 16, n = MEL[bar][s], open = PHASE() === 'open';
-      const quiet = GAME.paused || !S.music || AU.hold;   // 暫停、關音樂、播結局時不排音符
+      const quiet = GAME.paused || !S.music || AU.hold || !AU.bgmFail;   // 平常放 MP3，載不到音檔時才用這段合成旋律
       if (n && !quiet) tone(mtof(n), next, step * 1.7, open ? 'square' : 'triangle', open ? 0.022 : 0.045, AU.mus);
       if (s % 4 === 0 && !quiet) tone(mtof(BASS[bar] - 12), next, step * 3, 'sine', 0.08, AU.mus);
       if (open && s % 2 === 1 && !quiet) tone(mtof(BASS[bar] + 12), next, step * 0.6, 'sine', 0.02, AU.mus);
       next += step; i++;
     }
   }, 100);
+}
+/* ---------- 背景音樂：兩首原創曲，盤中一首、其他時段一首，換時段時交叉淡入淡出 ---------- */
+const BGM_FILES = { street: 'music/Ready_for_the_First_Move.mp3', open: 'music/Calculated_Ascent.mp3' };
+const BGM_VOL = 0.55, BGM_FADE = 1.5;
+function bgmInit() {
+  const c = AU.ctx; AU.bgm = {};
+  // 用 file:// 直接打開時瀏覽器不讓 Web Audio 讀音檔，改成直接調 <audio> 的音量
+  AU.bgmDirect = location.protocol === 'file:';
+  for (const [k, src] of Object.entries(BGM_FILES)) {
+    const el = new Audio(); el.loop = true; el.preload = 'none'; el.src = src;   // 打開音樂才下載
+    el.addEventListener('error', () => { AU.bgmFail = true; });
+    const b = AU.bgm[k] = { el, vol: 0, tgt: 0, offAt: 0 };
+    if (AU.bgmDirect) el.volume = 0;
+    else { b.g = c.createGain(); b.g.gain.value = 0; b.g.connect(AU.mus); try { c.createMediaElementSource(el).connect(b.g); } catch (e) { AU.bgmFail = true; } }
+  }
+  setInterval(bgmTick, 200);
+  // iPhone 只允許在點擊時開始播放：任何一次點擊都順便補播
+  for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, bgmTick, true);
+}
+function bgmTick() {
+  if (!AU.bgm) return;
+  const now = performance.now();
+  const want = AU.bgmFail || GAME.paused || !S.music || AU.hold || document.hidden ? null : GAME.started && PHASE() === 'open' ? 'open' : 'street';
+  for (const [k, b] of Object.entries(AU.bgm)) {
+    const tgt = k === want ? BGM_VOL : 0;
+    if (tgt !== b.tgt) { b.tgt = tgt; if (!tgt) b.offAt = now; if (!AU.bgmDirect) b.g.gain.setTargetAtTime(tgt, AU.ctx.currentTime, BGM_FADE / 3); }
+    if (AU.bgmDirect) { b.vol += clamp(tgt - b.vol, -0.04, 0.04); b.el.volume = clamp(b.vol * 0.9, 0, 1); }
+    if (tgt && b.el.paused) { if (b.el.preload === 'none') b.el.preload = 'auto'; const p = b.el.play(); if (p) p.catch(() => { }); }
+    if (!tgt && !b.el.paused && now - b.offAt > BGM_FADE * 1000 + 500) b.el.pause();   // 淡出後暫停，下次從原處接著放
+  }
+  // 一首開始播之後，順便預先載入另一首，換時段時不用等
+  if (want && !AU.bgm[want].el.paused) for (const b of Object.values(AU.bgm)) if (b.el.preload === 'none') { b.el.preload = 'auto'; b.el.load(); }
 }
 function updatePrompt() {
   const p = $('prompt');

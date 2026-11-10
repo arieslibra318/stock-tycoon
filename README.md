@@ -79,9 +79,9 @@
 
 ## 技術
 
-- 單一 `index.html`，直接打開就能玩，不需要伺服器。
+- `index.html` 直接打開就能玩，不需要伺服器；背景音樂要和 `music/` 資料夾放在一起。
 - `src/` 是拆開的原始碼，執行 `sh build.sh` 會把它們串成 `index.html`。
 - 3D 使用 [three.js r128](https://threejs.org/)（MIT 授權，從 cdnjs 載入）。
 - 字型：Google Fonts 的 Huninn（jf open 粉圓）、Noto Serif TC 和 VT323，都是 SIL Open Font License。
 - 真實天氣資料來自 [Open-Meteo](https://open-meteo.com/)（CC BY 4.0）。
-- 音樂與音效都是瀏覽器即時合成，沒有外部音檔。
+- 背景音樂是兩首原創曲，放在 `music/`：盤中（09:00–13:30）播〈Calculated Ascent〉，其他時段和標題畫面播〈Ready for the First Move〉，換時段時交叉淡入淡出，暫停或關掉音樂時會從原處停住。音樂預設關閉，打開後才會下載音檔（各約 4 MB）。結局配樂和音效是瀏覽器即時合成；音檔載不到時會改放合成的旋律。
