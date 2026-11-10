@@ -388,7 +388,7 @@ function renderNotes() {
 let helpTab = 'guide';
 function openHelp() {
   if (GAME.busy) return; GAME.busy = true; $('help').classList.remove('hide');
-  let h = `<div class="tabs" style="margin-bottom:10px"><button class="tab ${helpTab === 'guide' ? 'on' : ''}" data-h="guide">新手指南</button><button class="tab ${helpTab === 'set' ? 'on' : ''}" data-h="set">設定</button></div>`;
+  let h = `<div class="tabs" style="margin-bottom:10px"><button class="tab ${helpTab === 'guide' ? 'on' : ''}" data-h="guide">新手指南</button><button class="tab ${helpTab === 'set' ? 'on' : ''}" data-h="set">設定</button><button class="tab ${helpTab === 'about' ? 'on' : ''}" data-h="about">製作與授權</button></div>`;
   if (helpTab === 'guide') h += `<div class="guide">
     <p style="margin-top:0">1980 年代末的台北，股市像坐雲霄飛車。你是剛到證券行跑單的<b>阿德</b>，帶著 ${wan(START_CASH)}，目標是成為<b>證券大亨</b>（總資產 ${wan(RANKS[RANKS.length - 1].min)}）。左上角的「任務提示」會告訴你下一步做什麼，點一下就會標出目的地。</p>
     <h4>1. 一天怎麼過</h4>
@@ -403,7 +403,7 @@ function openHelp() {
     <h4>5. 股票類型</h4>
     <ul><li><b>成長股</b>（電子、半導體、伺服器、生技）：波動大，景氣好、題材熱時漲得兇，升息時跌得重。</li><li><b>價值股</b>（金融、電信、食品、紡織資產股）：波動小，比較抗跌。</li><li><b>景氣循環股</b>（塑化、鋼鐵、航運、營建）：跟著景氣、油價和原物料起伏。</li></ul>
     <h4>6. 天氣與情緒</h4>
-    <ul><li>晴天大家心情好，股價稍微偏多；下雨天證券行人少，成交量變小、股價稍微偏弱；遇到颱風會放颱風假、休市一天。影響都很小，大方向還是看消息和事件。</li><li>在設定裡可以改成「台北即時天氣」（要在 GitHub Pages 等一般網頁上才抓得到，Claude 的預覽頁面會擋外部連線）。</li></ul>
+    <ul><li>晴天大家心情好，股價稍微偏多；下雨天證券行人少，成交量變小、股價稍微偏弱；遇到颱風會放颱風假、休市一天。影響都很小，大方向還是看消息和事件。</li><li>每天的天氣由遊戲隨機決定，不會連線抓真實天氣。</li></ul>
     <h4>7. 事件卡與歷史小百科</h4>
     <p>每個月會從真實歷史改編的事件裡抽 5 張，隨機排列，包括 1987 黑色星期一、1979–1981 聯準會暴力升息、1995–1996 台海飛彈危機、1997 亞洲金融風暴、2023–2024 AI 浪潮等。爆發時會出現「號外」，消息本的「歷史小百科」記錄它改編自哪一段歷史。地下投資公司每個月一定會倒，別把錢放太久。</p>
     <h4>8. 身分晉升</h4>
@@ -412,12 +412,11 @@ function openHelp() {
     <h4>9. 操作</h4>
     <p>WASD／方向鍵移動、Shift 快跑、E 說話、K 看盤下單、N 消息本、P 暫停、T 快轉到下一個時段、M 城市地圖、H 指南、Q 暫存、O 存檔與讀檔、拖曳轉視角。遊戲不會自動存檔，記得隨手按 Q 留暫存點。手機用左下搖桿、右下「互動」「看盤」。</p>
     <p class="note">這是原型。公司、人物與行情都是虛構的；重大事件改編自 1980 年代末到 1990 年的台灣與國際股市歷史，經過隨機排列，僅供體驗與學習，不構成任何投資建議。</p></div>`;
+  else if (helpTab === 'about') h += CREDITS_HTML;
   else h += `
     <p>盤中時間（09:00–13:30）：${SPEEDS.map(([v, t]) => `<button class="btn ${(S.spOpen || 1) === v ? 'pri' : ''}" data-spo="${v}">${t}</button>`).join(' ')}</p>
     <p>逛街時間（盤前、盤後、晚上）：${SPEEDS.map(([v, t]) => `<button class="btn ${(S.spWalk || 1) === v ? 'pri' : ''}" data-spw="${v}">${t}</button>`).join(' ')}</p>
     <p class="note">照現在的設定，一天大約 ${dayMinutes()} 分鐘（說話、看盤、看報紙時時間會暫停）。逛完了可以按「快轉」，或回家睡覺直接跳到隔天。</p>
-    <p>天氣來源：<button class="btn" id="hpWx">${S.realWx ? '台北即時天氣（開）' : '遊戲模擬天氣'}</button></p>
-    <p class="note" style="margin-top:-4px">即時天氣使用 Open-Meteo 的台北天氣，只會在盤前套用到「今天」。抓不到時自動改用模擬天氣。</p>
     <p><button class="btn" id="hpMus">音樂：${S.music ? '開' : '關'}</button> <button class="btn" id="hpSfx">音效：${S.sfx ? '開' : '關'}</button> <button class="btn" id="hpPow">省電模式：${POWER ? '開' : '關'}</button> <button class="btn" id="hpVib">震動：${VIB ? '開' : '關'}</button> <button class="btn" id="hpReset">重新開始新的一年</button></p>
     <p class="note"><b>手機小技巧</b>：點人物頭上的名字，阿德會自己走過去說話。想像 App 一樣全螢幕玩，可以把遊戲加入主畫面——iPhone 用 Safari 的「分享 → 加入主畫面」，Android 用 Chrome 右上角「⋮ → 加到主畫面」或「安裝應用程式」。</p>
     <p class="note" style="margin-top:-4px">重新開始不會刪掉暫存點和存檔格。</p>`;
@@ -430,21 +429,27 @@ function openHelp() {
   if (q('hpSfx')) q('hpSfx').onclick = () => { setSound('sfx'); openHelp2(); };
   $('hpBody').querySelectorAll('[data-spo]').forEach(b => b.onclick = () => { S.spOpen = +b.dataset.spo; openHelp2(); });
   $('hpBody').querySelectorAll('[data-spw]').forEach(b => b.onclick = () => { S.spWalk = +b.dataset.spw; openHelp2(); });
-  if (q('hpWx')) q('hpWx').onclick = async () => { S.realWx = !S.realWx; saveGame(); openHelp2(); if (S.realWx) await useRealWeather(true); };
   if (q('hpReset')) q('hpReset').onclick = function () { if (this.dataset.c) { closeModals(); startGame(false); } else { this.dataset.c = 1; this.textContent = '再按一次確定'; this.style.background = 'var(--accent)'; this.style.color = '#fff'; } };
 }
 function openHelp2() { GAME.busy = false; openHelp(); }
+/* ---------- 製作與授權 ---------- */
+const CREDITS_HTML = `<div class="guide">
+  <h4>製作分工</h4>
+  <ul><li><b>作者</b>：遊戲概念與 1980 年代台北股市的世界觀、玩法與規則、目標金額與難度、角色與事件的取捨、每一輪試玩後的修改方向，以及背景音樂。</li>
+  <li><b>AI 協作</b>：程式實作、用程式產生的 3D 城市與人物、行情模擬的數值校準和文字草稿，由 Claude（Anthropic 的 AI）依作者的指示完成。所有內容都經過作者試玩與審閱。</li></ul>
+  <h4>音樂與音效</h4>
+  <ul><li>背景音樂〈Calculated Ascent〉（盤中）、〈Ready for the First Move〉（其他時段）：作者提供的原創音樂。</li><li>結局配樂與音效：瀏覽器即時合成，沒有使用外部音檔。</li></ul>
+  <h4>第三方元件</h4>
+  <ul><li>3D 引擎 <b>three.js r128</b>：MIT License，© 2010–2021 three.js authors。</li>
+  <li>字型 <b>Huninn（jf open 粉圓）</b>、<b>Noto Serif TC</b>、<b>VT323</b>：SIL Open Font License 1.1，由 Google Fonts 提供。App 圖示也是用 Noto Serif TC 繪製。</li></ul>
+  <h4>資料與內容</h4>
+  <ul><li>公司、人物、對話都是虛構的；天氣每天由遊戲隨機產生。</li><li>市場事件改編自公開的歷史，經過重新排列，時間、順序和漲跌幅都不等於真實歷史。</li><li>遊戲不會收集任何個人資料，存檔只存在這台裝置的瀏覽器裡。</li></ul>
+  <p class="note">這是一款遊戲，不構成任何投資建議。</p></div>`;
 
 /* ---------- 天氣 ---------- */
+// 舊版存檔可能記了當時抓到的真實天氣，讀檔時照樣套用，行情才會和存檔時一樣
 function applyWeatherOverrides() { for (const d in S.wOver || {}) { if (+d <= DAYS) { SEASON.weather[d] = S.wOver[d].w; SEASON.temp[d] = S.wOver[d].t; } } rebuildSeason(); }
-async function useRealWeather(manual) {
-  if (PHASE() !== 'pre') { if (manual) toast('即時天氣會從明天盤前開始套用'); return; }
-  const r = await fetchRealWeather();
-  if (!r) { if (manual) toast('抓不到即時天氣（Claude 預覽頁面會擋外部連線），先用模擬天氣'); return; }
-  S.wOver[S.day] = r; applyWeatherOverrides(); MK.prices = null; drawBoard(); toast(`台北即時天氣：${WEATHER[r.w].name} ${r.t}°C`); saveGame();
-}
 async function dayWeather() {
-  if (S.realWx) await useRealWeather(false);
   const w = SEASON.weather[Math.min(S.day, DAYS)], tip = { rain: '下雨天證券行人少，成交量會變小', storm: '豪雨特報，市場氣氛偏悲觀', typhoon: '颱風來了，今天會放颱風假休市', sun: '晴天，大家心情不錯', cloud: '陰天' }[w];
   toast(`今天天氣：${WEATHER[w].name} ${SEASON.temp[Math.min(S.day, DAYS)]}°C・${tip}`);
 }

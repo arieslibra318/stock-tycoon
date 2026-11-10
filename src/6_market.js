@@ -15,7 +15,7 @@ const STOCKS = [
   { id: 'gar', name: '新莊成衣', sector: '紡織', st: '循環', p0: 15.6, beta: 1.0, vol: 0.025, cap: 1, weak: true },
   { id: 'pla', name: '淡水塑化', sector: '塑化', st: '循環', p0: 46, beta: 1.0, vol: 0.016, cap: 7 },
   { id: 'chm', name: '港都化工', sector: '塑化', st: '循環', p0: 31, beta: 1.1, vol: 0.02, cap: 3 },
-  { id: 'stl', name: '南港鋼鐵', sector: '鋼鐵', st: '循環', p0: 25, beta: 1.1, vol: 0.022, cap: 4 },
+  { id: 'stl', name: '八里鋼鐵', sector: '鋼鐵', st: '循環', p0: 25, beta: 1.1, vol: 0.022, cap: 4 },
   { id: 'cem', name: '鶯歌水泥', sector: '水泥', st: '循環', p0: 34, beta: 1.0, vol: 0.018, cap: 3 },
   { id: 'shp', name: '基港航運', sector: '航運', st: '循環', p0: 22.3, beta: 1.2, vol: 0.027, cap: 3 },
   { id: 'sea', name: '高港海運', sector: '航運', st: '循環', p0: 18.4, beta: 1.3, vol: 0.03, cap: 2, weak: true },
@@ -29,7 +29,7 @@ const STOCKS = [
   { id: 'pkg', name: '竹科封測', sector: '半導體', st: '成長', p0: 44, beta: 1.35, vol: 0.03, cap: 3 },
   { id: 'srv', name: '雲頂電腦', sector: '伺服器', st: '成長', p0: 42, beta: 1.4, vol: 0.032, cap: 3 },
   { id: 'net', name: '內湖網通', sector: '伺服器', st: '成長', p0: 31, beta: 1.4, vol: 0.034, cap: 2 },
-  { id: 'bio', name: '南港生技', sector: '生技', st: '成長', p0: 66, beta: 1.0, vol: 0.035, cap: 2 },
+  { id: 'bio', name: '士林生技', sector: '生技', st: '成長', p0: 66, beta: 1.0, vol: 0.035, cap: 2 },
   { id: 'med', name: '北投藥廠', sector: '生技', st: '價值', p0: 39, beta: 0.8, vol: 0.02, cap: 2, weak: true },
   { id: 'ipo1', name: '光華電腦', sector: '伺服器', st: '成長', p0: 48, beta: 1.5, vol: 0.038, cap: 2, ipo: true },
   { id: 'ipo2', name: '竹北光電', sector: '電子', st: '成長', p0: 36, beta: 1.4, vol: 0.036, cap: 2, ipo: true },
@@ -226,20 +226,6 @@ function rebuildSeason() {
 }
 function limitOf(d) { return (SEASON && SEASON.limit && SEASON.limit[d]) || { up: LIMIT, dn: LIMIT, ns: false }; }
 function limitsL(p, L) { let up = roundTick(p * (1 + L.up)), dn = roundTick(p * (1 - L.dn)); if (up > p * (1 + L.up) + 1e-9) up -= tick(p); if (dn < p * (1 - L.dn) - 1e-9) dn += tick(p); return [up, dn]; }
-// 即時天氣（Open-Meteo，台北）。Claude 的預覽頁面會擋外部連線，失敗時就沿用模擬天氣。
-function wmoToWeather(code, wind) {
-  if (wind >= 62) return 'typhoon';
-  if (code >= 95 || (code >= 65 && code <= 67) || code === 82) return 'storm';
-  if ((code >= 51 && code <= 64) || (code >= 80 && code <= 81)) return 'rain';
-  if (code >= 2) return 'cloud';
-  return 'sun';
-}
-async function fetchRealWeather() {
-  const url = 'https://api.open-meteo.com/v1/forecast?latitude=25.05&longitude=121.52&current=temperature_2m,weather_code,wind_speed_10m&timezone=Asia%2FTaipei';
-  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 6000);
-  try { const r = await fetch(url, { signal: ctl.signal }); const j = await r.json(); const c = j.current; return { w: wmoToWeather(c.weather_code, c.wind_speed_10m), t: Math.round(c.temperature_2m) }; }
-  catch (e) { return null; } finally { clearTimeout(tm); }
-}
 function limits(p, d) { return limitsL(p, limitOf(d === undefined ? (typeof S !== 'undefined' && S ? S.day : 1) : d)); }
 // 盤中走勢：從開盤走到收盤的布朗橋，漲跌停時常常一開盤就鎖住
 function genIntraday(d) {
