@@ -6,18 +6,21 @@ const yearOf = s => (S && S.total ? 1984 : 1985) + s;
 /* ---------- 開新局：選遊戲長度 ---------- */
 // 每個月的種子由這一局的 base 推出來，換月時行情重新洗牌
 const seasonSeed = (base, s) => ((Math.imul(base ^ 0x5bd1e995, 2654435761) >>> 0) + s * 104729) % 2000000000;
-const NEWOPT = { total: 6 };
+const NEWOPT = { total: 6, diff: 'normal' };
 function openNewGame() { $('titleBtns').classList.add('hide'); $('newBox').classList.remove('hide'); renderNewGame(); }
 function renderNewGame() {
   const T = NEWOPT.total;
   $('newBox').innerHTML = `<h3>開始新的一年</h3>
     <div class="nbRow"><span>遊戲長度</span><button class="tab ${T === 6 ? 'on' : ''}" data-total="6">6 個月（1985–1990）</button><button class="tab ${T === 12 ? 'on' : ''}" data-total="12">12 個月（1985–1996）</button></div>
-    <p class="nbNote">每個月 20 個交易日，代表那一年最熱鬧的一個月：6 個月從 1985 年走到 1990 年泡沫破裂；12 個月會再經歷崩盤後的起伏，一直走到 1996 年。遊戲後半段行情偏空，大約六到七成的日子在跌。</p>
+    <p class="nbNote">每個月 20 個交易日，代表那一年最熱鬧的一個月：6 個月從 1985 年走到 1990 年泡沫破裂；12 個月會再經歷崩盤後的起伏，一直走到 1996 年。</p>
+    <div class="nbRow"><span>難度</span>${Object.entries(DIFFS).map(([k, v]) => `<button class="tab ${NEWOPT.diff === k ? 'on' : ''}" data-diff="${k}">${v.name}</button>`).join('')}</div>
+    <p class="nbNote">${DIFFS[NEWOPT.diff].note}</p>${recordsLine()}
     <div class="nbRow" style="justify-content:flex-end;margin-bottom:0"><button class="btn" id="nbBack">返回</button><button class="btn pri" id="nbGo">開始</button></div>`;
   const q = s => $('newBox').querySelector(s);
   $('newBox').querySelectorAll('[data-total]').forEach(b => b.onclick = () => { NEWOPT.total = +b.dataset.total; renderNewGame(); });
+  $('newBox').querySelectorAll('[data-diff]').forEach(b => b.onclick = () => { NEWOPT.diff = b.dataset.diff; renderNewGame(); });
   q('#nbBack').onclick = () => { $('newBox').classList.add('hide'); $('titleBtns').classList.remove('hide'); };
-  q('#nbGo').onclick = () => startGame(false, null, { len: 20, total: NEWOPT.total, base: Math.random() * 2000000000 | 0 });
+  q('#nbGo').onclick = () => startGame(false, null, { len: 20, total: NEWOPT.total, diff: NEWOPT.diff, base: Math.random() * 2000000000 | 0 });
 }
 
 /* ---------- 下單張數 ---------- */
@@ -99,7 +102,7 @@ function updateStreet(dt) {
 /* ---------- 交情：常聊天、請客會變好，太久沒去會變淡（hearts、assignTypes 在 8d） ---------- */
 const bondLv = id => hearts(id) >= 4 ? 2 : hearts(id) >= 2 ? 1 : 0;
 // 準的人交情越好越準（七成到九成）；丟銅板的人一直是五成；反指標大約兩成會對
-function relOf(n) { assignTypes(); const t = (S.npcType || {})[n.id], b = (S.bond || {})[n.id] || 0; return t === 'sharp' ? Math.min(0.9, 0.7 + 0.02 * b) : t === 'coin' ? 0.5 : t === 'contra' ? 0.2 : n.rel; }
+function relOf(n) { assignTypes(); const t = (S.npcType || {})[n.id], b = (S.bond || {})[n.id] || 0; return t === 'sharp' ? (S.diff === 'hard' ? Math.min(0.82, 0.65 + 0.02 * b) : Math.min(0.9, 0.7 + 0.02 * b)) : t === 'coin' ? 0.5 : t === 'contra' ? 0.2 : n.rel; }
 function bondUp(n, k = 1) {
   if (!n.rel) return; S.bond = S.bond || {}; S.bondSeen = S.bondSeen || {}; const before = hearts(n.id);
   S.bond[n.id] = Math.min(10, (S.bond[n.id] || 0) + k); S.bondSeen[n.id] = S.season * 100 + S.day;

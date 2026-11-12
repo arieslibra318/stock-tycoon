@@ -40,7 +40,7 @@ const STOCKS = [
 ];
 const ST_NAME = { 成長: '成長股', 價值: '價值股', 循環: '景氣循環股' };
 const SBY = Object.fromEntries(STOCKS.map(s => [s.id, s]));
-let DAYS = 40; const LIMIT = 0.07, LOT = 1000, FEE = 0.001425, TAX = 0.003, TICKS = 54;   // 09:00–13:30，每 5 分鐘一跳
+let DAYS = 40, FEE = 0.001425; const FEE0 = 0.001425, LIMIT = 0.07, LOT = 1000, TAX = 0.003, TICKS = 54;   // 09:00–13:30，每 5 分鐘一跳
 // 短篇每個月只有一半天數，門檻跟著降低
 const RANKS_L = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 3e6 }, { name: '中實戶', min: 6e6 }, { name: '大戶', min: 1.5e7 }, { name: '證券大亨', min: 5e7 }];
 const RANKS_S = [{ name: '跑單小弟', min: 0 }, { name: '散戶', min: 2.5e6 }, { name: '中實戶', min: 5e6 }, { name: '大戶', min: 1e7 }, { name: '證券大亨', min: 3e7 }];
@@ -51,7 +51,8 @@ const YEAR_OPEN = { 1985: 838, 1986: 835, 1987: 1039, 1988: 2340, 1989: 5119, 19
 let IDX_BASE = 4500;
 const VOL_K = 1.5;   // 80 年代末個股波動大，漲停跌停是家常便飯（只放大個股，不改大盤）
 // 融資券（依台股常見規定簡化）：融資成數 6 成、融券保證金 9 成、維持率 130%
-const MARGIN_LOAN = 0.6, SHORT_MARGIN = 0.9, MAINT = 1.3, LOAN_DAY = 0.065 / 250, SHORT_FEE = 0.0008, PHONE_PRICE = 60000;
+let SHORT_MARGIN = 0.9, LOAN_DAY = 0.065 / 250;   // 升上中實戶後會變優惠（applyPerks）
+const MARGIN_LOAN = 0.6, MAINT = 1.3, SHORT_FEE = 0.0008, PHONE_PRICE = 60000;
 
 /* 事件卡：前兆（消息）→ 爆發 → 餘波。ref 是改編的真實歷史。 */
 const EVENTS = [
@@ -147,11 +148,13 @@ function genSeason(seed) {
   const year = (SS && SS.total ? 1984 : 1985) + season; IDX_BASE = YEAR_OPEN[year] || 4500;
   // 1990 年泡沫破裂；遊戲後半段（月數過半之後）偏空，大約六到七成的日子下跌
   const bubble = year === 1990, late = !!(SS && SS.total && season > SS.total / 2), kb = 40 / DAYS;
+  // 難度：輕鬆把後半段的空頭調緩（下跌日約五成），困難則更兇
+  const diff = (SS && SS.diff) || 'normal', LR = diff === 'easy' ? [0.3, 0.45] : diff === 'hard' ? [0.08, 0.15] : [0.12, 0.2];
   const pool = EVENTS.filter(e => !e.always && !e.policy).map(e => e.id);
   for (let i = pool.length - 1; i > 0; i--) { const j = r() * (i + 1) | 0;[pool[i], pool[j]] = [pool[j], pool[i]]; }
   // 每個月兩個利多、兩個利空，順序隨機
   const POS = ['finbubble', 'chips', 'land', 'easing', 'ai', 'portjam'];
-  const nPos = late ? 1 : 2, pos = pool.filter(id => POS.includes(id)).slice(0, nPos), neg = pool.filter(id => !POS.includes(id)).slice(0, 4 - nPos);
+  const nPos = late && diff !== 'easy' ? 1 : 2, pos = pool.filter(id => POS.includes(id)).slice(0, nPos), neg = pool.filter(id => !POS.includes(id)).slice(0, 4 - nPos);
   const deck = pos.concat(neg); for (let i = 3; i > 0; i--) { const j = r() * (i + 1) | 0;[deck[i], deck[j]] = [deck[j], deck[i]]; }
   deck.splice(1 + (r() * 3 | 0), 0, 'ponzi');
   const events = []; let day = 5 + (r() * 3 | 0);
@@ -172,9 +175,9 @@ function genSeason(seed) {
   for (let k = 0; k < 3; k++) { for (let t = 0; t < 30; t++) { const d = 4 + (r() * (DAYS - 10) | 0); if (events.some(e => Math.abs(e.day - d) < 4) || pumps.some(p => Math.abs(p.day - d) < 6)) continue; pumps.push({ day: d, stock: STOCKS[fullSeason[r() * fullSeason.length | 0]].id }); break; } }
   // 先算「不含天氣」的原始報酬，再套上天氣（天氣之後可能被即時天氣覆蓋）
   const raw = [STOCKS.map(() => 0)], thin = [false], weather = ['sun'], temp = [28], us = [0], nas = [0], jp = [0], kr = [0], usHead = [''];
-  let regime = late ? 2 : 1; const MU = late ? [0.008, -0.001, -0.0095] : [0.01, 0.002, -0.005];   // 多頭、盤整、空頭的每日平均漲跌（1987–89 年台股平均約每兩個月 +12%）
+  let regime = late ? (diff === 'easy' ? 1 : 2) : 1; const MU = late ? (diff === 'easy' ? [0.009, 0.0005, -0.0075] : diff === 'hard' ? [0.007, -0.002, -0.0105] : [0.008, -0.001, -0.0095]) : [0.01, 0.002, -0.005];   // 多頭、盤整、空頭的每日平均漲跌（1987–89 年台股平均約每兩個月 +12%）
   for (let d = 1; d <= DAYS; d++) {
-    if (r() > 0.88) regime = late ? (r() < 0.12 ? 0 : r() < 0.2 ? 1 : 2) : (r() < 0.45 ? 0 : r() < 0.6 ? 1 : 2);
+    if (r() > 0.88) regime = late ? (r() < LR[0] ? 0 : r() < LR[1] ? 1 : 2) : (r() < 0.45 ? 0 : r() < 0.6 ? 1 : 2);
     let idx = 0, sec = {}, sty = {}, vol = 1, th = false, storm = false, evUs = 0, head = null;
     // 1990 年：前段衝向萬點，央行緊縮後泡沫破裂
     if (bubble) { const f = d / DAYS; idx += (f <= 0.42 ? 0.011 : f <= 0.52 ? 0 : -0.028) * kb; if (f > 0.42 && f <= 0.62) vol *= 1.3; }
@@ -256,7 +259,7 @@ function idxOf(prices, d = curDay()) {
 
 /* ---------- 消息 ---------- */
 const TIP_UP = ['{n}有人在偷偷吃貨，明天應該會漲。', '我有朋友在{n}上班，說接到大訂單，明天會漲啦！', '{n}的線型很漂亮，明天要攻上去了。', '聽說有人要拉{n}，明天買就對了。'];
-const TIP_DN = ['{n}的大股東在倒貨，明天小心。', '{n}好像出了狀況，明天恐怕會跌。', '我看{n}漲不動了，明天要回檔。', '聽說{n}的訂單被砍，明天會跌喔。'];
+const TIP_DN = ['{n}的大股東在倒貨，明天小心，敢的話可以融券放空。', '{n}好像出了狀況，明天恐怕會跌，手上有的先賣。', '我看{n}漲不動了，明天要回檔，這檔可以空。', '聽說{n}的訂單被砍，明天會跌喔，可以放空賺一段。'];
 function pickR(r, a) { return a[r() * a.length | 0]; }
 // 明牌多半講的是「有動靜的股票」：隔天漲跌越大，越容易被人拿出來講
 function pickTip(r, pool, d) {

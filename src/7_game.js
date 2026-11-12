@@ -52,6 +52,7 @@ const LOOKS = {
   guru: { skin: '#e2b490', hair: 0x111111, hairStyle: 'perm', shirt: '#d7263d', shirt2: '#f2c14e', pattern: 'aloha', pants: 0xf4efe4, longPants: true, shades: true, stache: '#111111', scale: 1.05, shoe: 0xffffff },
   prof: { skin: '#e9c3a0', hair: 0xdddddd, hairStyle: 'bald', shirt: '#8a6a4a', longSleeve: true, vest: 0x6b4a3a, pants: 0x4a4a4a, longPants: true, glasses: 0x6b4a3a, beard: '#e8e8e8', wrinkle: true, shoe: 0x5a3b2a },
   driver: { skin: '#d9a47e', hair: 0x222222, hairStyle: 'short', hat: 'cap', hatCol: 0x2b2622, shirt: '#ffffff', longSleeve: true, pants: 0x2b2622, longPants: true, glasses: 0x111111, shoe: 0x111111 },
+  rival: { skin: '#f0c9a8', hair: 0x2b1d18, hairStyle: 'spiky', shirt: '#ffffff', necktie: 0x2b7f86, pants: 0x3a3a4a, longPants: true, glasses: 0x2b2622, shoe: 0x222222 },
   chess: { skin: '#e2b490', hair: 0xdddddd, hairStyle: 'bald', shirt: '#ffffff', pants: 0x5a6a5a, longPants: true, beard: '#eeeeee', wrinkle: true, happyEyes: true, brow: '#dddddd', shoe: 0x333333 },
 };
 // role：消息來源類型；rel：可信度（玩家看不到，只能從戰績推敲）
@@ -84,6 +85,7 @@ const NPCS = [
   { id: 'guru', name: '股市明燈', look: 'guru', road: 'M', s: -16.6, side: -1, off: 4.4, role: 'guru', rel: 0.3, appear: ph => ph !== 'night' && irregular('guru', 0.35), appearP: 0.35, appearNote: '投顧老師「股市明燈」在城中公園報明牌' },
   { id: 'prof', name: '林教授', look: 'prof', road: 'E', s: 30.6, side: 1, off: 2.6, role: 'prof', rel: 0.8, appear: ph => ph !== 'night' && irregular('prof', 0.3), appearP: 0.3, appearNote: '大學經濟系林教授在茶藝館喝茶' },
   { id: 'driver', name: '老蔡', look: 'driver', road: 'E', s: -14.2, side: 1, off: 2.2, role: 'driver', rel: 0.8, appear: ph => ph === 'night' && irregular('driver', 0.35) },
+  { id: 'rival', name: '同期的阿昌', look: 'rival', road: 'E', s: 14, side: -1, off: 2.6, role: 'rival', day: true },
   { id: 'chess', name: '下棋阿伯', look: 'chess', road: 'M', s: -13, side: -1, off: 5.6, role: 'oldhand', rel: 0.55, sit: true },
 ];
 // 行人：在比較空的街段來回走，跟他們聊天會聽到小道消息或彩蛋提示
@@ -236,7 +238,7 @@ function findNear() {
 function interact() { if (GAME.busy || !NEAR) return; if (NEAR.act) return NEAR.act(); if (NEAR.egg) return eggAct(NEAR.id); talkTo(NEAR); }
 async function talkTo(n) {
   GAME.busy = true; n.facing = true; sfx('blip');
-  try { if (!(await lifeHook(n))) await (TALK[n.role] || TALK.rumor)(n); }
+  try { if (!(await moreHook(n)) && !(await lifeHook(n))) await (TALK[n.role] || TALK.rumor)(n); }
   finally { DLG.hide(); n.facing = false; GAME.busy = false; saveGame(); refreshHUD(); }
 }
 function toast(html) { const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = html; $('toasts').appendChild(el); while ($('toasts').children.length > (innerWidth <= 640 || innerHeight <= 500 ? 2 : 3)) $('toasts').firstChild.remove(); setTimeout(() => el.remove(), 3300); }

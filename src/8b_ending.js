@@ -148,6 +148,7 @@ function playEnding(kind) {
     <div class="endStats"><h3 style="margin:0 0 8px">${E.tag}・${E.title}</h3>
       <div class="sum" style="margin-bottom:8px"><span>最終總資產 <b class="${cls(nw - START_CASH)}">${money(nw)}</b></span><span>本金的 <b>${(nw / START_CASH).toFixed(1)}</b> 倍</span><span>身分 <b>${RANKS[rankOf(nw)].name}</b></span><span>彩蛋 <b>${eggN}/${eggT}</b></span></div>
       <table class="q"><tr><th style="text-align:left">月份</th><th>你的資產</th><th>同期大盤</th></tr>${log.map(l => `<tr><td style="text-align:left">第 ${l.s} 個月</td><td class="${cls(l.me)}">${pct(l.me)}</td><td class="${cls(l.idx)}">${pct(l.idx)}</td></tr>`).join('')}</table>
+      ${endingExtraHTML(kind, nw)}
       <p class="note">${kind === 'win' || kind === 'tycoon' ? '恭喜！' : kind === 'normal' ? '守住本金就贏過很多人了。' : '下一次，試試少用融資、多聽準的人說話。'}結局只看第 ${FINAL_SEASON} 個月（${yearOf(FINAL_SEASON)} 年）結束時的總資產：${wan(winNet())} 以上是成功、低於本金是失敗，中間是普通；中途當上證券大亨或資產跌破 ${BROKE_NET / 1e4} 萬 會提早迎來結局。</p>
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="endAgain">重新開始新的人生</button><button class="btn pri" id="endGo">繼續自由遊玩</button></div></div>
     <button class="endSkip" id="endSkip">跳過 ▸</button>`;
